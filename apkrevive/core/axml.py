@@ -1,0 +1,347 @@
+"""
+axml.py - Binary AXML parser, serializer, and idempotent manifest surgeon.
+Guarantees AXML(N) == AXML(N+1).
+"""
+
+import struct
+from dataclasses import dataclass, field
+from typing import List, Optional, Tuple, Dict, Any
+
+
+CHUNK_XML = 0x0003
+CHUNK_STRING_POOL = 0x0001
+CHUNK_RESOURCE_MAP = 0x0180
+CHUNK_START_NS = 0x0100
+CHUNK_END_NS = 0x0101
+CHUNK_START_ELEMENT = 0x0102
+CHUNK_END_ELEMENT = 0x0103
+
+ANDROID_NS = "http://schemas.android.com/apk/res/android"
+
+KNOWN_RESOURCE_IDS = {
+    "name": 0x01010003,
+    "hasCode": 0x0101000C,
+    "value": 0x01010024,
+    "exported": 0x01010010,
+    "initOrder": 0x0101001A,
+    "authorities": 0x01010018,
+    "required": 0x0101028E,
+    "resizeableActivity": 0x010104E1,
+    "pageSizeCompat": 0x0101062B,
+    "minSdkVersion": 0x0101020C,
+    "targetSdkVersion": 0x01010270,
+    "versionCode": 0x0101021B,
+    "versionName": 0x0101021C,
+}
+
+
+@dataclass
+class AxmlAttribute:
+    ns: str
+    name: str
+    raw_value: Optional[str]
+    data_type: int
+    data: int
+
+    def get_value(self) -> Any:
+        if self.data_type == 0x03:
+            return self.raw_value
+        elif self.data_type == 0x12:
+            return bool(self.data != 0)
+        return self.data
+
+
+@dataclass
+class AxmlNode:
+    tag: str
+    ns: str = ""
+    attributes: List[AxmlAttribute] = field(default_factory=list)
+    children: List["AxmlNode"] = field(default_factory=list)
+
+    def find_child(self, tag: str, attr_name: Optional[str] = None, attr_val: Optional[str] = None) -> Optional["AxmlNode"]:
+        for child in self.children:
+            if child.tag == tag:
+                if attr_name is None:
+                    return child
+                for a in child.attributes:
+                    if a.name == attr_name and a.raw_value == attr_val:
+                        return child
+        return None
+
+    def get_attr(self, name: str) -> Optional[AxmlAttribute]:
+        for a in self.attributes:
+            if a.name == name:
+                return a
+        return None
+
+    def set_attr(self, name: str, value: Any, ns: str = ANDROID_NS):
+        existing = self.get_attr(name)
+        if isinstance(value, bool):
+            data_type = 0x12
+            data = 0xFFFFFFFF if value else 0
+            raw_val = "true" if value else "false"
+        elif isinstance(value, int):
+            data_type = 0x10
+            data = value
+            raw_val = str(value)
+        else:
+            data_type = 0x03
+            data = 0
+            raw_val = str(value)
+
+        if existing:
+            existing.data_type = data_type
+            existing.data = data
+            existing.raw_value = raw_val
+        else:
+            self.attributes.append(AxmlAttribute(ns=ns, name=name, raw_value=raw_val, data_type=data_type, data=data))
+
+
+class AxmlSurgeon:
+    @staticmethod
+    def parse(data: bytes) -> AxmlNode:
+        if len(data) < 8:
+            raise ValueError("Invalid AXML: buffer too small")
+        chunk_type, header_size, file_size = struct.unpack_from("<HHI", data, 0)
+        if chunk_type != CHUNK_XML:
+            raise ValueError(f"Invalid AXML magic chunk: 0x{chunk_type:04x}")
+
+        offset = 8
+        strings: List[str] = []
+        resource_map: List[int] = []
+        root_nodes: List[AxmlNode] = []
+        element_stack: List[AxmlNode] = []
+
+        while offset < len(data):
+            c_type, c_hsize, c_size = struct.unpack_from("<HHI", data, offset)
+            if c_size == 0:
+                break
+
+            if c_type == CHUNK_STRING_POOL:
+                str_count, style_count, flags, str_start, styles_start = struct.unpack_from("<IIIII", data, offset + 8)
+                is_utf8 = bool(flags & 0x0100)
+                offsets = [struct.unpack_from("<I", data, offset + 28 + (i * 4))[0] for i in range(str_count)]
+                pool_data = data[offset + str_start:]
+                strings = []
+                for o in offsets:
+                    if is_utf8:
+                        p = o
+                        while p < len(pool_data) and pool_data[p] & 0x80: p += 1
+                        p += 1
+                        blen = pool_data[p]
+                        if blen & 0x80:
+                            blen = ((blen & 0x7F) << 8) | pool_data[p + 1]
+                            p += 2
+                        else:
+                            p += 1
+                        s = pool_data[p:p + blen].decode("utf-8", errors="replace")
+                        strings.append(s)
+                    else:
+                        p = o
+                        u16_len = struct.unpack_from("<H", pool_data, p)[0]
+                        p += 2
+                        raw_bytes = pool_data[p:p + (u16_len * 2)]
+                        s = raw_bytes.decode("utf-16le", errors="replace")
+                        strings.append(s)
+
+            elif c_type == CHUNK_RESOURCE_MAP:
+                res_count = (c_size - 8) // 4
+                resource_map = [struct.unpack_from("<I", data, offset + 8 + (i * 4))[0] for i in range(res_count)]
+
+            elif c_type == CHUNK_START_ELEMENT:
+                line_no, comment, ns_idx, name_idx, attr_start, attr_size, attr_count, id_idx, cl_idx, st_idx = struct.unpack_from("<IIIIHHHHHH", data, offset + 8)
+                tag_ns = strings[ns_idx] if ns_idx < len(strings) else ""
+                tag_name = strings[name_idx] if name_idx < len(strings) else ""
+                node = AxmlNode(tag=tag_name, ns=tag_ns)
+
+                attr_offset = offset + c_hsize + attr_start
+                for _ in range(attr_count):
+                    a_ns, a_name, a_raw, a_sz, a_res0, a_type, a_data = struct.unpack_from("<IIIHBB I", data, attr_offset)
+                    ans_str = strings[a_ns] if a_ns < len(strings) else ""
+                    aname_str = strings[a_name] if a_name < len(strings) else ""
+                    araw_str = strings[a_raw] if a_raw < len(strings) else None
+                    node.attributes.append(AxmlAttribute(ns=ans_str, name=aname_str, raw_value=araw_str, data_type=a_type, data=a_data))
+                    attr_offset += attr_size
+
+                if element_stack:
+                    element_stack[-1].children.append(node)
+                else:
+                    root_nodes.append(node)
+                element_stack.append(node)
+
+            elif c_type == CHUNK_END_ELEMENT:
+                if element_stack:
+                    element_stack.pop()
+
+            offset += c_size
+
+        if not root_nodes:
+            raise ValueError("No root element found in AXML")
+        return root_nodes[0]
+
+    @staticmethod
+    def serialize(root: AxmlNode) -> bytes:
+        string_list: List[str] = []
+        string_map: Dict[str, int] = {}
+
+        def add_str(s: Optional[str]) -> int:
+            if s is None:
+                return 0xFFFFFFFF
+            if s not in string_map:
+                string_map[s] = len(string_list)
+                string_list.append(s)
+            return string_map[s]
+
+        add_str(ANDROID_NS)
+        add_str("android")
+
+        for k in KNOWN_RESOURCE_IDS:
+            add_str(k)
+
+        def walk_collect(node: AxmlNode):
+            if node.ns: add_str(node.ns)
+            add_str(node.tag)
+            for a in node.attributes:
+                if a.ns: add_str(a.ns)
+                add_str(a.name)
+                if a.raw_value is not None:
+                    add_str(a.raw_value)
+            for ch in node.children:
+                walk_collect(ch)
+
+        walk_collect(root)
+
+        encoded_strings = []
+        offsets = []
+        curr_offset = 0
+        for s in string_list:
+            enc = s.encode("utf-8")
+            b_len = len(enc)
+            c_len = len(s)
+            prefix = bytes([c_len & 0x7F, b_len & 0x7F]) if b_len < 128 and c_len < 128 else struct.pack(">HH", c_len | 0x8000, b_len | 0x8000)
+            entry = prefix + enc + b"\x00"
+            offsets.append(curr_offset)
+            encoded_strings.append(entry)
+            curr_offset += len(entry)
+
+        raw_strings_data = b"".join(encoded_strings)
+        pad = (4 - (len(raw_strings_data) % 4)) % 4
+        raw_strings_data += b"\x00" * pad
+
+        str_count = len(string_list)
+        offsets_data = struct.pack(f"<{str_count}I", *offsets)
+        str_start = 28 + len(offsets_data)
+        sp_size = str_start + len(raw_strings_data)
+        sp_chunk = struct.pack("<HHI IIIII", CHUNK_STRING_POOL, 28, sp_size, str_count, 0, 0x0100, str_start, 0) + offsets_data + raw_strings_data
+
+        res_ids = []
+        for s in string_list:
+            res_ids.append(KNOWN_RESOURCE_IDS.get(s, 0))
+        rm_size = 8 + (len(res_ids) * 4)
+        rm_chunk = struct.pack("<HHI", CHUNK_RESOURCE_MAP, 8, rm_size) + struct.pack(f"<{len(res_ids)}I", *res_ids)
+
+        ns_prefix_idx = string_map["android"]
+        ns_uri_idx = string_map[ANDROID_NS]
+        start_ns = struct.pack("<HHI II II", CHUNK_START_NS, 16, 24, 1, 0xFFFFFFFF, ns_prefix_idx, ns_uri_idx)
+        end_ns = struct.pack("<HHI II II", CHUNK_END_NS, 16, 24, 1, 0xFFFFFFFF, ns_prefix_idx, ns_uri_idx)
+
+        body_bytes = bytearray()
+
+        def serialize_node(node: AxmlNode, line: int):
+            nonlocal body_bytes
+            ns_idx = add_str(node.ns) if node.ns else 0xFFFFFFFF
+            name_idx = add_str(node.tag)
+            attr_count = len(node.attributes)
+            elem_size = 36 + (attr_count * 20)
+            elem_header = struct.pack("<HHI II II HHH HHH", CHUNK_START_ELEMENT, 16, elem_size, line, 0xFFFFFFFF, ns_idx, name_idx, 20, 20, attr_count, 0, 0, 0)
+            body_bytes.extend(elem_header)
+
+            for a in node.attributes:
+                a_ns = add_str(a.ns) if a.ns else 0xFFFFFFFF
+                a_name = add_str(a.name)
+                a_raw = add_str(a.raw_value) if a.raw_value is not None else 0xFFFFFFFF
+                data_val = a.data
+                if a.data_type == 0x03 and a.raw_value is not None:
+                    data_val = a_raw
+                attr_record = struct.pack("<III HBB I", a_ns, a_name, a_raw, 8, 0, a.data_type, data_val)
+                body_bytes.extend(attr_record)
+
+            for ch in node.children:
+                serialize_node(ch, line + 1)
+
+            end_elem = struct.pack("<HHI II II", CHUNK_END_ELEMENT, 16, 24, line, 0xFFFFFFFF, ns_idx, name_idx)
+            body_bytes.extend(end_elem)
+
+        serialize_node(root, 1)
+
+        total_size = 8 + len(sp_chunk) + len(rm_chunk) + len(start_ns) + len(body_bytes) + len(end_ns)
+        xml_header = struct.pack("<HHI", CHUNK_XML, 8, total_size)
+        return xml_header + sp_chunk + rm_chunk + start_ns + bytes(body_bytes) + end_ns
+
+    @classmethod
+    def patch_manifest(cls, data: bytes, transforms: List[str], options: Optional[Dict[str, Any]] = None) -> bytes:
+        options = options or {}
+        root = cls.parse(data)
+
+        app_node = root.find_child("application")
+        if not app_node:
+            return data
+
+        # 1. SET_HAS_CODE_TRUE
+        if "SET_HAS_CODE_TRUE" in transforms or options.get("force_has_code"):
+            app_node.set_attr("hasCode", True)
+
+        # 2. INJECT_USES_LIBRARY_APACHE_HTTP
+        if "INJECT_USES_LIBRARY_APACHE_HTTP" in transforms:
+            existing = app_node.find_child("uses-library", "name", "org.apache.http.legacy")
+            if not existing:
+                lib_node = AxmlNode(tag="uses-library")
+                lib_node.set_attr("name", "org.apache.http.legacy")
+                lib_node.set_attr("required", False)
+                app_node.children.append(lib_node)
+
+        # 3. EXPAND_ASPECT_RATIO
+        if "EXPAND_ASPECT_RATIO" in transforms:
+            app_node.set_attr("resizeableActivity", True)
+            existing_aspect = app_node.find_child("meta-data", "name", "android.max_aspect")
+            if not existing_aspect:
+                aspect_node = AxmlNode(tag="meta-data")
+                aspect_node.set_attr("name", "android.max_aspect")
+                aspect_node.set_attr("value", "2.5")
+                app_node.children.append(aspect_node)
+
+        # 4. PAGE_SIZE_COMPAT
+        if "PAGE_SIZE_COMPAT" in transforms:
+            app_node.set_attr("pageSizeCompat", "enabled")
+
+        # 5. Display Modes & Shim Provider
+        enable_60hz = options.get("enable_60hz", "LOCK_60HZ_DISPLAY_MODE" in transforms)
+        enable_cutout = options.get("enable_cutout", False)
+
+        if enable_60hz:
+            if not app_node.find_child("meta-data", "name", "apkrevive.enable_60hz_lock"):
+                meta_60 = AxmlNode(tag="meta-data")
+                meta_60.set_attr("name", "apkrevive.enable_60hz_lock")
+                meta_60.set_attr("value", "true")
+                app_node.children.append(meta_60)
+
+        if enable_cutout:
+            if not app_node.find_child("meta-data", "name", "apkrevive.enable_cutout_short_edges"):
+                meta_cutout = AxmlNode(tag="meta-data")
+                meta_cutout.set_attr("name", "apkrevive.enable_cutout_short_edges")
+                meta_cutout.set_attr("value", "true")
+                app_node.children.append(meta_cutout)
+
+        if enable_60hz or enable_cutout:
+            app_node.set_attr("hasCode", True)
+            pkg_attr = root.get_attr("package")
+            pkg_name = pkg_attr.raw_value if pkg_attr and pkg_attr.raw_value else "com.apkrevive.app"
+            if not app_node.find_child("provider", "name", "apkrevive.shim.ApkReviveInitProvider"):
+                prov_node = AxmlNode(tag="provider")
+                prov_node.set_attr("name", "apkrevive.shim.ApkReviveInitProvider")
+                prov_node.set_attr("authorities", f"{pkg_name}.apkrevive.init")
+                prov_node.set_attr("exported", False)
+                prov_node.set_attr("initOrder", 9999)
+                app_node.children.append(prov_node)
+
+        return cls.serialize(root)

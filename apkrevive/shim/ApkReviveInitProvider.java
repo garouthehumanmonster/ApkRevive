@@ -1,0 +1,161 @@
+package apkrevive.shim;
+
+import android.app.Activity;
+import android.app.Application;
+import android.content.ContentProvider;
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.view.Display;
+import android.view.WindowManager;
+
+/**
+ * ApkReviveInitProvider - Auto-initializing lifecycle shim for legacy APK modernization.
+ * Injected into AndroidManifest.xml with android:initOrder="9999".
+ * 
+ * CRITICAL MANIFEST INVARIANT:
+ * If an APK specifies android:hasCode="false", the Android runtime will completely ignore classes.dex,
+ * preventing this ContentProvider from ever executing. The ApkRevive AXML Surgeon MUST rewrite
+ * android:hasCode="true" whenever injecting this shim.
+ */
+public class ApkReviveInitProvider extends ContentProvider {
+
+    private static final String META_ENABLE_60HZ = "apkrevive.enable_60hz_lock";
+    private static final String META_ENABLE_CUTOUT = "apkrevive.enable_cutout_short_edges";
+
+    @Override
+    public boolean onCreate() {
+        Context context = getContext();
+        if (context == null) return false;
+
+        Context appCtx = context.getApplicationContext();
+        if (!(appCtx instanceof Application)) return false;
+        Application app = (Application) appCtx;
+
+        boolean enable60Hz = false;
+        boolean enableCutout = false;
+
+        try {
+            ApplicationInfo ai = app.getPackageManager().getApplicationInfo(
+                app.getPackageName(), PackageManager.GET_META_DATA);
+            if (ai != null && ai.metaData != null) {
+                enable60Hz = ai.metaData.getBoolean(META_ENABLE_60HZ, false);
+                enableCutout = ai.metaData.getBoolean(META_ENABLE_CUTOUT, false);
+            }
+        } catch (PackageManager.NameNotFoundException ignored) {
+        }
+
+        final boolean final60Hz = enable60Hz;
+        final boolean finalCutout = enableCutout;
+
+        if (!final60Hz && !finalCutout) {
+            return true;
+        }
+
+        app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+            @Override
+            public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+            }
+
+            @Override
+            public void onActivityStarted(Activity activity) {
+                applyWindowAttributes(activity, final60Hz, finalCutout);
+            }
+
+            @Override
+            public void onActivityResumed(Activity activity) {
+                applyWindowAttributes(activity, final60Hz, finalCutout);
+            }
+
+            @Override
+            public void onActivityPaused(Activity activity) {}
+            @Override
+            public void onActivityStopped(Activity activity) {}
+            @Override
+            public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
+            @Override
+            public void onActivityDestroyed(Activity activity) {}
+        });
+
+        return true;
+    }
+
+    private void applyWindowAttributes(Activity activity, boolean enable60Hz, boolean enableCutout) {
+        if (activity == null || activity.getWindow() == null) return;
+
+        WindowManager.LayoutParams lp = activity.getWindow().getAttributes();
+        boolean changed = false;
+
+        // 1. Cutout short edges (API 28+)
+        if (enableCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (lp.layoutInDisplayCutoutMode != WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES) {
+                lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                changed = true;
+            }
+        }
+
+        // 2. 60Hz display mode lock matching CURRENT display resolution (API 23+)
+        if (enable60Hz) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Display display = activity.getWindowManager().getDefaultDisplay();
+                if (display != null) {
+                    Display.Mode currentMode = display.getMode();
+                    Display.Mode[] supportedModes = display.getSupportedModes();
+                    if (currentMode != null && supportedModes != null) {
+                        for (Display.Mode mode : supportedModes) {
+                            // Strictly preserve current display resolution while locking refresh rate to 60Hz
+                            if (mode.getPhysicalWidth() == currentMode.getPhysicalWidth() &&
+                                mode.getPhysicalHeight() == currentMode.getPhysicalHeight() &&
+                                Math.abs(mode.getRefreshRate() - 60.0f) < 1.0f) {
+                                if (lp.preferredDisplayModeId != mode.getModeId()) {
+                                    lp.preferredDisplayModeId = mode.getModeId();
+                                    changed = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                if (lp.preferredRefreshRate != 60.0f) {
+                    lp.preferredRefreshRate = 60.0f;
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed) {
+            activity.getWindow().setAttributes(lp);
+        }
+    }
+
+    @Override
+    public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
+        return null;
+    }
+
+    @Override
+    public String getType(Uri uri) {
+        return null;
+    }
+
+    @Override
+    public Uri insert(Uri uri, ContentValues values) {
+        return null;
+    }
+
+    @Override
+    public int delete(Uri uri, String selection, String[] selectionArgs) {
+        return 0;
+    }
+
+    @Override
+    public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+        return 0;
+    }
+}

@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apkrevive"
+version = "3.3.0"
+description = "Production-grade legacy Android APK modernizer pipeline targeting API 3-28"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+apkrevive = "apkrevive.cli:main"
