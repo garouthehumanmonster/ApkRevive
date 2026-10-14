@@ -121,8 +121,19 @@ def revive_cmd(args):
     if os.path.exists(temp_apk):
         os.remove(temp_apk)
 
+    # Warn that signature change requires uninstall and causes data loss
+    sys.stderr.write(
+        "WARNING: APK signature has changed. Re-signing requires uninstalling the existing "
+        "application on device, which will permanently delete all existing user data.\n"
+    )
+    sys.stderr.flush()
+
     # Abort with non-zero exit code if signing fails
-    if not sign_apk(output_path):
+    ks = getattr(args, "ks", None)
+    ks_pass = getattr(args, "ks_pass", None)
+    ks_alias = getattr(args, "ks_alias", None)
+    key_pass = getattr(args, "key_pass", None)
+    if not sign_apk(output_path, keystore_path=ks, keystore_pass=ks_pass, key_alias=ks_alias, key_pass=key_pass):
         return 1
 
     report = PatchReport(
@@ -175,6 +186,10 @@ def main():
     p_revive.add_argument("--output", help="Output path")
     p_revive.add_argument("--enable-60hz", action="store_true")
     p_revive.add_argument("--enable-cutout", action="store_true")
+    p_revive.add_argument("--ks", dest="ks", help="Path to PKCS12 keystore file")
+    p_revive.add_argument("--ks-pass", dest="ks_pass", help="Keystore password")
+    p_revive.add_argument("--ks-alias", dest="ks_alias", help="Key alias name")
+    p_revive.add_argument("--key-pass", dest="key_pass", help="Key password (if different from keystore)")
 
     p_probe = sub.add_parser("probe")
     p_probe.add_argument("--device", help="Device serial")

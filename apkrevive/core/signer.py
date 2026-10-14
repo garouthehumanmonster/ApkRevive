@@ -2,11 +2,13 @@
 signer.py - PKCS12 keystore manager and apksigner bridge.
 """
 
+import getpass
 import os
+import secrets
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 
 def get_apksigner_cmd() -> str:
@@ -34,52 +36,130 @@ def get_apksigner_cmd() -> str:
     return "apksigner"
 
 
-def ensure_keystore(keystore_path: Optional[str] = None) -> str:
-    path = Path(keystore_path) if keystore_path else Path.home() / ".apkrevive" / "debug.p12"
-    path.parent.mkdir(parents=True, exist_ok=True)
+def get_default_user_keystore() -> Tuple[Path, str, str]:
+    """
+    Returns user-isolated keystore path, persistent password, and alias.
+    Path format: ~/.apkrevive/user_<username>.p12
+    Password format: saved in ~/.apkrevive/user_<username>.pwd with 0600 permissions.
+    """
+    username = getpass.getuser().lower().replace(" ", "_")
+    base_dir = Path.home() / ".apkrevive"
+    base_dir.mkdir(parents=True, exist_ok=True)
 
-    if not path.exists():
-        keytool = shutil.which("keytool") or "keytool"
+    ks_path = base_dir / f"user_{username}.p12"
+    pwd_path = base_dir / f"user_{username}.pwd"
+    alias = f"apkrevive_{username}"
+
+    if pwd_path.is_file():
+        password = pwd_path.read_text(encoding="utf-8").strip()
+    else:
+        password = secrets.token_hex(16)
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        fd = os.open(str(pwd_path), flags, 0o600)
+        try:
+            with open(fd, "w", encoding="utf-8") as f:
+                f.write(password)
+        finally:
+            pass
+        try:
+            os.chmod(pwd_path, 0o600)
+        except Exception:
+            pass
+
+    return ks_path, password, alias
+
+
+def ensure_keystore(
+    keystore_path: Optional[str] = None,
+    keystore_pass: Optional[str] = None,
+    key_alias: Optional[str] = None
+) -> Tuple[str, str, str]:
+    """
+    Ensures a valid keystore exists and returns (keystore_path, keystore_pass, key_alias).
+    If keystore_path is provided, checks it exists (raises FileNotFoundError if missing).
+    If keystore_path is None, generates per-user keystore via keytool if missing (raises RuntimeError on failure).
+    """
+    if keystore_path:
+        path = Path(keystore_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"Keystore file not found: {keystore_path}")
+        password = keystore_pass or "android"
+        alias = key_alias or "apkrevive"
+        return str(path), password, alias
+
+    default_ks, default_pwd, default_alias = get_default_user_keystore()
+    password = keystore_pass or default_pwd
+    alias = key_alias or default_alias
+
+    if not default_ks.is_file():
+        keytool = shutil.which("keytool")
+        if not keytool:
+            java_home = os.environ.get("JAVA_HOME")
+            if java_home:
+                cand = Path(java_home) / "bin" / ("keytool.exe" if sys.platform == "win32" else "keytool")
+                if cand.is_file():
+                    keytool = str(cand)
+        if not keytool:
+            keytool = "keytool"
+
         cmd = [
             keytool, "-genkeypair", "-v",
-            "-keystore", str(path),
+            "-keystore", str(default_ks),
             "-storetype", "PKCS12",
-            "-storepass", "android",
-            "-alias", "apkrevive",
-            "-keypass", "android",
+            "-storepass", password,
+            "-alias", alias,
+            "-keypass", password,
             "-keyalg", "RSA",
             "-keysize", "2048",
             "-validity", "10000",
-            "-dname", "CN=ApkRevive,O=ApkRevive,C=US"
+            "-dname", f"CN=ApkRevive ({alias}),O=ApkRevive,C=US"
         ]
-        try:
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        except Exception:
-            pass
-    return str(path)
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if res.returncode != 0:
+            raise RuntimeError(f"keytool failed to generate keystore: {res.stderr}")
+
+    return str(default_ks), password, alias
 
 
-def sign_apk(apk_path: str, keystore_path: Optional[str] = None) -> bool:
+def sign_apk(
+    apk_path: str,
+    keystore_path: Optional[str] = None,
+    keystore_pass: Optional[str] = None,
+    key_alias: Optional[str] = None,
+    key_pass: Optional[str] = None
+) -> bool:
+    """Signs target APK using apksigner and PKCS12 keystore."""
     apksigner = get_apksigner_cmd()
-    ks = ensure_keystore(keystore_path)
+    try:
+        ks, ks_pwd, alias = ensure_keystore(keystore_path, keystore_pass, key_alias)
+    except Exception as e:
+        sys.stderr.write(f"Keystore error: {e}\n")
+        return False
+
+    actual_key_pass = key_pass or ks_pwd
     cmd = [
         apksigner, "sign",
         "--ks", ks,
-        "--ks-pass", "pass:android",
-        "--ks-key-alias", "apkrevive",
-        "--key-pass", "pass:android",
-        apk_path
+        "--ks-pass", f"pass:{ks_pwd}",
+        "--ks-key-alias", alias,
+        "--key-pass", f"pass:{actual_key_pass}",
+        str(apk_path)
     ]
     try:
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return res.returncode == 0
-    except Exception:
+    except Exception as e:
+        sys.stderr.write(f"apksigner execution error: {e}\n")
         return False
 
 
-def verify_apk(apk_path: str) -> Dict[str, Any]:
+def verify_apk(apk_path: str, verbose: bool = False) -> Dict[str, Any]:
+    """Verifies APK signatures using apksigner verify."""
     apksigner = get_apksigner_cmd()
-    cmd = [apksigner, "verify", "-v", apk_path]
+    cmd = [apksigner, "verify"]
+    if verbose:
+        cmd.append("--verbose")
+    cmd.append(str(apk_path))
     try:
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return {"verified": res.returncode == 0, "output": res.stdout + res.stderr}
