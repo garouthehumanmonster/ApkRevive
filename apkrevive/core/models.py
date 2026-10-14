@@ -28,6 +28,7 @@ class TriageSignal(str, Enum):
     NEEDS_PAGE_SIZE_COMPAT = "NEEDS_PAGE_SIZE_COMPAT"
     NEEDS_PAGE_SIZE_COMPAT_ANDROID16 = "NEEDS_PAGE_SIZE_COMPAT_ANDROID16"
     NEEDS_HAS_CODE_FLAG = "NEEDS_HAS_CODE_FLAG"
+    SPLIT_APK_UNSUPPORTED = "SPLIT_APK_UNSUPPORTED"
 
 
 @dataclass
@@ -62,6 +63,8 @@ class ApkMetadata:
     version_code: int = 1
     abis: List[str] = field(default_factory=list)
     elf_load_align_64bit: Optional[int] = None
+    has_invalid_elf_layout: bool = False
+    is_split_apk: bool = False
     private_libs: List[str] = field(default_factory=list)
     uses_apache_http: bool = False
     has_code: bool = True

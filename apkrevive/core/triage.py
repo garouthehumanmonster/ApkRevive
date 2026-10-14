@@ -49,6 +49,16 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
     warnings: List[str] = []
     required_transforms: List[str] = []
 
+    # 0. Split APK Check
+    if apk.get("is_split_apk"):
+        return {
+            "verdict": Verdict.RED.value,
+            "reason": TriageSignal.SPLIT_APK_UNSUPPORTED.value,
+            "details": "Split APKs cannot be modernized independently. Modernize the base APK.",
+            "warnings": warnings,
+            "required_transforms": []
+        }
+
     # 1. Device ABI Check
     if apk_abis:
         matching_abis = apk_abis.intersection(device_abis)
@@ -83,12 +93,12 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
     # 3. 16KB Page Size Segment Alignment Check
     has_64bit_native = bool(apk_abis.intersection({"arm64-v8a", "x86_64"}))
     if device_page_size == 16384 and has_64bit_native:
-        if elf_load_align is not None and elf_load_align < 16384:
+        if (elf_load_align is not None and elf_load_align < 16384) or apk.get("has_invalid_elf_layout"):
             if device_sdk < 36:
                 return {
                     "verdict": Verdict.RED.value,
                     "reason": TriageSignal.INCOMPATIBLE_PAGE_SIZE.value,
-                    "details": f"64-bit ELF has PT_LOAD p_align={elf_load_align} (< 16384) on 16KB kernel (OS API={device_sdk} < 36)",
+                    "details": f"64-bit ELF has invalid or <16KB segment alignment on 16KB kernel (OS API={device_sdk} < 36)",
                     "warnings": warnings,
                     "required_transforms": []
                 }

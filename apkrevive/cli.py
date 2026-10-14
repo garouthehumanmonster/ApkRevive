@@ -6,12 +6,13 @@ import argparse
 import json
 import sys
 import os
+import re
 import zipfile
 from datetime import datetime
 from apkrevive.core.models import DeviceProfile, ApkMetadata, PatchReport
 from apkrevive.core.triage import evaluate_triage
 from apkrevive.core.axml import AxmlSurgeon
-from apkrevive.core.align import align_apk
+from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.signer import sign_apk
 from apkrevive.core.obb import validate_obb_delivery
 from apkrevive.core.extractor import inspect_apk
@@ -31,6 +32,7 @@ def triage_cmd(args):
     )
 
     if os.path.exists(args.apk):
+        validate_zip_archive(args.apk)
         apk = inspect_apk(args.apk)
         if getattr(args, "target_sdk", None) is not None:
             apk.target_sdk = args.target_sdk
@@ -57,10 +59,16 @@ def triage_cmd(args):
 
 def revive_cmd(args):
     input_path = args.apk
+    if os.path.exists(input_path):
+        validate_zip_archive(input_path)
     output_path = args.output or input_path.replace(".apk", ".revived.apk")
 
     # Dynamically extract APK metadata and evaluate triage verdict
     meta = inspect_apk(input_path)
+    if meta.is_split_apk:
+        sys.stderr.write("ERROR: Split APK detected. Split APKs cannot be modernized independently.\n")
+        return 1
+
     triage = evaluate_triage(meta, DeviceProfile())
 
     # Build active transforms from triage and CLI overrides
@@ -83,10 +91,10 @@ def revive_cmd(args):
         options={"enable_60hz": enable_60hz, "enable_cutout": enable_cutout}
     )
 
+    dex_indices = []
     has_shim_provider = False
     temp_apk = output_path + ".tmp"
     with zipfile.ZipFile(input_path, "r") as zin, zipfile.ZipFile(temp_apk, "w") as zout:
-        existing_files = set()
         for item in zin.infolist():
             # Strip stale signature artifacts so re-signing succeeds without digest conflict
             if item.filename.startswith("META-INF/") and (
@@ -95,11 +103,16 @@ def revive_cmd(args):
                 item.filename.endswith(".MF")
             ):
                 continue
-            existing_files.add(item.filename)
+
             data = zin.read(item.filename)
-            # Detect whether ApkReviveInitProvider already exists in bytecode
-            if item.filename.endswith(".dex") and b"ApkReviveInitProvider" in data:
-                has_shim_provider = True
+
+            m = re.fullmatch(r"classes(\d*)\.dex", item.filename)
+            if m:
+                idx_str = m.group(1)
+                idx = int(idx_str) if idx_str else 1
+                dex_indices.append(idx)
+                if b"ApkReviveInitProvider" in data:
+                    has_shim_provider = True
 
             if item.filename == "AndroidManifest.xml":
                 zout.writestr(item, patched_axml)
@@ -110,10 +123,8 @@ def revive_cmd(args):
         if (enable_60hz or enable_cutout) and not has_shim_provider:
             shim_path = os.path.join(os.path.dirname(__file__), "shim", "shim.dex")
             if os.path.exists(shim_path):
-                dex_idx = 1
-                while (f"classes{dex_idx if dex_idx > 1 else ''}.dex") in existing_files:
-                    dex_idx += 1
-                shim_dex_name = f"classes{dex_idx}.dex"
+                next_idx = max(dex_indices) + 1 if dex_indices else 1
+                shim_dex_name = f"classes{next_idx}.dex" if next_idx > 1 else "classes.dex"
                 with open(shim_path, "rb") as sf:
                     zout.writestr(shim_dex_name, sf.read())
 

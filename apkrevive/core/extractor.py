@@ -11,7 +11,7 @@ from typing import Optional, List, Set, Any
 
 from apkrevive.core.models import ApkMetadata
 from apkrevive.core.axml import AxmlSurgeon, AxmlNode, AxmlAttribute
-from apkrevive.core.elf import inspect_apk_elf_align
+from apkrevive.core.elf import inspect_apk_elf_align, inspect_apk_elf_details
 
 PUBLIC_SYSTEM_LIBRARIES = {
     "libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so",
@@ -114,6 +114,7 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
     has_apache_library_decl = False
     is_non_resizeable = False
     has_fixed_physics = False
+    is_split_apk = False
 
     abis_set: Set[str] = set()
     dex_has_apache_http = False
@@ -128,6 +129,10 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
             manifest_data = zf.read("AndroidManifest.xml")
             try:
                 root = AxmlSurgeon.parse(manifest_data)
+
+                # Check for split APK
+                if root.get_attr("split") is not None or root.get_attr("configForSplit") is not None:
+                    is_split_apk = True
 
                 # Package name
                 pkg_attr = root.get_attr("package")
@@ -222,8 +227,8 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                 except Exception:
                     pass
 
-    # 4. Inspect 64-bit ELF load alignment
-    elf_load_align_64bit = inspect_apk_elf_align(apk_path)
+    # 4. Inspect 64-bit ELF load alignment and layout validity
+    elf_load_align_64bit, has_invalid_elf_layout = inspect_apk_elf_details(apk_path)
 
     # 5. Determine uses_apache_http: True if referenced in DEX and NOT declared in uses-library
     uses_apache_http = bool(dex_has_apache_http and not has_apache_library_decl)
@@ -235,6 +240,8 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
         version_code=version_code,
         abis=sorted(list(abis_set)),
         elf_load_align_64bit=elf_load_align_64bit,
+        has_invalid_elf_layout=has_invalid_elf_layout,
+        is_split_apk=is_split_apk,
         private_libs=sorted(list(needed_libs)),
         uses_apache_http=uses_apache_http,
         has_code=has_code,

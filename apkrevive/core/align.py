@@ -2,38 +2,90 @@
 align.py - 4KB and 16KB ZIP boundary aligner for uncompressed entries (.so, resources.arsc).
 """
 
+import os
 import struct
 import zipfile
 from typing import Dict, Any
 
 
+def validate_zip_archive(apk_path: str, max_uncompressed_bytes: int = 4 * 1024 * 1024 * 1024, max_ratio: float = 100.0) -> None:
+    """
+    Validates zip archive integrity and enforces security constraints:
+    - Verifies file exists and is non-empty.
+    - Rejects path traversal (Zip-Slip).
+    - Detects Zip bombs (compression ratio > max_ratio and single file > 10MB, or single file > 500MB, or total uncompressed > 4GB).
+    - Detects corrupted or truncated archives cleanly.
+    """
+    if not os.path.exists(apk_path):
+        raise FileNotFoundError(f"Archive file not found: {apk_path}")
+    if os.path.getsize(apk_path) == 0:
+        raise ValueError(f"Archive file is empty: {apk_path}")
+
+    total_uncompressed = 0
+    try:
+        with zipfile.ZipFile(apk_path, "r") as zf:
+            for entry in zf.infolist():
+                name = entry.filename
+                if ".." in name or name.startswith("/") or name.startswith("\\") or ":" in name or "\0" in name:
+                    raise ValueError(f"Zip-slip path traversal detected: {name}")
+
+                if entry.compress_size > 0 and (entry.file_size / entry.compress_size) > max_ratio and entry.file_size > 10 * 1024 * 1024:
+                    raise ValueError(f"Zip bomb detected (high compression ratio): {name}")
+
+                if entry.file_size > 500 * 1024 * 1024:
+                    raise ValueError(f"Zip entry exceeds maximum permitted size: {name}")
+
+                total_uncompressed += entry.file_size
+                if total_uncompressed > max_uncompressed_bytes:
+                    raise ValueError("Zip bomb detected (total uncompressed size exceeds limit)")
+    except (zipfile.BadZipFile, struct.error, EOFError, IndexError) as e:
+        raise ValueError(f"Truncated ZIP archive entry: {e}")
+
+
 def align_apk(input_apk: str, output_apk: str, page_align_64bit: int = 16384) -> None:
-    with open(input_apk, "rb") as f_in, open(output_apk, "wb") as f_out:
+    with open(input_apk, "rb") as f_in:
         in_buf = f_in.read()
 
-        eocd_pos = in_buf.rfind(b"PK\x05\x06")
-        if eocd_pos == -1:
-            raise ValueError("Invalid ZIP file: EOCD not found")
+    buf_len = len(in_buf)
+    eocd_pos = in_buf.rfind(b"PK\x05\x06")
+    if eocd_pos == -1 or eocd_pos + 22 > buf_len:
+        raise ValueError("Truncated ZIP archive entry")
 
-        cd_entries_total, cd_size, cd_offset = struct.unpack_from("<HII", in_buf, eocd_pos + 10)
+    cd_entries_total, cd_size, cd_offset = struct.unpack_from("<HII", in_buf, eocd_pos + 10)
+    if cd_offset + cd_size > buf_len or cd_offset > buf_len:
+        raise ValueError("Truncated ZIP archive entry")
 
-        new_central_entries = []
-        cd_ptr = cd_offset
+    new_central_entries = []
+    cd_ptr = cd_offset
 
+    with open(output_apk, "wb") as f_out:
         for _ in range(cd_entries_total):
+            if cd_ptr + 46 > buf_len:
+                raise ValueError("Truncated ZIP archive entry")
+
             magic = in_buf[cd_ptr:cd_ptr + 4]
             if magic != b"PK\x01\x02":
-                break
+                raise ValueError("Truncated ZIP archive entry")
 
             flags, method, time, date, crc, comp_size, uncomp_size, fn_len, ef_len, comm_len, d_start, int_attr, ext_attr, lfh_offset = struct.unpack_from("<HHHHIIIHHHHHII", in_buf, cd_ptr + 8)
+
+            if cd_ptr + 46 + fn_len + ef_len + comm_len > buf_len:
+                raise ValueError("Truncated ZIP archive entry")
+
+            if lfh_offset + 30 > buf_len:
+                raise ValueError("Truncated ZIP archive entry")
 
             fn_start = cd_ptr + 46
             filename = in_buf[fn_start:fn_start + fn_len].decode("utf-8", errors="replace")
 
             # Read Local File Header
             lfh_fn_len, lfh_ef_len = struct.unpack_from("<HH", in_buf, lfh_offset + 26)
+            data_start = lfh_offset + 30 + lfh_fn_len + lfh_ef_len
+            if data_start + comp_size > buf_len or lfh_offset + 30 + lfh_fn_len > buf_len:
+                raise ValueError("Truncated ZIP archive entry")
+
             lfh_header = in_buf[lfh_offset:lfh_offset + 30 + lfh_fn_len]
-            entry_data = in_buf[lfh_offset + 30 + lfh_fn_len + lfh_ef_len : lfh_offset + 30 + lfh_fn_len + lfh_ef_len + comp_size]
+            entry_data = in_buf[data_start : data_start + comp_size]
 
             # Calculate alignment requirement
             alignment = 4
