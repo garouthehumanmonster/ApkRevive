@@ -75,6 +75,14 @@ class TestCli(unittest.TestCase):
             self.assertIn("classes.dex", names)
             self.assertIn("classes2.dex", names)
 
+    def test_cli_version(self):
+        with patch("sys.argv", ["apkrevive", "--version"]):
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
+                with self.assertRaises(SystemExit) as cm:
+                    main()
+                self.assertEqual(cm.exception.code, 0)
+                self.assertIn("apkrevive 3.3.0", mock_stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

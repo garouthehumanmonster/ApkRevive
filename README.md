@@ -3,9 +3,13 @@
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
 [![Android Target](https://img.shields.io/badge/Android%20API-3%20to%2035+-brightgreen.svg)](https://developer.android.com)
 [![Page Alignment](https://img.shields.io/badge/16KB%20Page%20Size-Supported-orange.svg)](https://developer.android.com/guide/practices/page-sizes)
+[![Status](https://img.shields.io/badge/Status-Alpha-yellow.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey.svg)](LICENSE)
 
-**ApkRevive** is a production-grade legacy Android APK modernization pipeline and compatibility layer. It diagnoses, patches, and adapts legacy applications targeting Android API levels 3 through 28 (Android 1.5 Cupcake to Android 9 Pie) so they install, boot, and run reliably on modern Android runtimes (API 34–36+, Android 14/15/16 QPR) with 16KB page sizes, modern targetSdk install floors, strict bionic namespace isolation, and high-refresh displays.
+> [!WARNING]
+> **Project Status: Alpha.** ApkRevive is an experimental tooling suite under active development. It is not intended for production deployments without independent verification.
+
+**ApkRevive** is a legacy Android APK modernization pipeline and compatibility layer. It diagnoses, patches, and adapts legacy applications targeting Android API levels 3 through 28 (Android 1.5 Cupcake to Android 9 Pie) so they install, boot, and run reliably on modern Android runtimes (API 34–36+, Android 14/15/16 QPR) with 16KB page sizes, modern targetSdk install floors, strict bionic namespace isolation, and high-refresh displays.
 
 ---
 
@@ -22,7 +26,7 @@ flowchart TD
     
     E --> G["AXML Surgeon (Manifest Mutation)"]
     E --> H["Bytecode Shim Injection (ApkReviveInitProvider)"]
-    E --> I["16KB ELF & ZipAligner (p_align)"]
+    E --> I["16KB ZipAligner & PageSizeCompat"]
     E --> J["V2/V3 APK Re-Signer"]
     
     G --> K["Modernized APK (.revived.apk)"]
@@ -57,7 +61,8 @@ Provides a zero-overhead content provider shim (`ApkReviveInitProvider` in `shim
 - **Display Cutout Layout:** Configures `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES` to eliminate aggressive letterboxing around camera punches and notches.
 
 ### 4. 16KB Alignment & Zip Re-Packing
-- Enforces strict 4-byte resource alignment and 16,384-byte (16KB) uncompressed alignment for native `.so` payloads.
+- Enforces strict 4-byte resource alignment and 16,384-byte (16KB) uncompressed alignment for native `.so` payloads within the APK ZIP container.
+- For Android 16 (API 36+), enables the platform 16KB compatibility mode flag (`android:pageSizeCompat="enabled"`). *Note: Native ELF segment layout (`p_align`) is not rewritten.*
 - Strips invalid legacy signature blocks (`META-INF/*.SF`, `*.RSA`, `*.DSA`, `*.MF`) and signs with deterministic APK Signature Scheme v2/v3.
 
 ### 5. OBB Expansion Delivery Validator
@@ -167,6 +172,24 @@ ApkRevive includes 8 pairs of control and failing canary test vectors (16 APKs t
 | 6 | `canary_bionic_greylist` | Bionic Linker | Direct dependency on private system `.so` (e.g. `libgui.so`) |
 | 7 | `canary_has_code` | ART / Zygote | `hasCode="false"` preventing bytecode execution |
 | 8 | `canary_obb_version` | Storage / Expansion | OBB version code mismatch or ahead of APK versionCode |
+
+---
+
+## Known Limitations
+
+- **Native ELF `p_align` Not Rewritten:** ApkRevive aligns native libraries within the ZIP archive container to 16KB boundaries, but it **does not rewrite compiled ELF binary segments or `p_align` fields**. On Android 15 with 16KB page size kernels, 64-bit binaries built with 4KB segment alignment cannot load and will trigger a fatal `RED` verdict. On Android 16 (API 36+), ApkRevive injects `android:pageSizeCompat="enabled"` to leverage the OS-level emulator mode.
+- **Signature Invalidation & Data Loss:** Re-signing an APK with a new keystore alters its cryptographic certificate digest. Installing a revived APK over an existing installation causes an `INSTALL_FAILED_UPDATE_INCOMPATIBLE` error. **The original application must be uninstalled first, resulting in the permanent loss of existing user data, local app preferences, and game saves.**
+- **Self-Signature Checks & Anti-Tamper:** Applications that perform runtime self-signature checks or use proprietary DRM/licensing mechanisms will detect package re-signing and fail to boot.
+- **Dalvik Multi-Dex Limitations:** Injected content provider shims placed in secondary DEX files (`classes2.dex`) require modern ART runtimes (Android 5.0+ / API 21+). Legacy Dalvik runtimes do not load secondary DEX files prior to ContentProvider initialization.
+- **Split APKs / App Bundles:** ApkRevive currently expects single, monolithic APK files. Split APK sets (Android App Bundles) are not supported.
+
+---
+
+## Legal Notice & Disclaimer
+
+> [!CAUTION]
+> **Only modify applications you have legal rights to modify.**
+> Modifying, decompiling, patching, and re-signing third-party application binaries may infringe on copyright laws, software licenses, and application terms of service. ApkRevive is provided strictly for educational research, legitimate interoperability analysis, and archival preservation of software for which you hold appropriate rights or explicit owner authorization. The developers and contributors of ApkRevive disclaim all liability for unlawful or unauthorized usage.
 
 ---
 

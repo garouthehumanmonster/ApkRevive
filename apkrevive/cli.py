@@ -17,6 +17,7 @@ from apkrevive.core.obb import validate_obb_delivery
 from apkrevive.core.extractor import inspect_apk
 from apkrevive.adb.bridge import AdbBridge
 from apkrevive.adb.probe import probe_install_floor
+from apkrevive import __version__
 
 
 def triage_cmd(args):
@@ -156,6 +157,7 @@ def push_obb_cmd(args):
 
 def main():
     parser = argparse.ArgumentParser(description="ApkRevive Modernizer CLI")
+    parser.add_argument("--version", "-v", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command")
 
     p_triage = sub.add_parser("triage")
