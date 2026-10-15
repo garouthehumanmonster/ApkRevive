@@ -113,47 +113,182 @@ pip install -e .
 
 ---
 
-## CLI Usage
+## CLI Usage & Sample Runs
 
-### 1. Triage an APK
-Inspect an APK and get a compatibility report against target device specifications:
+### 1. Host Health Check (`apkrevive doctor`)
+Verify local developer tools, SDK build-tools, ADB, and keystore health:
 ```bash
-apkrevive triage path/to/legacy_game.apk --device-api 35 --device-abis arm64-v8a --page-size 16384
+$ apkrevive doctor
+ApkRevive Doctor Report
+=======================
+[PASS]   Python Version: Python 3.10.12 (>=3.9 required)
+[PASS]   Java Development Kit: keytool at /usr/bin/keytool, javac at /usr/bin/javac
+[PASS]   Android SDK: Found at /home/user/Android/Sdk
+[PASS]   Build-Tools: apksigner at /home/user/Android/Sdk/build-tools/34.0.0/apksigner, zipalign at /home/user/Android/Sdk/build-tools/34.0.0/zipalign
+[PASS]   Android Debug Bridge: ADB found at /usr/bin/adb
+[PASS]   User Keystore Directory: /home/user/.apkrevive is ready
+[PASS]   Shim DEX Integrity: Verified SHA256 (609b5dcbc8f657b046a73809afbd666cb6feb567497dc068733b57212286e590)
+
+Overall Status: [PASS]
 ```
 
-Example JSON response:
+### 2. Triage an APK (`apkrevive triage`)
+Inspect an APK and generate a compatibility report against target device specifications:
+```bash
+$ apkrevive triage sample_game.apk --device-api 35 --device-abis arm64-v8a --page-size 16384
+ApkRevive Triage Report
+=======================
+Package Name: com.retro.spaceace
+Target SDK: 22 (Floor: 24)
+Verdict: YELLOW
+Reason: MODIFICATION_REQUIRED
+Install Method: BYPASS_LOW_TARGET_SDK_BLOCK
+Required Transforms:
+  - EXPAND_ASPECT_RATIO
+  - INJECT_USES_LIBRARY_APACHE_HTTP
+  - LOCK_60HZ_DISPLAY_MODE
+Warnings:
+  - WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions on Android 11+ (API 30+).
+  - WARN_CLEARTEXT_LEGACY_TLS: Cleartext HTTP traffic detected. Blocked by default on API 28+.
+Details: APK targetSdk 22 is below device install floor 24
+```
+
+With the global `--json` flag:
 ```json
 {
+  "package_name": "com.retro.spaceace",
+  "target_sdk": 22,
   "verdict": "YELLOW",
   "reason": "MODIFICATION_REQUIRED",
   "install_method": "BYPASS_LOW_TARGET_SDK_BLOCK",
   "required_transforms": [
     "EXPAND_ASPECT_RATIO",
-    "INJECT_USES_LIBRARY_APACHE_HTTP"
+    "INJECT_USES_LIBRARY_APACHE_HTTP",
+    "LOCK_60HZ_DISPLAY_MODE"
   ],
   "warnings": [
-    "TARGET_SDK_BELOW_DEVICE_FLOOR"
+    "WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions on Android 11+ (API 30+).",
+    "WARN_CLEARTEXT_LEGACY_TLS: Cleartext HTTP traffic detected. Blocked by default on API 28+."
   ],
   "details": "APK targetSdk 22 is below device install floor 24"
 }
 ```
 
-### 2. Revive & Modernize an APK
-Apply necessary binary transforms, inject runtime shims, re-align, and sign the APK:
+### 3. Dry-Run Modernization (`apkrevive revive --dry-run`)
+Simulate transforms, inspection, and report generation without creating files or signing:
 ```bash
-apkrevive revive path/to/legacy_game.apk --output output/revived_game.apk --enable-60hz --enable-cutout
+$ apkrevive revive sample_game.apk --dry-run --enable-60hz --enable-cutout
+ApkRevive Patch Report (DRY RUN)
+================================
+Package Name: com.retro.spaceace
+Target SDK: 22
+Verdict: YELLOW
+Reason: MODIFICATION_REQUIRED
+Install Method: BYPASS_LOW_TARGET_SDK_BLOCK
+Required Transforms:
+  - EXPAND_ASPECT_RATIO
+  - INJECT_USES_LIBRARY_APACHE_HTTP
+  - LOCK_60HZ_DISPLAY_MODE
+Output APK: [DRY RUN - No file written]
+Warnings (2):
+  - WARN_SCOPED_STORAGE_OBB: ...
+  - WARN_CLEARTEXT_LEGACY_TLS: ...
+Details: Dry run completed. No files modified.
 ```
 
-### 3. Probe Connected Device
+### 4. Revive & Modernize an APK (`apkrevive revive`)
+Apply binary manifest transforms, inject runtime shims, 16KB-align, and sign:
+```bash
+$ apkrevive revive sample_game.apk --output output/revived_game.apk --enable-60hz --enable-cutout
+WARNING: APK signature has changed. Re-signing requires uninstalling the existing application on device, which will permanently delete all existing user data.
+ApkRevive Patch Report
+======================
+Timestamp: 2026-10-15T07:34:12.829496
+Package Name: com.retro.spaceace
+Target SDK: 22
+Verdict: YELLOW
+Reason: MODIFICATION_REQUIRED
+Install Method: BYPASS_LOW_TARGET_SDK_BLOCK
+Required Transforms:
+  - EXPAND_ASPECT_RATIO
+  - INJECT_USES_LIBRARY_APACHE_HTTP
+  - LOCK_60HZ_DISPLAY_MODE
+Output APK: output/revived_game.apk
+Warnings (2):
+  - WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions on Android 11+ (API 30+).
+  - WARN_CLEARTEXT_LEGACY_TLS: Cleartext HTTP traffic detected. Blocked by default on API 28+.
+Details: Patched AXML manifest, injected ApkReviveInitProvider, aligned container to 16KB, signed with user keystore.
+```
+
+### 5. Probe Connected Device (`apkrevive probe`)
 Detect the connected device's OS version, CPU architectures, page size, and enforce install floor via ADB:
 ```bash
-apkrevive probe
+$ apkrevive probe
+{
+  "sdk": 35,
+  "floor": 24,
+  "status": "CONFIRMED_VIA_PROP",
+  "abis": ["arm64-v8a"],
+  "page_size": 16384
+}
 ```
 
-### 4. Validate OBB Delivery
+### 6. Validate OBB Delivery (`apkrevive push-obb`)
 Check whether an expansion file matches the target package and APK version:
 ```bash
-apkrevive push-obb main.100.com.example.game.obb com.example.game --current-apk-version 100
+$ apkrevive push-obb main.100.com.retro.spaceace.obb com.retro.spaceace --current-apk-version 100
+```
+
+---
+
+## On-Device Companion App (`apkrevive-android`)
+
+For rootless, PC-free installations on modern Android devices, ApkRevive includes a native companion app built with **Jetpack Compose** and **Shizuku**.
+
+### Architecture & Permission Flow
+
+```
+┌────────────────────────────────────────────────────────┐
+│           ApkRevive Android Companion UI               │
+│  (Pick Revived APK ➔ Verify Target SDK ➔ One-Tap Install) │
+└───────────────────────────┬────────────────────────────┘
+                            │ Bind IPC
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│                   Shizuku Service                      │
+│        (Elevated ADB / Shell Identity AIDL)            │
+└───────────────────────────┬────────────────────────────┘
+                            │ pm install-create
+                            │ -d --bypass-low-target-sdk-block
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│               Android Package Manager                  │
+│             (Bypasses targetSdk 24 Floor)              │
+└────────────────────────────────────────────────────────┘
+```
+
+### Companion App UI Workflow
+
+```
++------------------------------------------+
+|  ApkRevive Companion               [⚙]   |
++------------------------------------------+
+|  Shizuku Status: [🟢 Connected (v13.5.4)]|
+|                                          |
+|  Select Package to Install:              |
+|  [ 📁 /Download/spaceace.revived.apk   ] |
+|                                          |
+|  Package Details:                        |
+|  • Name: com.retro.spaceace              |
+|  • targetSdk: 22 (Bypass Required)       |
+|  • 64-bit 16KB Aligned: YES              |
+|  • 60Hz Physics Lock: ACTIVE             |
+|                                          |
+|  [⚡ Install with Low-SDK Bypass (Shizuku)]|
+|                                          |
+|  Progress: [====================] 100%   |
+|  Status: Successfully installed!         |
++------------------------------------------+
 ```
 
 ---
@@ -172,6 +307,8 @@ ApkRevive includes 8 pairs of control and failing canary test vectors (16 APKs t
 | 6 | `canary_bionic_greylist` | Bionic Linker | Direct dependency on private system `.so` (e.g. `libgui.so`) |
 | 7 | `canary_has_code` | ART / Zygote | `hasCode="false"` preventing bytecode execution |
 | 8 | `canary_obb_version` | Storage / Expansion | OBB version code mismatch or ahead of APK versionCode |
+
+For the complete OS and device support matrix, refresh rate behaviors, and hardware vs. emulator details, see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
 ---
 
