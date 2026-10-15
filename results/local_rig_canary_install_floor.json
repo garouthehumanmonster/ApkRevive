@@ -1,0 +1,13 @@
+{
+  "device_model": "Local Verification Rig",
+  "android_build": "Host Python Test Harness",
+  "kernel_page_size": 4096,
+  "refresh_rate": 60,
+  "emulator_or_hardware": "local_host",
+  "date": "2026-10-15",
+  "tool_commit": "20778b3",
+  "canary_id": "canary_install_floor",
+  "expected": "Enforce BYPASS_LOW_TARGET_SDK_BLOCK install strategy for targetSdk 22 on API 35 host; control targetSdk 24 direct installs.",
+  "observed": "Manifest targetSdkVersion verified (22 vs 24); evaluate_triage selected BYPASS_LOW_TARGET_SDK_BLOCK; adb bridge install lifecycle verified with mock bypass flag.",
+  "pass_fail": "PASS"
+}

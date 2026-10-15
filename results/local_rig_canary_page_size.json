@@ -1,0 +1,13 @@
+{
+  "device_model": "Local Verification Rig",
+  "android_build": "Host Python Test Harness",
+  "kernel_page_size": 4096,
+  "refresh_rate": 60,
+  "emulator_or_hardware": "local_host",
+  "date": "2026-10-15",
+  "tool_commit": "20778b3",
+  "canary_id": "canary_page_size",
+  "expected": "Detect 4KB ELF p_align on 16KB kernel; evaluate to RED on API 35, and inject pageSizeCompat='enabled' (YELLOW) on API 36+.",
+  "observed": "ELF load alignment inspected (4096 vs 16384 bytes); API 35 triage yielded RED INCOMPATIBLE_PAGE_SIZE; API 36 triage yielded YELLOW with pageSizeCompat injected.",
+  "pass_fail": "PASS"
+}

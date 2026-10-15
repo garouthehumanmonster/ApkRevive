@@ -52,6 +52,45 @@ ApkRevive tests against 8 standardized canary pairs (16 APK packages total). Eac
 
 ---
 
+### Canary Verification Results Matrix
+
+<!-- CANARY_RESULTS_START -->
+
+| Canary | Local Verification Rig | Android Emulator API 34 (4KB) | Android Emulator API 35 (16KB) | Physical Hardware API 35 (ARM64 16KB) | Android 16 API 36 Preview (16KB) |
+|---|:---:|:---:|:---:|:---:|:---:|
+| `canary_install_floor` | PASS | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| `canary_apache_http` | PASS | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| `canary_page_size` | PASS | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| `canary_physics_tick` | PASS | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| `canary_aspect_ratio` | PASS | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| `canary_bionic_greylist` | PASS | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| `canary_has_code` | PASS | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+| `canary_obb_version` | PASS | NOT RUN | NOT RUN | NOT RUN | NOT RUN |
+
+*Standard Environments Evaluated:*
+- **Local Verification Rig**: Host AXML/ELF/Signer test harness
+- **Android Emulator API 34 (4KB)**: Android Emulator API 34 (4KB)
+- **Android Emulator API 35 (16KB)**: Android Emulator API 35 (16KB)
+- **Physical Hardware API 35 (ARM64 16KB)**: Physical Hardware API 35 (ARM64 16KB)
+- **Android 16 API 36 Preview (16KB)**: Android 16 API 36 Preview (16KB)
+
+#### Recorded Verification Evidence
+
+| Canary | Environment | Tool Commit | Date | Observed Result | Status |
+|---|---|:---:|:---:|---|:---:|
+| `canary_apache_http` | Local Verification Rig | `20778b3` | 2026-10-15 | Failing APK identified missing library; AxmlSurgeon injected <uses-library android:name="org.apache.http.legacy" android:required="false"/>; post-patch triage confirmed GREEN. | PASS |
+| `canary_aspect_ratio` | Local Verification Rig | `20778b3` | 2026-10-15 | Triage flagged EXPAND_ASPECT_RATIO; AxmlSurgeon set resizeableActivity=true and stripped max_aspect; post-patch triage confirmed GREEN. | PASS |
+| `canary_bionic_greylist` | Local Verification Rig | `20778b3` | 2026-10-15 | ELF DT_NEEDED parser identified libgui.so dependency; evaluate_triage returned RED verdict with UNRESOLVABLE_SYSTEM_LIBRARY; control with libcrypto.so on targetSdk 22 passed. | PASS |
+| `canary_has_code` | Local Verification Rig | `20778b3` | 2026-10-15 | Triage flagged SET_HAS_CODE_TRUE; AxmlSurgeon flipped hasCode from false to true and inserted classes.dex; post-patch inspection confirmed has_code=True. | PASS |
+| `canary_install_floor` | Local Verification Rig | `20778b3` | 2026-10-15 | Manifest targetSdkVersion verified (22 vs 24); evaluate_triage selected BYPASS_LOW_TARGET_SDK_BLOCK; adb bridge install lifecycle verified with mock bypass flag. | PASS |
+| `canary_obb_version` | Local Verification Rig | `20778b3` | 2026-10-15 | validate_obb_delivery flagged EXPANSION_VERSION_AHEAD_OF_APK warning for OBB version 200 with APK versionCode 100; control with OBB 100 and APK 150 validated with no warnings. | PASS |
+| `canary_page_size` | Local Verification Rig | `20778b3` | 2026-10-15 | ELF load alignment inspected (4096 vs 16384 bytes); API 35 triage yielded RED INCOMPATIBLE_PAGE_SIZE; API 36 triage yielded YELLOW with pageSizeCompat injected. | PASS |
+| `canary_physics_tick` | Local Verification Rig | `20778b3` | 2026-10-15 | Triage flagged LOCK_60HZ_DISPLAY_MODE; AxmlSurgeon injected ApkReviveInitProvider and apkrevive.enable_60hz_lock meta-data; post-patch triage confirmed GREEN. | PASS |
+
+<!-- CANARY_RESULTS_END -->
+
+---
+
 ## 4. Execution Environments: Emulator vs. Physical Hardware
 
 | Capability / Constraint | Official Android Emulator (AVD) | Physical Hardware (Pixel, Galaxy, Xiaomi, etc.) |

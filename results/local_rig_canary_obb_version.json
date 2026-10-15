@@ -1,0 +1,13 @@
+{
+  "device_model": "Local Verification Rig",
+  "android_build": "Host Python Test Harness",
+  "kernel_page_size": 4096,
+  "refresh_rate": 60,
+  "emulator_or_hardware": "local_host",
+  "date": "2026-10-15",
+  "tool_commit": "20778b3",
+  "canary_id": "canary_obb_version",
+  "expected": "Detect OBB expansion file version drift when OBB version exceeds APK versionCode; issue EXPANSION_VERSION_AHEAD_OF_APK warning.",
+  "observed": "validate_obb_delivery flagged EXPANSION_VERSION_AHEAD_OF_APK warning for OBB version 200 with APK versionCode 100; control with OBB 100 and APK 150 validated with no warnings.",
+  "pass_fail": "PASS"
+}

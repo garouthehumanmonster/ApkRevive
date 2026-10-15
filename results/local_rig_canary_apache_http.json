@@ -1,0 +1,13 @@
+{
+  "device_model": "Local Verification Rig",
+  "android_build": "Host Python Test Harness",
+  "kernel_page_size": 4096,
+  "refresh_rate": 60,
+  "emulator_or_hardware": "local_host",
+  "date": "2026-10-15",
+  "tool_commit": "20778b3",
+  "canary_id": "canary_apache_http",
+  "expected": "Detect missing org.apache.http.legacy on API 28+ targetSdk; triage to YELLOW and inject uses-library declaration.",
+  "observed": "Failing APK identified missing library; AxmlSurgeon injected <uses-library android:name=\"org.apache.http.legacy\" android:required=\"false\"/>; post-patch triage confirmed GREEN.",
+  "pass_fail": "PASS"
+}

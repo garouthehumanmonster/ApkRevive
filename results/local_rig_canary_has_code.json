@@ -1,0 +1,13 @@
+{
+  "device_model": "Local Verification Rig",
+  "android_build": "Host Python Test Harness",
+  "kernel_page_size": 4096,
+  "refresh_rate": 60,
+  "emulator_or_hardware": "local_host",
+  "date": "2026-10-15",
+  "tool_commit": "20778b3",
+  "canary_id": "canary_has_code",
+  "expected": "Detect hasCode='false' when shim injection is needed; flip android:hasCode to 'true' and inject shim classes.dex.",
+  "observed": "Triage flagged SET_HAS_CODE_TRUE; AxmlSurgeon flipped hasCode from false to true and inserted classes.dex; post-patch inspection confirmed has_code=True.",
+  "pass_fail": "PASS"
+}
