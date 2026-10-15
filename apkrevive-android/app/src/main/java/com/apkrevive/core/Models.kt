@@ -20,7 +20,8 @@ enum class TriageSignal {
     NEEDS_REFRESH_RATE_FIX,
     NEEDS_PAGE_SIZE_COMPAT,
     NEEDS_PAGE_SIZE_COMPAT_ANDROID16,
-    NEEDS_HAS_CODE_FLAG
+    NEEDS_HAS_CODE_FLAG,
+    SPLIT_APK_UNSUPPORTED
 }
 
 data class DeviceProfile(
@@ -41,6 +42,13 @@ data class ApkMetadata(
     val elfLoadAlign64bit: Long? = null,
     val privateLibs: List<String> = emptyList(),
     val usesApacheHttp: Boolean = false,
+    val hasApacheLibraryDecl: Boolean = false,
+    val isSplitApk: Boolean = false,
+    val hasInvalidElfLayout: Boolean = false,
+    val usesCleartextTraffic: Boolean? = null,
+    val hasNetworkSecurityConfig: Boolean = false,
+    val legacyTlsProtocols: List<String> = emptyList(),
+    val permissions: List<String> = emptyList(),
     val hasCode: Boolean = true,
     val isNonResizeable: Boolean = false,
     val hasFixedPhysics: Boolean = false,

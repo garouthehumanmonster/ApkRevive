@@ -39,6 +39,17 @@ object TriageEvaluator {
         val warnings = mutableListOf<String>()
         val requiredTransforms = mutableListOf<String>()
 
+        // 0. Split APK Check
+        if (apkMeta.isSplitApk) {
+            return TriageResult(
+                verdict = Verdict.RED,
+                reason = TriageSignal.SPLIT_APK_UNSUPPORTED,
+                details = "Split APKs cannot be modernized independently. Modernize the base APK.",
+                warnings = warnings,
+                requiredTransforms = emptyList()
+            )
+        }
+
         // 1. Device ABI Check
         if (apkAbis.isNotEmpty()) {
             val matchingAbis = apkAbis.intersect(deviceAbis)
@@ -80,12 +91,12 @@ object TriageEvaluator {
         // 3. 16KB Page Size Segment Alignment Check
         val has64BitNative = apkAbis.intersect(setOf("arm64-v8a", "x86_64")).isNotEmpty()
         if (devicePageSize == 16384L && has64BitNative) {
-            if (elfLoadAlign != null && elfLoadAlign < 16384L) {
+            if ((elfLoadAlign != null && elfLoadAlign < 16384L) || apkMeta.hasInvalidElfLayout) {
                 if (deviceSdk < 36) {
                     return TriageResult(
                         verdict = Verdict.RED,
                         reason = TriageSignal.INCOMPATIBLE_PAGE_SIZE,
-                        details = "64-bit ELF has PT_LOAD p_align=$elfLoadAlign (< 16384) on 16KB kernel (OS API=$deviceSdk < 36)",
+                        details = "64-bit ELF has invalid or <16KB segment alignment on 16KB kernel (OS API=$deviceSdk < 36)",
                         warnings = warnings,
                         requiredTransforms = emptyList()
                     )
@@ -96,7 +107,7 @@ object TriageEvaluator {
         }
 
         // 4. Modification Requirements Analysis
-        if (targetSdk == 28 && usesApacheHttp) {
+        if (targetSdk >= 28 && usesApacheHttp && !apkMeta.hasApacheLibraryDecl) {
             requiredTransforms.add("INJECT_USES_LIBRARY_APACHE_HTTP")
         }
 
@@ -110,6 +121,14 @@ object TriageEvaluator {
 
         if (hasFixedPhysics && deviceIsHighRefresh) {
             requiredTransforms.add("LOCK_60HZ_DISPLAY_MODE")
+        }
+
+        if (targetSdk >= 28 && deviceSdk >= 28 && (apkMeta.usesCleartextTraffic == false || (apkMeta.usesCleartextTraffic == null && !apkMeta.hasNetworkSecurityConfig))) {
+            warnings.add("WARN_CLEARTEXT: Cleartext HTTP traffic is blocked by default on Android 9+ (API 28+).")
+        }
+
+        if (apkMeta.legacyTlsProtocols.isNotEmpty()) {
+            warnings.add("WARN_LEGACY_TLS: Deprecated TLS protocol references (${apkMeta.legacyTlsProtocols.sorted()}) detected.")
         }
 
         if (hasDrm) {

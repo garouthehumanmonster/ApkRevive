@@ -1196,6 +1196,7 @@ fun formatTriageReason(signal: com.apkrevive.core.TriageSignal): String {
         com.apkrevive.core.TriageSignal.NEEDS_PAGE_SIZE_COMPAT -> "Requires 16KB Page Compatibility"
         com.apkrevive.core.TriageSignal.NEEDS_PAGE_SIZE_COMPAT_ANDROID16 -> "Requires Android 16 Page Compatibility"
         com.apkrevive.core.TriageSignal.NEEDS_HAS_CODE_FLAG -> "Requires Application Code Flag"
+        com.apkrevive.core.TriageSignal.SPLIT_APK_UNSUPPORTED -> "Split APK Unsupported"
     }
 }
 

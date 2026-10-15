@@ -6,6 +6,8 @@ import com.apkrevive.core.TriageEvaluator
 import com.apkrevive.core.TriageSignal
 import com.apkrevive.core.Verdict
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -370,5 +372,150 @@ class TriageEvaluatorTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun testSplitApkUnsupported() {
+        val apk = ApkMetadata(
+            packageName = "com.example.split",
+            targetSdk = 28,
+            isSplitApk = true,
+            sizeBytes = 5_000_000L
+        )
+        val device = DeviceProfile(osApiLevel = 35)
+        val result = TriageEvaluator.evaluateTriage(apk, device)
+        assertEquals(Verdict.RED, result.verdict)
+        assertEquals(TriageSignal.SPLIT_APK_UNSUPPORTED, result.reason)
+        assertEquals("Split APKs cannot be modernized independently. Modernize the base APK.", result.details)
+        assertTrue(result.requiredTransforms.isEmpty())
+    }
+
+    @Test
+    fun testApacheHttpTargetSdk29() {
+        val apk = ApkMetadata(
+            targetSdk = 29,
+            usesApacheHttp = true,
+            sizeBytes = 5_000_000L
+        )
+        val device = DeviceProfile(osApiLevel = 35)
+        val result = TriageEvaluator.evaluateTriage(apk, device)
+        assertEquals(Verdict.YELLOW, result.verdict)
+        assertEquals(TriageSignal.MODIFICATION_REQUIRED, result.reason)
+        assertEquals(listOf("INJECT_USES_LIBRARY_APACHE_HTTP"), result.requiredTransforms)
+    }
+
+    @Test
+    fun testApacheHttpDeclaredNoInjection() {
+        val apk = ApkMetadata(
+            targetSdk = 28,
+            usesApacheHttp = true,
+            hasApacheLibraryDecl = true,
+            sizeBytes = 5_000_000L
+        )
+        val device = DeviceProfile(osApiLevel = 35)
+        val result = TriageEvaluator.evaluateTriage(apk, device)
+        assertEquals(Verdict.GREEN, result.verdict)
+        assertEquals(TriageSignal.RUNNABLE_UNMODIFIED, result.reason)
+        assertTrue(result.requiredTransforms.isEmpty())
+    }
+
+    @Test
+    fun testInvalidElfLayoutApi35PageSize() {
+        val apk = ApkMetadata(
+            targetSdk = 28,
+            abis = listOf("arm64-v8a"),
+            hasInvalidElfLayout = true,
+            sizeBytes = 10_000_000L
+        )
+        val device = DeviceProfile(
+            osApiLevel = 35,
+            supportedAbis = listOf("arm64-v8a"),
+            pageSizeBytes = 16384L
+        )
+        val result = TriageEvaluator.evaluateTriage(apk, device)
+        assertEquals(Verdict.RED, result.verdict)
+        assertEquals(TriageSignal.INCOMPATIBLE_PAGE_SIZE, result.reason)
+        assertEquals("64-bit ELF has invalid or <16KB segment alignment on 16KB kernel (OS API=35 < 36)", result.details)
+        assertTrue(result.requiredTransforms.isEmpty())
+    }
+
+    @Test
+    fun testInvalidElfLayoutApi36PageSize() {
+        val apk = ApkMetadata(
+            targetSdk = 28,
+            abis = listOf("arm64-v8a"),
+            hasInvalidElfLayout = true,
+            sizeBytes = 10_000_000L
+        )
+        val device = DeviceProfile(
+            osApiLevel = 36,
+            supportedAbis = listOf("arm64-v8a"),
+            pageSizeBytes = 16384L
+        )
+        val result = TriageEvaluator.evaluateTriage(apk, device)
+        assertEquals(Verdict.YELLOW, result.verdict)
+        assertEquals(TriageSignal.MODIFICATION_REQUIRED, result.reason)
+        assertEquals(listOf("PAGE_SIZE_COMPAT"), result.requiredTransforms)
+    }
+
+    @Test
+    fun testCleartextOnApi28WithoutNsc() {
+        val apk = ApkMetadata(
+            targetSdk = 28,
+            usesCleartextTraffic = null,
+            hasNetworkSecurityConfig = false,
+            sizeBytes = 5_000_000L
+        )
+        val device = DeviceProfile(osApiLevel = 28)
+        val result = TriageEvaluator.evaluateTriage(apk, device)
+        assertTrue(
+            "Expected WARN_CLEARTEXT in warnings: ${result.warnings}",
+            result.warnings.any { it.contains("WARN_CLEARTEXT: Cleartext HTTP traffic is blocked by default on Android 9+ (API 28+).") }
+        )
+    }
+
+    @Test
+    fun testCleartextDisabledExplicitly() {
+        val apk = ApkMetadata(
+            targetSdk = 28,
+            usesCleartextTraffic = false,
+            sizeBytes = 5_000_000L
+        )
+        val device = DeviceProfile(osApiLevel = 28)
+        val result = TriageEvaluator.evaluateTriage(apk, device)
+        assertTrue(
+            "Expected WARN_CLEARTEXT when usesCleartextTraffic is false",
+            result.warnings.any { it.contains("WARN_CLEARTEXT") }
+        )
+    }
+
+    @Test
+    fun testCleartextWithNetworkSecurityConfigSuppressesWarning() {
+        val apk = ApkMetadata(
+            targetSdk = 28,
+            usesCleartextTraffic = null,
+            hasNetworkSecurityConfig = true,
+            sizeBytes = 5_000_000L
+        )
+        val device = DeviceProfile(osApiLevel = 28)
+        val result = TriageEvaluator.evaluateTriage(apk, device)
+        assertFalse(
+            "WARN_CLEARTEXT should not be emitted when network security config is present",
+            result.warnings.any { it.contains("WARN_CLEARTEXT") }
+        )
+    }
+
+    @Test
+    fun testLegacyTlsWarningEmitted() {
+        val apk = ApkMetadata(
+            targetSdk = 28,
+            legacyTlsProtocols = listOf("TLSv1.1", "SSLv3"),
+            sizeBytes = 5_000_000L
+        )
+        val device = DeviceProfile(osApiLevel = 35)
+        val result = TriageEvaluator.evaluateTriage(apk, device)
+        val tlsWarning = result.warnings.firstOrNull { it.contains("WARN_LEGACY_TLS") }
+        assertNotNull("Expected WARN_LEGACY_TLS in warnings", tlsWarning)
+        assertTrue(tlsWarning!!.contains("[SSLv3, TLSv1.1]"))
     }
 }
