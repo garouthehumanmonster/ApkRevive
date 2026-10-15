@@ -27,3 +27,14 @@ Reports will be acknowledged within 48 hours, followed by a proposed fix or reme
 - **Signing Keys:** Never reuse shared debug keystores in production environments. Always specify a private, protected keystore using `--ks`.
 - **Untrusted Archives:** Treat all third-party APK files as potentially untrusted. ApkRevive performs boundary checks to prevent zip-slip and traversal attacks during extraction and realignment.
 - **Legal Compliance:** Users are solely responsible for ensuring they have authorization and lawful rights to decompile, mutate, and re-sign target applications.
+
+## Runtime Shim Security & Provenance
+
+ApkRevive injects an optional lightweight lifecycle shim (`ApkReviveInitProvider`) when modern display compatibility flags (such as 60Hz display refresh locking or cutout short-edge mode) are enabled. To maintain uncompromising security and auditability:
+
+- **Source Provenance:** The runtime shim source is maintained transparently at [`apkrevive/shim/ApkReviveInitProvider.java`](file:///C:/Users/Divyansh/Desktop/Projects/apkrevive/apkrevive/shim/ApkReviveInitProvider.java) and deterministically compiled via [`apkrevive/shim/build_shim.py`](file:///C:/Users/Divyansh/Desktop/Projects/apkrevive/apkrevive/shim/build_shim.py).
+- **Zero Network:** The shim contains zero networking code, opens no sockets, and makes no HTTP/HTTPS calls.
+- **Zero Data Collection / Telemetry:** The shim does not collect, read, store, or transmit device identifiers, user data, or telemetry.
+- **Strictly Scoped Functionality:** Solely sets 60Hz display mode ID and short-edge display cutout layout mode on activity resume.
+- **Provenance Verification:** Verified cryptographically by `apkrevive doctor` against pinned source (`d589872c5ea50fe537c07ecab3ed929261b03cd21aaecad588d080674c55fc28`) and binary DEX (`609b5dcbc8f657b046a73809afbd666cb6feb567497dc068733b57212286e590`) SHA256 hashes to guarantee complete build integrity and prevent tampering.
+

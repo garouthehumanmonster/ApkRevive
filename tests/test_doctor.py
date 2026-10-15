@@ -18,6 +18,7 @@ from apkrevive.core.doctor import (
     check_shim_dex,
     run_doctor,
     format_doctor_report,
+    EXPECTED_SHIM_SOURCE_SHA256,
     EXPECTED_SHIM_DEX_SHA256,
 )
 from apkrevive.cli import doctor_cmd
@@ -132,35 +133,98 @@ class TestDoctor(unittest.TestCase):
             self.assertEqual(res["status"], "WARN")
             self.assertIn("Permission denied", res["details"])
 
-    def test_check_shim_dex_missing_fail(self):
-        with patch.object(Path, "is_file", return_value=False):
+    def test_check_shim_source_missing_fail(self):
+        def fake_is_file(p):
+            if "ApkReviveInitProvider.java" in str(p):
+                return False
+            return True
+
+        with patch.object(Path, "is_file", autospec=True, side_effect=fake_is_file):
             res = check_shim_dex()
             self.assertEqual(res["status"], "FAIL")
-            self.assertIn("missing", res["details"])
+            self.assertIn("Shim source file missing", res["details"])
 
-    def test_check_shim_dex_hash_match(self):
+    def test_check_shim_dex_missing_fail(self):
+        def fake_is_file(p):
+            if "shim.dex" in str(p):
+                return False
+            return True
+
+        with patch.object(Path, "is_file", autospec=True, side_effect=fake_is_file):
+            res = check_shim_dex()
+            self.assertEqual(res["status"], "FAIL")
+            self.assertIn("Shim DEX file missing", res["details"])
+
+    def test_check_shim_source_and_dex_hash_match(self):
         with patch.object(Path, "is_file", return_value=True), \
              patch("builtins.open", mock_open(read_data=b"test_content")), \
              patch("hashlib.sha256") as mock_sha:
-            mock_sha.return_value.hexdigest.return_value = EXPECTED_SHIM_DEX_SHA256
+            mock_inst_src = unittest.mock.MagicMock()
+            mock_inst_src.hexdigest.return_value = EXPECTED_SHIM_SOURCE_SHA256
+            mock_inst_dex = unittest.mock.MagicMock()
+            mock_inst_dex.hexdigest.return_value = EXPECTED_SHIM_DEX_SHA256
+            mock_sha.side_effect = [mock_inst_src, mock_inst_dex]
+
             res = check_shim_dex()
             self.assertEqual(res["status"], "PASS")
+            self.assertIn("Shim source & DEX integrity verified", res["details"])
+            self.assertIn(f"src: {EXPECTED_SHIM_SOURCE_SHA256[:8]}...", res["details"])
+            self.assertIn(f"dex: {EXPECTED_SHIM_DEX_SHA256[:8]}...", res["details"])
+
+    def test_check_shim_source_hash_mismatch(self):
+        with patch.object(Path, "is_file", return_value=True), \
+             patch("builtins.open", mock_open(read_data=b"test_content")), \
+             patch("hashlib.sha256") as mock_sha:
+            mock_inst = unittest.mock.MagicMock()
+            mock_inst.hexdigest.return_value = "bad_source_hash"
+            mock_sha.return_value = mock_inst
+
+            res = check_shim_dex()
+            self.assertEqual(res["status"], "FAIL")
+            self.assertIn("Shim source SHA256 mismatch", res["details"])
 
     def test_check_shim_dex_hash_mismatch(self):
         with patch.object(Path, "is_file", return_value=True), \
              patch("builtins.open", mock_open(read_data=b"test_content")), \
              patch("hashlib.sha256") as mock_sha:
-            mock_sha.return_value.hexdigest.return_value = "bad_hash_value"
+            mock_inst_src = unittest.mock.MagicMock()
+            mock_inst_src.hexdigest.return_value = EXPECTED_SHIM_SOURCE_SHA256
+            mock_inst_dex = unittest.mock.MagicMock()
+            mock_inst_dex.hexdigest.return_value = "bad_dex_hash"
+            mock_sha.side_effect = [mock_inst_src, mock_inst_dex]
+
             res = check_shim_dex()
             self.assertEqual(res["status"], "FAIL")
-            self.assertIn("SHA256 mismatch", res["details"])
+            self.assertIn("Shim DEX SHA256 mismatch", res["details"])
+
+    def test_check_shim_source_read_error(self):
+        with patch.object(Path, "is_file", return_value=True), \
+             patch("builtins.open", side_effect=IOError("Source read error")):
+            res = check_shim_dex()
+            self.assertEqual(res["status"], "FAIL")
+            self.assertIn("Error reading shim source", res["details"])
 
     def test_check_shim_dex_read_error(self):
+        def fake_open(file, *args, **kwargs):
+            if "shim.dex" in str(file):
+                raise IOError("DEX read error")
+            return mock_open(read_data=b"source_content")(file, *args, **kwargs)
+
         with patch.object(Path, "is_file", return_value=True), \
-             patch("builtins.open", side_effect=IOError("Read error")):
+             patch("builtins.open", side_effect=fake_open), \
+             patch("hashlib.sha256") as mock_sha:
+            mock_sha.return_value.hexdigest.return_value = EXPECTED_SHIM_SOURCE_SHA256
             res = check_shim_dex()
             self.assertEqual(res["status"], "FAIL")
             self.assertIn("Error reading shim DEX", res["details"])
+
+    def test_check_shim_dex_real_files(self):
+        res = check_shim_dex()
+        self.assertEqual(res["status"], "PASS")
+        self.assertEqual(
+            res["details"],
+            f"Shim source & DEX integrity verified (src: {EXPECTED_SHIM_SOURCE_SHA256[:8]}..., dex: {EXPECTED_SHIM_DEX_SHA256[:8]}...)",
+        )
 
     def test_run_doctor_overall_pass_warn_fail(self):
         # Case 1: All PASS
@@ -202,11 +266,16 @@ class TestDoctor(unittest.TestCase):
             "checks": {
                 "python": {"status": "PASS", "details": "Python 3.10"},
                 "adb": {"status": "PASS", "details": "ADB found"},
-            }
+                "shim_dex": {
+                    "status": "PASS",
+                    "details": "Shim source & DEX integrity verified (src: d589872c..., dex: 609b5dcb...)",
+                },
+            },
         }
         report = format_doctor_report(mock_res)
         self.assertIn("ApkRevive Doctor Report", report)
         self.assertIn("[PASS]   Python Version: Python 3.10", report)
+        self.assertIn("[PASS]   Shim Provenance & Integrity: Shim source & DEX integrity verified", report)
         self.assertIn("Overall Status: [PASS]", report)
 
     def test_cli_doctor_cmd_pass_and_json(self):

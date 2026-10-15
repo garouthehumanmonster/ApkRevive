@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 
+EXPECTED_SHIM_SOURCE_SHA256 = "d589872c5ea50fe537c07ecab3ed929261b03cd21aaecad588d080674c55fc28"
 EXPECTED_SHIM_DEX_SHA256 = "609b5dcbc8f657b046a73809afbd666cb6feb567497dc068733b57212286e590"
 
 
@@ -126,21 +127,43 @@ def check_keystore_dir() -> Dict[str, Any]:
 
 
 def check_shim_dex() -> Dict[str, Any]:
-    shim_path = Path(__file__).resolve().parent.parent / "shim" / "shim.dex"
-    if not shim_path.is_file():
-        return {"status": "FAIL", "details": f"Shim DEX file missing at {shim_path}"}
+    shim_dir = Path(__file__).resolve().parent.parent / "shim"
+    source_path = shim_dir / "ApkReviveInitProvider.java"
+    dex_path = shim_dir / "shim.dex"
+
+    if not source_path.is_file():
+        return {"status": "FAIL", "details": f"Shim source file missing at {source_path}"}
+    if not dex_path.is_file():
+        return {"status": "FAIL", "details": f"Shim DEX file missing at {dex_path}"}
+
     try:
-        with open(shim_path, "rb") as f:
-            digest = hashlib.sha256(f.read()).hexdigest()
-        if digest.lower() == EXPECTED_SHIM_DEX_SHA256.lower():
-            return {"status": "PASS", "details": f"Shim DEX integrity verified ({digest[:16]}...)"}
-        else:
-            return {
-                "status": "FAIL",
-                "details": f"SHA256 mismatch: expected {EXPECTED_SHIM_DEX_SHA256}, got {digest}"
-            }
+        with open(source_path, "rb") as f:
+            source_digest = hashlib.sha256(f.read()).hexdigest()
+    except Exception as e:
+        return {"status": "FAIL", "details": f"Error reading shim source: {e}"}
+
+    if source_digest.lower() != EXPECTED_SHIM_SOURCE_SHA256.lower():
+        return {
+            "status": "FAIL",
+            "details": f"Shim source SHA256 mismatch: expected {EXPECTED_SHIM_SOURCE_SHA256}, got {source_digest}",
+        }
+
+    try:
+        with open(dex_path, "rb") as f:
+            dex_digest = hashlib.sha256(f.read()).hexdigest()
     except Exception as e:
         return {"status": "FAIL", "details": f"Error reading shim DEX: {e}"}
+
+    if dex_digest.lower() != EXPECTED_SHIM_DEX_SHA256.lower():
+        return {
+            "status": "FAIL",
+            "details": f"Shim DEX SHA256 mismatch: expected {EXPECTED_SHIM_DEX_SHA256}, got {dex_digest}",
+        }
+
+    return {
+        "status": "PASS",
+        "details": f"Shim source & DEX integrity verified (src: {source_digest[:8]}..., dex: {dex_digest[:8]}...)",
+    }
 
 
 def run_doctor() -> Dict[str, Any]:
@@ -190,7 +213,7 @@ def format_doctor_report(res: Dict[str, Any]) -> str:
         "build_tools": "Android Build Tools",
         "adb": "Android Debug Bridge (ADB)",
         "keystore_dir": "User Keystore Directory",
-        "shim_dex": "Shim DEX Integrity",
+        "shim_dex": "Shim Provenance & Integrity",
     }
     lines = [
         "ApkRevive Doctor Report",
