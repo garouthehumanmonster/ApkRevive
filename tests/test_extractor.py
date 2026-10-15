@@ -14,7 +14,7 @@ from unittest.mock import patch
 import argparse
 
 from apkrevive.core.axml import AxmlSurgeon, AxmlNode
-from apkrevive.core.extractor import inspect_apk
+from apkrevive.core.extractor import inspect_apk, get_elf_needed
 from apkrevive.cli import triage_cmd
 
 CANARIES_BUILD = Path(__file__).resolve().parent.parent / "canaries" / "build"
@@ -246,6 +246,36 @@ class TestExtractor(unittest.TestCase):
         finally:
             if os.path.exists(apk2_path):
                 os.remove(apk2_path)
+
+    def test_get_elf_needed_vaddr_translation(self):
+        """Tests that get_elf_needed translates DT_STRTAB virtual address via PT_LOAD segment headers."""
+        # Build a 64-bit ELF where p_vaddr (0x10000) != p_offset (0x1000)
+        hdr = bytearray(b"\x7fELF\x02\x01\x01\x00" + (b"\x00" * 8))
+        hdr += struct.pack("<HHIQQQIHHHHHH", 2, 0xB7, 1, 0, 64, 0, 0, 64, 56, 2, 0, 0, 0)
+        self.assertEqual(len(hdr), 64)
+
+        # Program Header 0: PT_LOAD at file offset 0x1000, mapped to vaddr 0x10000
+        ph_load = struct.pack("<IIQQQQQQ", 1, 7, 0x1000, 0x10000, 0x10000, 0x1000, 0x1000, 0x1000)
+        # Program Header 1: PT_DYNAMIC at file offset 0x1000
+        ph_dynamic = struct.pack("<IIQQQQQQ", 2, 6, 0x1000, 0x10000, 0x10000, 48, 48, 8)
+
+        file_bytes = bytearray(hdr + ph_load + ph_dynamic)
+        if len(file_bytes) < 0x1000:
+            file_bytes += b"\x00" * (0x1000 - len(file_bytes))
+
+        # Dynamic section at file offset 0x1000
+        # Entry 1: DT_NEEDED (tag=1), strtab offset 1
+        # Entry 2: DT_STRTAB (tag=5), virtual address 0x10040 (translates to file offset 0x1040)
+        # Entry 3: DT_NULL (tag=0)
+        dyn_sec = struct.pack("<QQ", 1, 1) + struct.pack("<QQ", 5, 0x10040) + struct.pack("<QQ", 0, 0)
+        file_bytes += dyn_sec
+
+        # Pad to strtab offset 0x1040
+        file_bytes += b"\x00" * (0x1040 - len(file_bytes))
+        file_bytes += b"\x00libcustom_translated.so\x00"
+
+        needed = get_elf_needed(bytes(file_bytes))
+        self.assertEqual(needed, ["libcustom_translated.so"])
 
 
 if __name__ == "__main__":

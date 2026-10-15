@@ -559,6 +559,34 @@ class TestCliUx(unittest.TestCase):
                 self.assertEqual(revive_verified_json["verdict"], "YELLOW")
                 self.assertTrue(revive_verified_json["page_size_compat_verified"])
 
+    def test_triage_enable_60hz_plans_lock_60hz_transform(self):
+        """Tests that triage with --enable-60hz sets fixed physics/high refresh and plans LOCK_60HZ_DISPLAY_MODE."""
+        manifest = AxmlNode(tag="manifest")
+        manifest.set_attr("package", "com.apkrevive.test60hz", ns="")
+        uses_sdk = AxmlNode(tag="uses-sdk")
+        uses_sdk.set_attr("minSdkVersion", 24)
+        uses_sdk.set_attr("targetSdkVersion", 30)
+        manifest.children.append(uses_sdk)
+        app = AxmlNode(tag="application")
+        manifest.children.append(app)
+        raw_manifest = AxmlSurgeon.serialize(manifest)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            apk_path = os.path.join(tmp_dir, "test_60hz.apk")
+            with zipfile.ZipFile(apk_path, "w") as zf:
+                zf.writestr("AndroidManifest.xml", raw_manifest)
+                zf.writestr("classes.dex", b"DEX\n035\x00")
+
+            stdout_buf = io.StringIO()
+            with patch("sys.argv", ["apkrevive", "triage", apk_path, "--enable-60hz", "--json"]), \
+                 patch("sys.stdout", stdout_buf):
+                code = main()
+
+            output = stdout_buf.getvalue()
+            data = json.loads(output)
+            self.assertIn("LOCK_60HZ_DISPLAY_MODE", data.get("required_transforms", []))
+            self.assertEqual(code, VERDICT_EXIT_CODES["YELLOW"])
+
 
 if __name__ == "__main__":
     unittest.main()

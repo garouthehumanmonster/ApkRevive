@@ -104,6 +104,27 @@ class TestAdbBridge(unittest.TestCase):
         mock_cmd.return_value = (0, "Failure\n", "")
         self.assertFalse(self.bridge_no_serial.uninstall("com.example.app"))
 
+    def test_uninstall_malformed_package_name_raises_value_error(self):
+        malformed_packages = [
+            "-k evil.pkg",
+            "not_a_package",
+            "com..invalid",
+            "; rm -rf /",
+            "com.example;evil",
+            "",
+            ".com.startdot",
+        ]
+        for pkg in malformed_packages:
+            with self.subTest(pkg=pkg):
+                with self.assertRaises(ValueError) as ctx:
+                    self.bridge_no_serial.uninstall(pkg)
+                self.assertIn("Invalid Android package name", str(ctx.exception))
+
+    def test_install_lifecycle_malformed_package_name_raises_value_error(self):
+        with self.assertRaises(ValueError) as ctx:
+            self.bridge_no_serial.install_lifecycle("dummy.apk", "-k evil.pkg", 28, 24)
+        self.assertIn("Invalid Android package name", str(ctx.exception))
+
     @patch.object(AdbBridge, "_cmd")
     def test_install_without_bypass(self, mock_cmd):
         mock_cmd.return_value = (0, "Success\n", "")

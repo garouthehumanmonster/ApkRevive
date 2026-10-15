@@ -6,6 +6,7 @@ import getpass
 import io
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -160,6 +161,38 @@ class TestSigner(unittest.TestCase):
             self.assertEqual(args.ks_pass, "secret123")
             self.assertEqual(args.ks_alias, "mykey")
             self.assertEqual(args.key_pass, "keysecret")
+
+    @patch("subprocess.run")
+    @patch("apkrevive.core.signer.ensure_keystore")
+    def test_sign_apk_passes_passwords_via_env(self, mock_ensure, mock_run):
+        """Verifies that sign_apk passes env:APKREVIVE_KS_PASS / env:APKREVIVE_KEY_PASS in argv and passwords in env dict."""
+        mock_ensure.return_value = ("/mock/test.p12", "mock_ks_pwd", "mock_alias")
+        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+
+        success = sign_apk("dummy.apk", keystore_pass="mock_ks_pwd", key_pass="mock_key_pwd")
+        self.assertTrue(success)
+
+        self.assertTrue(mock_run.called)
+        call_args = mock_run.call_args
+        cmd = call_args[0][0]
+        kwargs = call_args[1]
+
+        self.assertIn("--ks-pass", cmd)
+        ks_idx = cmd.index("--ks-pass")
+        self.assertEqual(cmd[ks_idx + 1], "env:APKREVIVE_KS_PASS")
+
+        self.assertIn("--key-pass", cmd)
+        key_idx = cmd.index("--key-pass")
+        self.assertEqual(cmd[key_idx + 1], "env:APKREVIVE_KEY_PASS")
+
+        for arg in cmd:
+            self.assertNotIn("mock_ks_pwd", arg)
+            self.assertNotIn("mock_key_pwd", arg)
+
+        env = kwargs.get("env")
+        self.assertIsNotNone(env)
+        self.assertEqual(env.get("APKREVIVE_KS_PASS"), "mock_ks_pwd")
+        self.assertEqual(env.get("APKREVIVE_KEY_PASS"), "mock_key_pwd")
 
 
 if __name__ == "__main__":

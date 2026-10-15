@@ -3,9 +3,13 @@ bridge.py - Host ADB executor tracking install lifecycle and enforcing invariant
 """
 
 import os
+import re
 import shutil
 import subprocess
 from typing import Tuple, List, Optional
+
+
+PACKAGE_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)+$")
 
 
 def find_adb(preferred_path: str = "adb") -> str:
@@ -53,6 +57,8 @@ class AdbBridge:
         return out.strip() if code == 0 else ""
 
     def uninstall(self, package: str) -> bool:
+        if not PACKAGE_NAME_REGEX.match(package):
+            raise ValueError(f"Invalid Android package name: {package}")
         code, out, _ = self._cmd(["uninstall", package])
         return code == 0 and "Success" in out
 
@@ -66,6 +72,8 @@ class AdbBridge:
         return success, out + err
 
     def install_lifecycle(self, apk_path: str, package: str, target_sdk: int, floor: int) -> Tuple[bool, str]:
+        if not PACKAGE_NAME_REGEX.match(package):
+            raise ValueError(f"Invalid Android package name: {package}")
         self.uninstall(package)
         success, log = self.install(apk_path, bypass_low_target_sdk=False)
         if not success and "INSTALL_FAILED_DEPRECATED_SDK_VERSION" in log:

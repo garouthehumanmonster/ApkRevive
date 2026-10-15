@@ -7,7 +7,7 @@ import os
 import re
 import struct
 import zipfile
-from typing import Optional, List, Set
+from typing import Optional, List, Set, Tuple
 
 from apkrevive.core.models import ApkMetadata
 from apkrevive.core.axml import AxmlSurgeon, AxmlAttribute
@@ -88,22 +88,38 @@ def get_elf_needed(so_bytes: bytes) -> List[str]:
     e_phoff = struct.unpack_from(f"{endian}Q", so_bytes, 0x20)[0]
     e_phentsize = struct.unpack_from(f"{endian}H", so_bytes, 0x36)[0]
     e_phnum = struct.unpack_from(f"{endian}H", so_bytes, 0x38)[0]
-    dyn_off = None
-    dyn_sz = None
+
+    pt_loads: List[Tuple[int, int, int]] = []
+    dyn_off: Optional[int] = None
+    dyn_sz: Optional[int] = None
+
     for i in range(e_phnum):
         off = e_phoff + (i * e_phentsize)
         if off + 56 > len(so_bytes):
             break
         p_type = struct.unpack_from(f"{endian}I", so_bytes, off)[0]
-        if p_type == 2:  # PT_DYNAMIC
+        if p_type == 1:  # PT_LOAD
+            p_offset = struct.unpack_from(f"{endian}Q", so_bytes, off + 8)[0]
+            p_vaddr = struct.unpack_from(f"{endian}Q", so_bytes, off + 16)[0]
+            p_memsz = struct.unpack_from(f"{endian}Q", so_bytes, off + 40)[0]
+            pt_loads.append((p_vaddr, p_memsz, p_offset))
+        elif p_type == 2:  # PT_DYNAMIC
             dyn_off = struct.unpack_from(f"{endian}Q", so_bytes, off + 8)[0]
             dyn_sz = struct.unpack_from(f"{endian}Q", so_bytes, off + 32)[0]
-            break
+
     if dyn_off is None or dyn_sz is None:
         return []
 
+    def vaddr_to_offset(vaddr: int) -> Optional[int]:
+        for p_vaddr, p_memsz, p_offset in pt_loads:
+            if p_vaddr <= vaddr < p_vaddr + p_memsz:
+                return p_offset + (vaddr - p_vaddr)
+        if vaddr < len(so_bytes):
+            return vaddr
+        return None
+
     needed_offsets: List[int] = []
-    strtab_off = None
+    strtab_off: Optional[int] = None
     curr = dyn_off
     while curr < dyn_off + dyn_sz:
         if curr + 16 > len(so_bytes):
@@ -114,7 +130,7 @@ def get_elf_needed(so_bytes: bytes) -> List[str]:
         elif tag == 1:
             needed_offsets.append(val)
         elif tag == 5:
-            strtab_off = val
+            strtab_off = vaddr_to_offset(val)
         curr += 16
 
     needed: List[str] = []

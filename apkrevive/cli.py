@@ -152,6 +152,12 @@ def triage_cmd(args):
             uses_apache_http=bool(getattr(args, "uses_apache_http", False)),
         )
 
+    if getattr(args, "enable_60hz", False):
+        apk.has_fixed_physics = True
+        dev.is_high_refresh = True
+    if getattr(args, "enable_cutout", False):
+        dev.is_widescreen = True
+
     res = evaluate_triage(apk, dev)
     if getattr(args, "json", False):
         print(json.dumps(res, indent=2))
@@ -365,6 +371,8 @@ def main():
     p_triage.add_argument("--target-sdk", type=int, default=None)
     p_triage.add_argument("--apk-abis", default=None)
     p_triage.add_argument("--uses-apache-http", action="store_true", default=None)
+    p_triage.add_argument("--enable-60hz", action="store_true", help="Include 60Hz display lock shim transform")
+    p_triage.add_argument("--enable-cutout", action="store_true", help="Include display cutout layout transform")
     p_triage.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
     p_revive = sub.add_parser("revive", help="Modernize, patch, align and sign APK")

@@ -141,13 +141,16 @@ def sign_apk(
     cmd = [
         apksigner, "sign",
         "--ks", ks,
-        "--ks-pass", f"pass:{ks_pwd}",
+        "--ks-pass", "env:APKREVIVE_KS_PASS",
         "--ks-key-alias", alias,
-        "--key-pass", f"pass:{actual_key_pass}",
+        "--key-pass", "env:APKREVIVE_KEY_PASS",
         str(apk_path)
     ]
+    env = os.environ.copy()
+    env["APKREVIVE_KS_PASS"] = ks_pwd
+    env["APKREVIVE_KEY_PASS"] = actual_key_pass
     try:
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        res = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return res.returncode == 0
     except Exception as e:
         sys.stderr.write(f"apksigner execution error: {e}\n")
