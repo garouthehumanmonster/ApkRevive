@@ -1,5 +1,5 @@
 """
-test_cli.py - Comprehensive CLI test suite for ApkRevive v3.3.
+test_cli.py - Comprehensive CLI test suite for ApkRevive v0.3.3.
 """
 
 import io
@@ -81,7 +81,7 @@ class TestCli(unittest.TestCase):
                 with self.assertRaises(SystemExit) as cm:
                     main()
                 self.assertEqual(cm.exception.code, 0)
-                self.assertIn("apkrevive 3.3.0", mock_stdout.getvalue())
+                self.assertIn("apkrevive 0.3.3", mock_stdout.getvalue())
 
 
 if __name__ == "__main__":

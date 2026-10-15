@@ -1,9 +1,9 @@
-# ApkRevive v3.3
+# ApkRevive v0.3.3 (Alpha)
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
 [![Android Target](https://img.shields.io/badge/Android%20API-3%20to%2035+-brightgreen.svg)](https://developer.android.com)
 [![Page Alignment](https://img.shields.io/badge/16KB%20Page%20Size-Supported-orange.svg)](https://developer.android.com/guide/practices/page-sizes)
-[![Status](https://img.shields.io/badge/Status-Alpha-yellow.svg)](#)
+[![Status](https://img.shields.io/badge/Status-Alpha%20(0.3.3)-yellow.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey.svg)](LICENSE)
 
 > [!WARNING]
@@ -79,20 +79,32 @@ Provides a zero-overhead content provider shim (`ApkReviveInitProvider` in `shim
 
 ```
 ApkRevive/
+├── .github/
+│   └── workflows/ci.yml        # Multi-version Python & Android CI pipeline
 ├── apkrevive/                  # Core Python Modernizer Engine & CLI
 │   ├── adb/                    # ADB bridge and device install-floor probe
-│   ├── core/                   # Triage, AXML surgeon, ELF parser, aligner, signer, OBB
-│   ├── shim/                   # Precompiled bytecode shim (ApkReviveInitProvider)
+│   ├── core/                   # Triage, behavior rules, AXML surgeon, ELF, aligner, signer, OBB
+│   ├── shim/                   # Precompiled bytecode shim & build harness (ApkReviveInitProvider)
 │   └── cli.py                  # CLI entrypoint (`apkrevive`)
 ├── apkrevive-android/          # On-device companion app (Kotlin, Compose, Shizuku)
 │   ├── app/src/main/           # Android app source & installer bridge
 │   └── build.gradle.kts        # Gradle build configuration
 ├── canaries/                   # 8 pairs of control & failing verification canaries
 │   ├── src/                    # C/Java sources and canary manifests
-│   └── build_canaries.py       # Deterministic canary test harness
-├── tests/                      # Full pytest/unittest test suite
-├── pyproject.toml              # Python package metadata & dependencies
-└── README.md
+│   ├── build_canaries.py       # Deterministic canary test harness
+│   └── canary_hashes.json      # Cryptographic SHA256 hashes of all 16 built canary APKs
+├── docs/
+│   └── COMPATIBILITY.md        # Device/OS compatibility matrix & canary receipts
+├── results/                    # Machine-readable canary test execution receipts (*.json)
+├── scripts/
+│   └── generate_matrix.py      # Automated compatibility matrix generator
+├── tests/                      # Full test suite (140+ unit/integration tests)
+├── CHANGELOG.md                # Semantic versioning changelog
+├── CONTRIBUTING.md             # Contribution guidelines & development setup
+├── LICENSE                     # Apache-2.0 License
+├── pyproject.toml              # Single version source, build metadata, dependencies & tool configs
+├── README.md                   # Project documentation & usage guides
+└── SECURITY.md                 # Security policy, shim provenance & vulnerability disclosure
 ```
 
 ---
@@ -336,6 +348,19 @@ Execute the full test suite with Python `unittest` or `pytest`:
 ```bash
 python -m unittest discover -s tests
 ```
+
+---
+
+## GitHub Metadata Checklist
+
+- **Repository Description:** `Legacy Android APK modernizer pipeline targeting API 3-28 (Alpha)`
+- **Repository Topics:** `android`, `apk`, `legacy-android`, `reverse-engineering`, `apk-patching`, `shizuku`, `16kb-page-size`, `android-15`, `android-16`, `axml`, `dex`, `companion-app`
+- **Document Audit Checklist:**
+  - [x] [`LICENSE`](LICENSE) — Apache 2.0 License
+  - [x] [`SECURITY.md`](SECURITY.md) — Security policy, shim provenance & vulnerability disclosure
+  - [x] [`CHANGELOG.md`](CHANGELOG.md) — Semantic versioning changelog
+  - [x] [`CONTRIBUTING.md`](CONTRIBUTING.md) — Contribution guidelines & development setup
+  - [x] [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — Multi-version Python & Android CI pipeline
 
 ---
 
