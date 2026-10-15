@@ -105,6 +105,8 @@ class PatchReport:
     details: str = ""
     output_apk: Optional[str] = None
     transform_risks: Dict[str, str] = field(default_factory=dict)
+    page_size_compat_verified: bool = True
+    verdict_display: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

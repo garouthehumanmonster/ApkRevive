@@ -4,12 +4,17 @@ Verifies positive trigger and negative non-trigger conditions across (targetSdk,
 for every row in BEHAVIOR_CHANGES.
 """
 
+import json
+import os
+from pathlib import Path
+import tempfile
 import unittest
 from apkrevive.core.models import ApkMetadata, DeviceProfile
 from apkrevive.core.behavior_changes import (
     BEHAVIOR_CHANGES,
     PlatformBehaviorChange,
     get_applicable_behavior_changes,
+    is_page_size_compat_verified,
 )
 
 
@@ -317,5 +322,99 @@ class TestBehaviorChangesTable(unittest.TestCase):
         self.assertFalse(self.change_map[rule_id].condition(apk_neg_clean, dev_pos))
 
 
+class TestPageSizeCompatVerification(unittest.TestCase):
+    def test_default_repo_results_unverified(self):
+        """is_page_size_compat_verified() returns False on the current results/ folder."""
+        self.assertFalse(is_page_size_compat_verified())
+
+    def test_synthetic_api36_16kb_pass_result_verified(self):
+        """With synthetic temporary results folder containing an API 36 16KB PASS result, is_page_size_compat_verified(tmp_dir) returns True."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_file = os.path.join(tmp_dir, "android16_rig_page_size.json")
+            data = {
+                "device_model": "Android 16 API 36 Preview (16KB)",
+                "android_build": "sdk_gphone64_arm64-userdebug 16",
+                "kernel_page_size": 16384,
+                "refresh_rate": 60,
+                "emulator_or_hardware": "emulator",
+                "date": "2026-10-15",
+                "tool_commit": "20778b3",
+                "canary_id": "canary_page_size",
+                "expected": "Run pageSizeCompat",
+                "observed": "pageSizeCompat active and running",
+                "pass_fail": "PASS",
+            }
+            with open(result_file, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+
+            self.assertTrue(is_page_size_compat_verified(tmp_dir))
+            self.assertTrue(is_page_size_compat_verified(Path(tmp_dir)))
+
+    def test_synthetic_negative_cases(self):
+        """Verifies that non-PASS, non-16KB, or non-API36 results do NOT verify pageSizeCompat."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # 1. FAIL result on API 36 16KB
+            f_fail = os.path.join(tmp_dir, "fail.json")
+            with open(f_fail, "w", encoding="utf-8") as f:
+                json.dump({
+                    "device_model": "Android 16 API 36 Preview (16KB)",
+                    "kernel_page_size": 16384,
+                    "pass_fail": "FAIL",
+                }, f)
+            self.assertFalse(is_page_size_compat_verified(tmp_dir))
+
+            # 2. PASS on 4KB kernel
+            f_4k = os.path.join(tmp_dir, "pass_4k.json")
+            with open(f_4k, "w", encoding="utf-8") as f:
+                json.dump({
+                    "device_model": "Android 16 API 36 Preview (4KB)",
+                    "kernel_page_size": 4096,
+                    "pass_fail": "PASS",
+                }, f)
+            self.assertFalse(is_page_size_compat_verified(tmp_dir))
+
+            # 3. PASS on API 35 16KB
+            f_35 = os.path.join(tmp_dir, "pass_35.json")
+            with open(f_35, "w", encoding="utf-8") as f:
+                json.dump({
+                    "device_model": "Android Emulator API 35 (16KB)",
+                    "android_build": "sdk_gphone64_arm64 API 35",
+                    "kernel_page_size": 16384,
+                    "pass_fail": "PASS",
+                }, f)
+            self.assertFalse(is_page_size_compat_verified(tmp_dir))
+
+    def test_nonexistent_or_empty_or_corrupt_results_dir(self):
+        """Non-existent dir, empty dir, or malformed JSON should return False."""
+        self.assertFalse(is_page_size_compat_verified("nonexistent_dir_9999"))
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            self.assertFalse(is_page_size_compat_verified(tmp_dir))
+            corrupt = os.path.join(tmp_dir, "bad.json")
+            with open(corrupt, "w", encoding="utf-8") as f:
+                f.write("{corrupt json content")
+            self.assertFalse(is_page_size_compat_verified(tmp_dir))
+
+    def test_list_input_and_type_coercion_edge_cases(self):
+        """Test list of entries in JSON, invalid kernel_page_size type, and API level keys."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            f_list = os.path.join(tmp_dir, "multi.json")
+            with open(f_list, "w", encoding="utf-8") as f:
+                json.dump([
+                    "string_not_dict",
+                    {"pass_fail": "PASS", "kernel_page_size": "not_an_int"},
+                    {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": "not_an_int", "android_build": "no_match"},
+                    {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": 36},
+                ], f)
+            self.assertTrue(is_page_size_compat_verified(tmp_dir))
+
+    def test_default_cwd_fallback(self):
+        """Test cwd/results fallback when repo_results does not exist."""
+        with unittest.mock.patch("pathlib.Path.is_dir") as mock_is_dir:
+            # First is_dir call for repo_results returns False, second for cwd results returns False
+            mock_is_dir.return_value = False
+            self.assertFalse(is_page_size_compat_verified(None))
+
+
 if __name__ == "__main__":
     unittest.main()
+

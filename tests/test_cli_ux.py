@@ -404,6 +404,161 @@ class TestCliUx(unittest.TestCase):
                 self.assertIn("--enable-resizable", help_text)
                 self.assertIn("resizeableActivity=true", help_text)
 
+    def test_page_size_compat_unverified_guard_cli(self):
+        """Verifies triage and revive CLI mark PAGE_SIZE_COMPAT as UNVERIFIED when no API 36 16KB PASS result exists."""
+        manifest = AxmlNode(tag="manifest")
+        manifest.set_attr("package", "com.apkrevive.pagesize", ns="")
+        app = AxmlNode(tag="application")
+        manifest.children.append(app)
+        raw_manifest = AxmlSurgeon.serialize(manifest)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            apk_path = os.path.join(tmp_dir, "pagesize_test.apk")
+            with zipfile.ZipFile(apk_path, "w") as zf:
+                zf.writestr("AndroidManifest.xml", raw_manifest)
+                zf.writestr("classes.dex", b"DEX\n035\x00")
+                # Add an unaligned 64-bit ELF
+                elf_data = bytearray(b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 8)
+                elf_data += (2).to_bytes(2, "little")  # ET_EXEC
+                elf_data += (183).to_bytes(2, "little")  # EM_AARCH64
+                elf_data += (1).to_bytes(4, "little")  # version
+                elf_data += (0x4000).to_bytes(8, "little")  # entry
+                elf_data += (64).to_bytes(8, "little")  # phoff
+                elf_data += (0).to_bytes(8, "little")  # shoff
+                elf_data += (0).to_bytes(4, "little")  # flags
+                elf_data += (64).to_bytes(2, "little")  # ehsize
+                elf_data += (56).to_bytes(2, "little")  # phentsize
+                elf_data += (1).to_bytes(2, "little")  # phnum
+                elf_data += (0).to_bytes(2, "little")
+                elf_data += (0).to_bytes(2, "little")
+                elf_data += (0).to_bytes(2, "little")
+                # Program header PT_LOAD with 4096 align
+                ph = (1).to_bytes(4, "little")  # PT_LOAD
+                ph += (5).to_bytes(4, "little")  # PF_R | PF_X
+                ph += (0).to_bytes(8, "little")  # offset
+                ph += (0x1000).to_bytes(8, "little")  # vaddr
+                ph += (0x1000).to_bytes(8, "little")  # paddr
+                ph += (0x100).to_bytes(8, "little")  # filesz
+                ph += (0x100).to_bytes(8, "little")  # memsz
+                ph += (4096).to_bytes(8, "little")  # align: 4KB (< 16KB)
+                elf_data += ph
+                zf.writestr("lib/arm64-v8a/libtest.so", bytes(elf_data))
+
+            # 1. Triage human-readable text output (unverified)
+            triage_args_text = argparse.Namespace(
+                apk=apk_path,
+                device_api=36,
+                device_abis="arm64-v8a",
+                page_size=16384,
+                device_floor=24,
+                target_sdk=28,
+                apk_abis="arm64-v8a",
+                uses_apache_http=False,
+                json=False,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                code = triage_cmd(triage_args_text)
+            self.assertEqual(code, VERDICT_EXIT_CODES["YELLOW"])
+            text_out = mock_out.getvalue()
+            self.assertIn("Verdict: YELLOW (UNVERIFIED)", text_out)
+            self.assertIn("PAGE_SIZE_COMPAT [Risk: HIGH] (UNVERIFIED)", text_out)
+            self.assertIn("pageSizeCompat mode is unverified; no API 36 16KB device result in results/", text_out)
+
+            # 2. Triage JSON output (unverified)
+            triage_args_json = argparse.Namespace(
+                apk=apk_path,
+                device_api=36,
+                device_abis="arm64-v8a",
+                page_size=16384,
+                device_floor=24,
+                target_sdk=28,
+                apk_abis="arm64-v8a",
+                uses_apache_http=False,
+                json=True,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                code = triage_cmd(triage_args_json)
+            self.assertEqual(code, VERDICT_EXIT_CODES["YELLOW"])
+            json_res = json.loads(mock_out.getvalue())
+            self.assertEqual(json_res["verdict"], "YELLOW")
+            self.assertEqual(json_res["verdict_display"], "YELLOW (UNVERIFIED)")
+            self.assertFalse(json_res["page_size_compat_verified"])
+            self.assertIn("PAGE_SIZE_COMPAT", json_res["required_transforms"])
+
+            # 3. Revive dry-run text output (unverified)
+            revive_args_text = argparse.Namespace(
+                apk=apk_path,
+                output=os.path.join(tmp_dir, "unused.apk"),
+                dry_run=True,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                device_api=36,
+                page_size=16384,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+                key_pass=None,
+                json=False,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                code = revive_cmd(revive_args_text)
+            self.assertEqual(code, VERDICT_EXIT_CODES["YELLOW"])
+            revive_text = mock_out.getvalue()
+            self.assertIn("Verdict: YELLOW (UNVERIFIED)", revive_text)
+            self.assertIn("PAGE_SIZE_COMPAT [Risk: HIGH] (UNVERIFIED)", revive_text)
+
+            # 4. Revive dry-run JSON output (unverified)
+            revive_args_json = argparse.Namespace(
+                apk=apk_path,
+                output=os.path.join(tmp_dir, "unused.apk"),
+                dry_run=True,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                device_api=36,
+                page_size=16384,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+                key_pass=None,
+                json=True,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                revive_cmd(revive_args_json)
+            revive_json = json.loads(mock_out.getvalue())
+            self.assertEqual(revive_json["verdict"], "YELLOW")
+            self.assertEqual(revive_json["verdict_display"], "YELLOW (UNVERIFIED)")
+            self.assertFalse(revive_json["page_size_compat_verified"])
+
+            # 5. Mock verification returning True (verified)
+            with patch("apkrevive.core.triage.is_page_size_compat_verified", return_value=True):
+                with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                    triage_cmd(triage_args_text)
+                verified_text = mock_out.getvalue()
+                self.assertIn("Verdict: YELLOW", verified_text)
+                self.assertNotIn("Verdict: YELLOW (UNVERIFIED)", verified_text)
+                self.assertIn("PAGE_SIZE_COMPAT [Risk: HIGH]", verified_text)
+                self.assertNotIn("(UNVERIFIED)", verified_text)
+
+                with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                    triage_cmd(triage_args_json)
+                verified_json = json.loads(mock_out.getvalue())
+                self.assertEqual(verified_json["verdict"], "YELLOW")
+                self.assertTrue(verified_json["page_size_compat_verified"])
+
+                with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                    revive_cmd(revive_args_text)
+                revive_verified_text = mock_out.getvalue()
+                self.assertIn("Verdict: YELLOW", revive_verified_text)
+                self.assertNotIn("(UNVERIFIED)", revive_verified_text)
+
+                with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                    revive_cmd(revive_args_json)
+                revive_verified_json = json.loads(mock_out.getvalue())
+                self.assertEqual(revive_verified_json["verdict"], "YELLOW")
+                self.assertTrue(revive_verified_json["page_size_compat_verified"])
+
 
 if __name__ == "__main__":
     unittest.main()

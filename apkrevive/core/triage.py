@@ -3,13 +3,15 @@ triage.py - Authoritative Triage Engine for ApkRevive.
 Adheres strictly to platform behavior table, verified test vectors, and bionic linker rules.
 """
 
-from typing import Dict, Any, List
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Union
 from apkrevive.core.models import Verdict, TriageSignal, DeviceProfile, ApkMetadata
 from apkrevive.core.behavior_changes import (
     PUBLIC_SYSTEM_LIBRARIES,
     BIONIC_GREYLIST,
     TRANSFORM_RISK_LEVELS,
     get_applicable_behavior_changes,
+    is_page_size_compat_verified,
 )
 
 DEPRECATED_PERMISSIONS = {
@@ -22,7 +24,11 @@ DEPRECATED_PERMISSIONS = {
 }
 
 
-def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dict[str, Any]:
+def evaluate_triage(
+    apk_meta: ApkMetadata,
+    device_profile: DeviceProfile,
+    results_dir: Optional[Union[str, Path]] = None,
+) -> Dict[str, Any]:
     if isinstance(apk_meta, dict):
         apk_meta = ApkMetadata.from_dict(apk_meta)
     if isinstance(device_profile, dict):
@@ -64,6 +70,7 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
             "warnings": warnings,
             "required_transforms": [],
             "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
+            "page_size_compat_verified": True,
         }
 
     # 1. Device ABI Check (with Warning 1: 32-bit-only app on 64-bit-only device)
@@ -86,6 +93,7 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "warnings": warnings,
                 "required_transforms": [],
                 "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
+                "page_size_compat_verified": True,
             }
 
     # Additional Triage Warnings with Remediation Guidance
@@ -163,6 +171,7 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "warnings": warnings,
                 "required_transforms": [],
                 "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
+                "page_size_compat_verified": True,
             }
 
     # 3. 16KB Page Size Segment Alignment Check
@@ -175,6 +184,7 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "warnings": warnings,
                 "required_transforms": [],
                 "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
+                "page_size_compat_verified": True,
             }
         else:
             required_transforms.append("PAGE_SIZE_COMPAT")
@@ -204,8 +214,9 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
 
     # 5. Evaluate Verdict Class
     if required_transforms:
+        res: Dict[str, Any]
         if apk_size > 2 * 1024 * 1024 * 1024:
-            return {
+            res = {
                 "verdict": Verdict.RED.value,
                 "reason": TriageSignal.EXCEEDS_2GB_LIMIT_FOR_REPACKING.value,
                 "details": f"Archive size {apk_size} exceeds 2GB container repacker limit",
@@ -213,9 +224,8 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "required_transforms": required_transforms,
                 "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
             }
-
-        if has_self_sig_check:
-            return {
+        elif has_self_sig_check:
+            res = {
                 "verdict": Verdict.NEEDS_USER_INPUT.value,
                 "reason": TriageSignal.SIGNATURE_VERIFICATION_DETECTED.value,
                 "details": "APK contains self-signature checks; re-signing will alter signature fingerprint",
@@ -223,15 +233,28 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "required_transforms": required_transforms,
                 "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
             }
+        else:
+            res = {
+                "verdict": Verdict.YELLOW.value,
+                "reason": TriageSignal.MODIFICATION_REQUIRED.value,
+                "details": f"Requires transforms: {required_transforms}",
+                "warnings": warnings,
+                "required_transforms": required_transforms,
+                "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
+            }
 
-        return {
-            "verdict": Verdict.YELLOW.value,
-            "reason": TriageSignal.MODIFICATION_REQUIRED.value,
-            "details": f"Requires transforms: {required_transforms}",
-            "warnings": warnings,
-            "required_transforms": required_transforms,
-            "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
-        }
+        if "PAGE_SIZE_COMPAT" in required_transforms:
+            verified = is_page_size_compat_verified(results_dir)
+            res["page_size_compat_verified"] = verified
+            if not verified:
+                res["verdict_display"] = f"{res['verdict']} (UNVERIFIED)"
+                unverified_suffix = " (UNVERIFIED: pageSizeCompat mode is unverified; no API 36 16KB device result in results/)"
+                curr_details = str(res.get("details", ""))
+                res["details"] = (curr_details + unverified_suffix) if curr_details else unverified_suffix.strip()
+        else:
+            res["page_size_compat_verified"] = True
+
+        return res
 
     # 6. Unmodified Path (Green)
     is_blocked_by_floor = (
@@ -248,4 +271,5 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
         "warnings": warnings,
         "required_transforms": [],
         "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
+        "page_size_compat_verified": True,
     }

@@ -41,10 +41,15 @@ def format_triage_summary(res: Dict[str, Any]) -> str:
     warnings = res.get("warnings", [])
     details = res.get("details", "")
 
+    is_page_size_unverified = (
+        "PAGE_SIZE_COMPAT" in transforms and not res.get("page_size_compat_verified", True)
+    )
+    verdict_str = (res.get("verdict_display") or f"{verdict} (UNVERIFIED)") if is_page_size_unverified else verdict
+
     lines = [
         "ApkRevive Triage Summary",
         "========================",
-        f"Verdict: {verdict}",
+        f"Verdict: {verdict_str}",
         f"Reason: {reason}",
         f"Install Method: {install_method}",
     ]
@@ -52,7 +57,10 @@ def format_triage_summary(res: Dict[str, Any]) -> str:
         lines.append(f"Required Transforms ({len(transforms)}):")
         for t in transforms:
             risk_level = transform_risks.get(t, TRANSFORM_RISK_LEVELS.get(t, "MEDIUM"))
-            lines.append(f"  - {t} [Risk: {risk_level}]")
+            if t == "PAGE_SIZE_COMPAT" and is_page_size_unverified:
+                lines.append(f"  - {t} [Risk: {risk_level}] (UNVERIFIED)")
+            else:
+                lines.append(f"  - {t} [Risk: {risk_level}]")
     else:
         lines.append("Required Transforms: None")
 
@@ -70,13 +78,22 @@ def format_triage_summary(res: Dict[str, Any]) -> str:
 
 
 def format_patch_report(report: PatchReport) -> str:
+    is_page_size_unverified = (
+        "PAGE_SIZE_COMPAT" in report.required_transforms
+        and not getattr(report, "page_size_compat_verified", True)
+    )
+    verdict_str = (
+        getattr(report, "verdict_display", None) or f"{report.verdict} (UNVERIFIED)"
+        if is_page_size_unverified
+        else report.verdict
+    )
     lines = [
         "ApkRevive Patch Report",
         "======================",
         f"Timestamp: {report.timestamp}",
         f"Package Name: {report.package_name}",
         f"Target SDK: {report.target_sdk}",
-        f"Verdict: {report.verdict}",
+        f"Verdict: {verdict_str}",
         f"Reason: {report.reason}",
         f"Install Method: {report.install_method or 'N/A'}",
     ]
@@ -84,7 +101,10 @@ def format_patch_report(report: PatchReport) -> str:
         lines.append(f"Required Transforms ({len(report.required_transforms)}):")
         for t in report.required_transforms:
             risk_level = report.transform_risks.get(t, TRANSFORM_RISK_LEVELS.get(t, "MEDIUM"))
-            lines.append(f"  - {t} [Risk: {risk_level}]")
+            if t == "PAGE_SIZE_COMPAT" and is_page_size_unverified:
+                lines.append(f"  - {t} [Risk: {risk_level}] (UNVERIFIED)")
+            else:
+                lines.append(f"  - {t} [Risk: {risk_level}]")
     else:
         lines.append("Required Transforms: None")
 
@@ -152,7 +172,11 @@ def revive_cmd(args):
         sys.stderr.write("ERROR: Split APK detected. Split APKs cannot be modernized independently.\n")
         return 1
 
-    triage = evaluate_triage(meta, DeviceProfile())
+    dev = DeviceProfile(
+        os_api_level=getattr(args, "device_api", 35),
+        page_size_bytes=getattr(args, "page_size", 16384),
+    ) if (hasattr(args, "device_api") or hasattr(args, "page_size")) else DeviceProfile()
+    triage = evaluate_triage(meta, dev)
 
     # Build active transforms from triage and CLI overrides
     transforms = list(triage.get("required_transforms", []))
@@ -190,6 +214,8 @@ def revive_cmd(args):
             details=dry_run_details,
             output_apk=None,
             transform_risks=transform_risks,
+            page_size_compat_verified=triage.get("page_size_compat_verified", True),
+            verdict_display=triage.get("verdict_display"),
         )
         if getattr(args, "json", False):
             print(json.dumps(report.to_dict(), indent=2))
@@ -286,6 +312,8 @@ def revive_cmd(args):
         details=details,
         output_apk=output_path,
         transform_risks=transform_risks,
+        page_size_compat_verified=triage.get("page_size_compat_verified", True),
+        verdict_display=triage.get("verdict_display"),
     )
     if getattr(args, "json", False):
         print(json.dumps(report.to_dict(), indent=2))
@@ -346,6 +374,8 @@ def main():
     p_revive.add_argument("--enable-60hz", action="store_true")
     p_revive.add_argument("--enable-cutout", action="store_true")
     p_revive.add_argument("--enable-resizable", action="store_true", help="Opt-in: inject resizeableActivity=true (Caution: may distort 2D canvas/HUD scaling)")
+    p_revive.add_argument("--device-api", type=int, default=35)
+    p_revive.add_argument("--page-size", type=int, default=16384)
     p_revive.add_argument("--ks", dest="ks", help="Path to PKCS12 keystore file")
     p_revive.add_argument("--ks-pass", dest="ks_pass", help="Keystore password")
     p_revive.add_argument("--ks-alias", dest="ks_alias", help="Key alias name")

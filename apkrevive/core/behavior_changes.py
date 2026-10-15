@@ -3,8 +3,10 @@ behavior_changes.py - Android Platform Behavior Changes table and resolution log
 Authoritative mapping of (targetSdk, deviceApi) behavior changes across Android OS releases.
 """
 
+import json
 from dataclasses import dataclass, field
-from typing import Callable, Optional, List, Set, Dict, Any
+from pathlib import Path
+from typing import Callable, Optional, List, Set, Dict, Any, Union
 from apkrevive.core.models import ApkMetadata, DeviceProfile
 
 PUBLIC_SYSTEM_LIBRARIES: Set[str] = {
@@ -273,3 +275,68 @@ def get_applicable_behavior_changes(
             continue
         applicable.append(change)
     return applicable
+
+
+def is_page_size_compat_verified(results_dir: Optional[Union[str, Path]] = None) -> bool:
+    """
+    Scans results/*.json (defaulting to the repository's results/ directory or Path.cwd() / "results").
+    Looks for any result dictionary with:
+      - pass_fail == "PASS"
+      - kernel_page_size == 16384
+      - Android 16 / API 36 environment (e.g. 36 in android_build or device_model or environment, or os_api_level == 36).
+    Returns True if such a PASS result exists, False otherwise.
+    """
+    if results_dir is not None:
+        target_dir = Path(results_dir)
+    else:
+        repo_results = Path(__file__).resolve().parent.parent.parent / "results"
+        if repo_results.is_dir():
+            target_dir = repo_results
+        else:
+            target_dir = Path.cwd() / "results"
+
+    if not target_dir.is_dir():
+        return False
+
+    for json_file in sorted(target_dir.glob("*.json")):
+        try:
+            with open(json_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            continue
+
+        entries = [data] if isinstance(data, dict) else (data if isinstance(data, list) else [])
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("pass_fail") != "PASS":
+                continue
+
+            try:
+                page_size = int(entry.get("kernel_page_size", 0))
+            except (ValueError, TypeError):
+                page_size = 0
+            if page_size != 16384:
+                continue
+
+            api_level = None
+            for key in ("os_api_level", "api_level", "device_api"):
+                val = entry.get(key)
+                if val is not None:
+                    try:
+                        api_level = int(val)
+                        break
+                    except (ValueError, TypeError):
+                        pass
+
+            is_api_36 = (
+                api_level == 36
+                or "36" in str(entry.get("android_build", ""))
+                or "36" in str(entry.get("device_model", ""))
+                or "36" in str(entry.get("environment", ""))
+            )
+            if is_api_36:
+                return True
+
+    return False
+
