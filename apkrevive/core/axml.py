@@ -5,7 +5,7 @@ Guarantees AXML(N) == AXML(N+1).
 
 import struct
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Dict, Any
 
 
 CHUNK_XML = 0x0003
@@ -108,7 +108,7 @@ class AxmlSurgeon:
 
         offset = 8
         strings: List[str] = []
-        resource_map: List[int] = []
+        _resource_map: List[int] = []
         root_nodes: List[AxmlNode] = []
         element_stack: List[AxmlNode] = []
 
@@ -146,7 +146,7 @@ class AxmlSurgeon:
 
             elif c_type == CHUNK_RESOURCE_MAP:
                 res_count = (c_size - 8) // 4
-                resource_map = [struct.unpack_from("<I", data, offset + 8 + (i * 4))[0] for i in range(res_count)]
+                _resource_map = [struct.unpack_from("<I", data, offset + 8 + (i * 4))[0] for i in range(res_count)]
 
             elif c_type == CHUNK_START_ELEMENT:
                 line_no, comment, ns_idx, name_idx, attr_start, attr_size, attr_count, id_idx, cl_idx, st_idx = struct.unpack_from("<IIIIHHHHHH", data, offset + 8)

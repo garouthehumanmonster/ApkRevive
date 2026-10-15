@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  python-ci:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install ruff mypy coverage
+          pip install -e .
+      - name: Lint with ruff
+        run: ruff check .
+      - name: Type check with mypy
+        run: mypy apkrevive
+      - name: Test suite with coverage
+        run: |
+          coverage run -m unittest discover -s tests
+          coverage report --fail-under=80
+
+  android-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Build and lint
+        run: |
+          chmod +x apkrevive-android/gradlew
+          cd apkrevive-android && ./gradlew assembleDebug lintDebug --no-daemon

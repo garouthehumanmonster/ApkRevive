@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.axml import AxmlSurgeon, AxmlNode
-from apkrevive.core.elf import validate_elf_segments, inspect_apk_elf_details, inspect_apk_elf_align
+from apkrevive.core.elf import validate_elf_segments
 from apkrevive.core.extractor import inspect_apk
 from apkrevive.core.models import ApkMetadata, DeviceProfile, TriageSignal, Verdict
 from apkrevive.core.triage import evaluate_triage

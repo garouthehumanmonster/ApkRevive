@@ -9,6 +9,8 @@ import os
 import re
 import zipfile
 from datetime import datetime
+from typing import Dict, Any
+
 from apkrevive.core.models import DeviceProfile, ApkMetadata, PatchReport
 from apkrevive.core.triage import evaluate_triage
 from apkrevive.core.axml import AxmlSurgeon
@@ -16,9 +18,70 @@ from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.signer import sign_apk
 from apkrevive.core.obb import validate_obb_delivery
 from apkrevive.core.extractor import inspect_apk
+from apkrevive.core.doctor import run_doctor, format_doctor_report
 from apkrevive.adb.bridge import AdbBridge
 from apkrevive.adb.probe import probe_install_floor
 from apkrevive import __version__
+
+VERDICT_EXIT_CODES = {
+    "GREEN": 0,
+    "RED": 1,
+    "YELLOW": 2,
+    "NEEDS_USER_INPUT": 3,
+}
+
+
+def format_triage_summary(res: Dict[str, Any]) -> str:
+    verdict = res.get("verdict", "UNKNOWN")
+    reason = res.get("reason", "N/A")
+    install_method = res.get("install_method", "N/A")
+    transforms = res.get("required_transforms", [])
+    warnings = res.get("warnings", [])
+    details = res.get("details", "")
+
+    lines = [
+        "ApkRevive Triage Summary",
+        "========================",
+        f"Verdict: {verdict}",
+        f"Reason: {reason}",
+        f"Install Method: {install_method}",
+        f"Required Transforms: {', '.join(transforms) if transforms else 'None'}",
+    ]
+    if warnings:
+        lines.append(f"Warnings ({len(warnings)}):")
+        for w in warnings:
+            lines.append(f"  - {w}")
+    else:
+        lines.append("Warnings: None")
+
+    if details:
+        lines.append(f"Details: {details}")
+
+    return "\n".join(lines)
+
+
+def format_patch_report(report: PatchReport) -> str:
+    lines = [
+        "ApkRevive Patch Report",
+        "======================",
+        f"Timestamp: {report.timestamp}",
+        f"Package Name: {report.package_name}",
+        f"Target SDK: {report.target_sdk}",
+        f"Verdict: {report.verdict}",
+        f"Reason: {report.reason}",
+        f"Install Method: {report.install_method or 'N/A'}",
+        f"Required Transforms: {', '.join(report.required_transforms) if report.required_transforms else 'None'}",
+        f"Output APK: {report.output_apk or 'None'}",
+    ]
+    if report.warnings:
+        lines.append(f"Warnings ({len(report.warnings)}):")
+        for w in report.warnings:
+            lines.append(f"  - {w}")
+    else:
+        lines.append("Warnings: None")
+    if report.details:
+        lines.append(f"Details: {report.details}")
+    return "\n".join(lines)
 
 
 def triage_cmd(args):
@@ -53,8 +116,11 @@ def triage_cmd(args):
         )
 
     res = evaluate_triage(apk, dev)
-    print(json.dumps(res, indent=2))
-    return 0 if res["verdict"] == "GREEN" else 1
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+    else:
+        print(format_triage_summary(res))
+    return VERDICT_EXIT_CODES.get(res["verdict"], 1)
 
 
 def revive_cmd(args):
@@ -77,6 +143,27 @@ def revive_cmd(args):
         transforms.append("LOCK_60HZ_DISPLAY_MODE")
     if getattr(args, "enable_cutout", False) and "CUTOUT_SHORT_EDGES" not in transforms:
         transforms.append("CUTOUT_SHORT_EDGES")
+
+    dry_run = getattr(args, "dry_run", False)
+    if dry_run:
+        report = PatchReport(
+            timestamp=datetime.now().isoformat(),
+            apk_path=input_path,
+            package_name=meta.package_name,
+            target_sdk=meta.target_sdk,
+            verdict=triage.get("verdict", "YELLOW"),
+            reason=triage.get("reason", "MODIFICATION_REQUIRED"),
+            install_method=triage.get("install_method"),
+            required_transforms=transforms,
+            warnings=triage.get("warnings", []),
+            details="Dry run: planned transformations without creating output APK or signing.",
+            output_apk=None,
+        )
+        if getattr(args, "json", False):
+            print(json.dumps(report.to_dict(), indent=2))
+        else:
+            print(format_patch_report(report))
+        return VERDICT_EXIT_CODES.get(triage.get("verdict", "YELLOW"), 0)
 
     # Read AndroidManifest.xml from input APK
     with zipfile.ZipFile(input_path, "r") as zf:
@@ -160,29 +247,48 @@ def revive_cmd(args):
         details=triage.get("details", ""),
         output_apk=output_path
     )
-    print(json.dumps(report.to_dict(), indent=2))
-    return 0
+    if getattr(args, "json", False):
+        print(json.dumps(report.to_dict(), indent=2))
+    else:
+        print(format_patch_report(report))
+    return VERDICT_EXIT_CODES.get(triage.get("verdict", "YELLOW"), 0)
 
 
 def probe_cmd(args):
     bridge = AdbBridge(serial=args.device)
     res = probe_install_floor(bridge)
-    print(json.dumps(res, indent=2))
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+    else:
+        print(json.dumps(res, indent=2))
     return 0
 
 
 def push_obb_cmd(args):
     res = validate_obb_delivery(os.path.basename(args.obb), args.package, args.current_apk_version)
-    print(json.dumps(res, indent=2))
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+    else:
+        print(json.dumps(res, indent=2))
     return 0 if res["valid"] else 1
+
+
+def doctor_cmd(args):
+    res = run_doctor()
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+    else:
+        print(format_doctor_report(res))
+    return 0 if res["status"] in ("PASS", "WARN") else 1
 
 
 def main():
     parser = argparse.ArgumentParser(description="ApkRevive Modernizer CLI")
     parser.add_argument("--version", "-v", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     sub = parser.add_subparsers(dest="command")
 
-    p_triage = sub.add_parser("triage")
+    p_triage = sub.add_parser("triage", help="Triage APK compatibility")
     p_triage.add_argument("apk", help="Path to APK file")
     p_triage.add_argument("--device-api", type=int, default=35)
     p_triage.add_argument("--device-abis", default="arm64-v8a")
@@ -191,30 +297,39 @@ def main():
     p_triage.add_argument("--target-sdk", type=int, default=None)
     p_triage.add_argument("--apk-abis", default=None)
     p_triage.add_argument("--uses-apache-http", action="store_true", default=None)
+    p_triage.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
-    p_revive = sub.add_parser("revive")
+    p_revive = sub.add_parser("revive", help="Modernize, patch, align and sign APK")
     p_revive.add_argument("apk", help="Path to APK file")
     p_revive.add_argument("--output", help="Output path")
+    p_revive.add_argument("--dry-run", action="store_true", help="Perform triage and plan transforms without writing files or signing")
     p_revive.add_argument("--enable-60hz", action="store_true")
     p_revive.add_argument("--enable-cutout", action="store_true")
     p_revive.add_argument("--ks", dest="ks", help="Path to PKCS12 keystore file")
     p_revive.add_argument("--ks-pass", dest="ks_pass", help="Keystore password")
     p_revive.add_argument("--ks-alias", dest="ks_alias", help="Key alias name")
     p_revive.add_argument("--key-pass", dest="key_pass", help="Key password (if different from keystore)")
+    p_revive.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
-    p_probe = sub.add_parser("probe")
+    p_probe = sub.add_parser("probe", help="Probe connected ADB device install floor")
     p_probe.add_argument("--device", help="Device serial")
+    p_probe.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
-    p_obb = sub.add_parser("push-obb")
+    p_obb = sub.add_parser("push-obb", help="Validate OBB delivery")
     p_obb.add_argument("obb", help="OBB file")
     p_obb.add_argument("package", help="Target package name")
     p_obb.add_argument("--current-apk-version", type=int, default=100)
+    p_obb.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+
+    p_doctor = sub.add_parser("doctor", help="Check host environment and prerequisites")
+    p_doctor.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
     args = parser.parse_args()
     if args.command == "triage": return triage_cmd(args)
     elif args.command == "revive": return revive_cmd(args)
     elif args.command == "probe": return probe_cmd(args)
     elif args.command == "push-obb": return push_obb_cmd(args)
+    elif args.command == "doctor": return doctor_cmd(args)
     parser.print_help()
     return 0
 

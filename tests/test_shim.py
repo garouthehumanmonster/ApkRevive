@@ -4,7 +4,6 @@ test_shim.py - Tests canonical shim.dex byte compilation and cryptographic hash 
 
 import hashlib
 import unittest
-from pathlib import Path
 from apkrevive.shim.build_shim import build_shim, CANONICAL_SHIM_SHA256, SHIM_DEX_PATH
 
 

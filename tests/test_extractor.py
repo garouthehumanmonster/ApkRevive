@@ -152,7 +152,7 @@ class TestExtractor(unittest.TestCase):
         if not apache_fail.exists():
             self.skipTest("Canaries build directory not present")
 
-        # 1. Unmodified canary triage should result in YELLOW (code 1)
+        # 1. Unmodified canary triage should result in YELLOW (code 2 in Milestone 5)
         args = argparse.Namespace(
             apk=str(apache_fail),
             device_api=35,
@@ -162,10 +162,11 @@ class TestExtractor(unittest.TestCase):
             target_sdk=None,
             apk_abis=None,
             uses_apache_http=None,
+            json=False,
         )
         with patch("sys.stdout", new_callable=io.StringIO):
             code = triage_cmd(args)
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 2)
 
         # 2. Flag override --target-sdk 22 should override and result in GREEN (code 0)
         args_override = argparse.Namespace(

@@ -7,7 +7,7 @@ import os
 import tempfile
 import unittest
 import zipfile
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from apkrevive.cli import triage_cmd, push_obb_cmd, probe_cmd, revive_cmd, main
 from apkrevive.core.axml import AxmlSurgeon, AxmlNode
 import argparse

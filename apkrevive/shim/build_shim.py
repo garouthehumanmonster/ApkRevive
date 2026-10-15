@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 CANONICAL_SHIM_SHA256 = "609b5dcbc8f657b046a73809afbd666cb6feb567497dc068733b57212286e590"
 SHIM_DIR = Path(__file__).resolve().parent
@@ -77,22 +77,22 @@ def resolve_tool(name: str, build_tools_dir: Optional[Path] = None) -> str:
             known_windows_javacs = [
                 r"C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot\bin\javac.exe",
             ]
-            for p in known_windows_javacs:
-                if os.path.isfile(p):
-                    return p
+            for win_javac in known_windows_javacs:
+                if os.path.isfile(win_javac):
+                    return win_javac
             prog_files = os.environ.get("ProgramFiles", r"C:\Program Files")
             java_dir = Path(prog_files) / "Java"
             if java_dir.is_dir():
-                for cand in sorted(java_dir.glob("**/javac.exe"), reverse=True):
-                    return str(cand)
+                for j_cand in sorted(java_dir.glob("**/javac.exe"), reverse=True):
+                    return str(j_cand)
         return "javac.exe" if sys.platform == "win32" else "javac"
 
     if build_tools_dir and build_tools_dir.is_dir():
         candidates = [f"{name}.bat", f"{name}.exe", f"{name}.cmd", name] if sys.platform == "win32" else [name]
-        for cand in candidates:
-            p = build_tools_dir / cand
-            if p.is_file():
-                return str(p)
+        for tool_name in candidates:
+            tool_path = build_tools_dir / tool_name
+            if tool_path.is_file():
+                return str(tool_path)
 
     if sys.platform == "win32":
         ext = ".bat" if name in ("d8", "apksigner") else ".exe"

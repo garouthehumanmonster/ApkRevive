@@ -7,11 +7,11 @@ import os
 import re
 import struct
 import zipfile
-from typing import Optional, List, Set, Any
+from typing import Optional, List, Set
 
 from apkrevive.core.models import ApkMetadata
-from apkrevive.core.axml import AxmlSurgeon, AxmlNode, AxmlAttribute
-from apkrevive.core.elf import inspect_apk_elf_align, inspect_apk_elf_details
+from apkrevive.core.axml import AxmlSurgeon, AxmlAttribute
+from apkrevive.core.elf import inspect_apk_elf_details
 
 PUBLIC_SYSTEM_LIBRARIES = {
     "libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so",

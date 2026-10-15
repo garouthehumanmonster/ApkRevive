@@ -7,7 +7,6 @@ Verifies all 8 canaries (Control and Failing variants) against:
 - Binary AXML metadata and apksigner verification
 """
 
-import os
 import struct
 import unittest
 import zipfile
