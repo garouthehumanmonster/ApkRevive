@@ -257,7 +257,14 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
             except Exception:
                 pass
 
-        # 2. Scan classes*.dex for Apache HTTP, hidden API reflection, scoped storage, cleartext HTTP, legacy TLS
+        # Scan namelist for network security config resource file (e.g. res/xml/network_security_config.xml)
+        if not has_network_security_config:
+            for name in namelist:
+                if "network_security_config" in name.lower():
+                    has_network_security_config = True
+                    break
+
+        # 2. Scan classes*.dex for Apache HTTP, hidden API reflection, scoped storage, legacy TLS
         for name in namelist:
             if re.fullmatch(r"classes\d*\.dex", name):
                 try:
@@ -281,19 +288,6 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                         if token in dex_bytes:
                             accesses_scoped_storage_paths = True
                             break
-
-                    # Cleartext HTTP (ignore XML namespaces)
-                    for m in re.finditer(rb"http://[^\s\"'<>\x00]+", dex_bytes):
-                        url = m.group(0)
-                        if (
-                            url.startswith(b"http://schemas.android.com")
-                            or url.startswith(b"http://www.w3.org")
-                            or url.startswith(b"http://xmlpull.org")
-                            or url.startswith(b"http://xml.org")
-                        ):
-                            continue
-                        has_cleartext_http = True
-                        break
 
                     # Legacy TLS
                     for token_bytes, token_name in LEGACY_TLS_TOKENS:

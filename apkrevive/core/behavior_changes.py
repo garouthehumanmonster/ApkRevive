@@ -54,7 +54,14 @@ class PlatformBehaviorChange:
 
 
 def _cond_cleartext_block(apk: ApkMetadata, dev: DeviceProfile) -> bool:
-    return apk.target_sdk >= 28 and dev.os_api_level >= 28 and (apk.uses_cleartext_traffic is not True)
+    return bool(
+        (
+            apk.target_sdk >= 28
+            and dev.os_api_level >= 28
+            and (apk.uses_cleartext_traffic is not True and not apk.has_network_security_config)
+        )
+        or apk.uses_cleartext_traffic is False
+    )
 
 
 def _cond_apache_http(apk: ApkMetadata, dev: DeviceProfile) -> bool:
@@ -116,7 +123,7 @@ BEHAVIOR_CHANGES: List[PlatformBehaviorChange] = [
         min_device_api=28,
         max_device_api=None,
         rule_type="WARNING",
-        action_or_signal="WARN_CLEARTEXT_LEGACY_TLS",
+        action_or_signal="WARN_CLEARTEXT",
         risk_level="MEDIUM",
         doc_url="https://developer.android.com/about/versions/pie/android-9.0-changes-28#opt-out-cleartext",
         description="Android 9+ (API 28+) blocks cleartext HTTP by default for apps targeting API 28+ unless android:usesCleartextTraffic is true.",

@@ -109,29 +109,28 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
             f"or inject runtime reflection bypass shims (e.g. HiddenApiBypass / VMRuntime exemptions) during Application initialization."
         )
 
-    # Warning 4: Cleartext / legacy TLS
-    # Cleartext warning must NOT be emitted for apps with targetSdk < 28 on device API >= 28 unless uses_cleartext_traffic is False.
-    has_cleartext = bool(apk.get("has_cleartext_http"))
-    has_legacy_tls = bool(apk.get("legacy_tls_protocols"))
+    # Warning 4: Cleartext HTTP & Legacy TLS
     uses_cleartext = apk.get("uses_cleartext_traffic")
+    has_nsc = bool(apk.get("has_network_security_config", False))
+    legacy_tls = apk.get("legacy_tls_protocols", [])
 
-    should_warn_cleartext = False
-    if target_sdk < 28:
-        if device_sdk >= 28 and uses_cleartext is False:
-            should_warn_cleartext = True
-    else:
-        if "CLEARTEXT_HTTP_DEFAULT_BLOCK" in applicable_ids:
-            if has_cleartext or has_legacy_tls or uses_cleartext is False:
-                should_warn_cleartext = True
-        elif uses_cleartext is True or has_legacy_tls:
-            should_warn_cleartext = True
-
+    should_warn_cleartext = (
+        (target_sdk >= 28 and device_sdk >= 28 and (uses_cleartext is False or (uses_cleartext is None and not has_nsc)))
+        or (uses_cleartext is False)
+    )
     if should_warn_cleartext:
         warnings.append(
-            "WARN_CLEARTEXT_LEGACY_TLS: Cleartext HTTP traffic or legacy TLS protocol references detected. "
-            "Blocked by default on Android 9+ (API 28+). Remediation: Enforce HTTPS using TLS 1.2+, declare "
-            "android:usesCleartextTraffic=\"true\" in AndroidManifest.xml if unencrypted HTTP is strictly required, "
-            "or supply a res/xml/network_security_config.xml."
+            "WARN_CLEARTEXT: Cleartext HTTP traffic is blocked by default on Android 9+ (API 28+) for applications "
+            "targeting API 28+ or declaring android:usesCleartextTraffic=\"false\". Remediation: Enforce HTTPS "
+            "using TLS 1.2+, declare android:usesCleartextTraffic=\"true\" in AndroidManifest.xml if unencrypted "
+            "HTTP is strictly required, or supply a res/xml/network_security_config.xml."
+        )
+
+    if legacy_tls:
+        warnings.append(
+            f"WARN_LEGACY_TLS: Deprecated TLS protocol references ({sorted(list(set(legacy_tls)))}) detected. "
+            "Android 10+ deprecates TLS 1.0 and TLS 1.1; SSLv3 is unsupported. Remediation: Modernize network stack "
+            "to negotiate TLS 1.2 and TLS 1.3 exclusively."
         )
 
     # Warning 5: Deprecated permissions

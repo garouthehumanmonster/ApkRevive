@@ -149,7 +149,7 @@ Required Transforms:
   - LOCK_60HZ_DISPLAY_MODE
 Warnings:
   - WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions on Android 11+ (API 30+).
-  - WARN_CLEARTEXT_LEGACY_TLS: Cleartext HTTP traffic detected. Blocked by default on API 28+.
+  - WARN_CLEARTEXT: Cleartext HTTP traffic is blocked by default on API 28+.
 Details: APK targetSdk 22 is below device install floor 24
 ```
 
@@ -168,7 +168,7 @@ With the global `--json` flag:
   ],
   "warnings": [
     "WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions on Android 11+ (API 30+).",
-    "WARN_CLEARTEXT_LEGACY_TLS: Cleartext HTTP traffic detected. Blocked by default on API 28+."
+    "WARN_CLEARTEXT: Cleartext HTTP traffic is blocked by default on API 28+."
   ],
   "details": "APK targetSdk 22 is below device install floor 24"
 }
@@ -192,7 +192,7 @@ Required Transforms:
 Output APK: [DRY RUN - No file written]
 Warnings (2):
   - WARN_SCOPED_STORAGE_OBB: ...
-  - WARN_CLEARTEXT_LEGACY_TLS: ...
+  - WARN_CLEARTEXT: ...
 Details: Dry run completed. No files modified.
 ```
 
@@ -216,7 +216,7 @@ Required Transforms:
 Output APK: output/revived_game.apk
 Warnings (2):
   - WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions on Android 11+ (API 30+).
-  - WARN_CLEARTEXT_LEGACY_TLS: Cleartext HTTP traffic detected. Blocked by default on API 28+.
+  - WARN_CLEARTEXT: Cleartext HTTP traffic is blocked by default on API 28+.
 Details: Patched AXML manifest, injected ApkReviveInitProvider, aligned container to 16KB, signed with user keystore.
 ```
 

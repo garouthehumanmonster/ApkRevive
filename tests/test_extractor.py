@@ -183,6 +183,70 @@ class TestExtractor(unittest.TestCase):
             code_override = triage_cmd(args_override)
         self.assertEqual(code_override, 0)
 
+    def test_cleartext_and_tls_extraction(self):
+        # 1. Manifest with usesCleartextTraffic="false" and networkSecurityConfig attribute
+        manifest1 = AxmlNode(tag="manifest")
+        manifest1.set_attr("package", "com.test.cleartext.manifest", ns="")
+        app1 = AxmlNode(tag="application")
+        app1.set_attr("usesCleartextTraffic", False)
+        app1.set_attr("networkSecurityConfig", "@xml/network_security_config")
+        manifest1.children.append(app1)
+        manifest1_bytes = AxmlSurgeon.serialize(manifest1)
+
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as tmp1:
+            apk1_path = tmp1.name
+
+        try:
+            with zipfile.ZipFile(apk1_path, "w") as zf:
+                zf.writestr("AndroidManifest.xml", manifest1_bytes)
+                # DEX containing cleartext URL and legacy TLS tokens
+                dex_bytes = (
+                    b"DEX\n035\x00"
+                    b"http://insecure.example.com/api\x00"
+                    b"http://service.test.net\x00"
+                    b"SSLv3\x00TLSv1.0\x00TrustAll\x00"
+                )
+                zf.writestr("classes.dex", dex_bytes)
+
+            meta1 = inspect_apk(apk1_path)
+            # Manifest attribute extraction
+            self.assertIs(meta1.uses_cleartext_traffic, False)
+            self.assertTrue(meta1.has_network_security_config)
+            # Bytecode "http://" scanning should NOT flag has_cleartext_http
+            self.assertFalse(meta1.has_cleartext_http)
+            # Legacy TLS tokens detected from DEX
+            self.assertIn("SSLv3", meta1.legacy_tls_protocols)
+            self.assertIn("TLSv1.0", meta1.legacy_tls_protocols)
+            self.assertIn("TrustAll", meta1.legacy_tls_protocols)
+        finally:
+            if os.path.exists(apk1_path):
+                os.remove(apk1_path)
+
+        # 2. Manifest WITHOUT networkSecurityConfig attribute, but res/xml/network_security_config.xml in zip
+        manifest2 = AxmlNode(tag="manifest")
+        manifest2.set_attr("package", "com.test.cleartext.res", ns="")
+        app2 = AxmlNode(tag="application")
+        app2.set_attr("usesCleartextTraffic", True)
+        manifest2.children.append(app2)
+        manifest2_bytes = AxmlSurgeon.serialize(manifest2)
+
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as tmp2:
+            apk2_path = tmp2.name
+
+        try:
+            with zipfile.ZipFile(apk2_path, "w") as zf:
+                zf.writestr("AndroidManifest.xml", manifest2_bytes)
+                zf.writestr("res/xml/network_security_config.xml", b"<network-security-config/>")
+
+            meta2 = inspect_apk(apk2_path)
+            self.assertIs(meta2.uses_cleartext_traffic, True)
+            self.assertTrue(meta2.has_network_security_config)
+            self.assertFalse(meta2.has_cleartext_http)
+            self.assertEqual(meta2.legacy_tls_protocols, [])
+        finally:
+            if os.path.exists(apk2_path):
+                os.remove(apk2_path)
+
 
 if __name__ == "__main__":
     unittest.main()

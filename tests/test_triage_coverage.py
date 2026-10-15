@@ -98,34 +98,43 @@ class TestTriageCoverage(unittest.TestCase):
         self.assertIn("HiddenApiBypass", warn_text)
 
     def test_04_cleartext_http_and_legacy_tls(self):
-        """Test 4: Cleartext HTTP and legacy TLS produce WARN_CLEARTEXT_LEGACY_TLS with remediation text."""
-        # Case A: Cleartext HTTP URL found
+        """Test 4: Cleartext HTTP and legacy TLS produce WARN_CLEARTEXT and WARN_LEGACY_TLS with remediation text."""
+        dev = DeviceProfile(os_api_level=35)
+
+        # Case A: target_sdk 28+ without usesCleartextTraffic or networkSecurityConfig emits WARN_CLEARTEXT
         apk_ct = ApkMetadata(
             target_sdk=28,
-            has_cleartext_http=True,
+            uses_cleartext_traffic=None,
+            has_network_security_config=False,
         )
-        dev = DeviceProfile(os_api_level=35)
         res_ct = evaluate_triage(apk_ct, dev)
-        warns_ct = [w for w in res_ct["warnings"] if "WARN_CLEARTEXT_LEGACY_TLS" in w]
+        warns_ct = [w for w in res_ct["warnings"] if "WARN_CLEARTEXT" in w]
         self.assertEqual(len(warns_ct), 1)
         self.assertIn("Remediation: Enforce HTTPS using TLS 1.2+", warns_ct[0])
         self.assertIn('android:usesCleartextTraffic="true"', warns_ct[0])
+        self.assertIn("res/xml/network_security_config.xml", warns_ct[0])
+        self.assertFalse(any("WARN_LEGACY_TLS" in w for w in res_ct["warnings"]))
 
-        # Case B: Legacy TLS protocol references found
+        # Case B: Legacy TLS protocol references found emits WARN_LEGACY_TLS
         apk_tls = ApkMetadata(
             target_sdk=28,
+            uses_cleartext_traffic=True,
             legacy_tls_protocols=["TLSv1.0", "SSLv3"],
         )
         res_tls = evaluate_triage(apk_tls, dev)
-        self.assertTrue(any("WARN_CLEARTEXT_LEGACY_TLS" in w for w in res_tls["warnings"]))
+        warns_tls = [w for w in res_tls["warnings"] if "WARN_LEGACY_TLS" in w]
+        self.assertEqual(len(warns_tls), 1)
+        self.assertIn("['SSLv3', 'TLSv1.0']", warns_tls[0])
+        self.assertIn("Modernize network stack to negotiate TLS 1.2 and TLS 1.3 exclusively.", warns_tls[0])
+        self.assertFalse(any("WARN_CLEARTEXT" in w for w in res_tls["warnings"]))
 
-        # Case C: Explicitly declares usesCleartextTraffic="true"
+        # Case C: Explicitly declares usesCleartextTraffic="true" (does NOT emit WARN_CLEARTEXT)
         apk_uct = ApkMetadata(
             target_sdk=28,
             uses_cleartext_traffic=True,
         )
         res_uct = evaluate_triage(apk_uct, dev)
-        self.assertTrue(any("WARN_CLEARTEXT_LEGACY_TLS" in w for w in res_uct["warnings"]))
+        self.assertFalse(any("WARN_CLEARTEXT" in w for w in res_uct["warnings"]))
 
         # Case D: target_sdk < 28 without network_security_config must NOT emit cleartext warning unless usesCleartextTraffic is False
         apk_legacy_sdk = ApkMetadata(
@@ -134,15 +143,24 @@ class TestTriageCoverage(unittest.TestCase):
             has_network_security_config=False,
         )
         res_legacy_sdk = evaluate_triage(apk_legacy_sdk, dev)
-        self.assertFalse(any("WARN_CLEARTEXT_LEGACY_TLS" in w for w in res_legacy_sdk["warnings"]))
+        self.assertFalse(any("WARN_CLEARTEXT" in w for w in res_legacy_sdk["warnings"]))
 
-        # Case E: target_sdk < 28 with uses_cleartext_traffic=False DOES emit warning
+        # Case E: target_sdk < 28 with uses_cleartext_traffic=False DOES emit WARN_CLEARTEXT
         apk_legacy_disabled = ApkMetadata(
             target_sdk=22,
             uses_cleartext_traffic=False,
         )
         res_legacy_disabled = evaluate_triage(apk_legacy_disabled, dev)
-        self.assertTrue(any("WARN_CLEARTEXT_LEGACY_TLS" in w for w in res_legacy_disabled["warnings"]))
+        self.assertTrue(any("WARN_CLEARTEXT" in w for w in res_legacy_disabled["warnings"]))
+
+        # Case F: target_sdk >= 28 with has_network_security_config=True does NOT emit WARN_CLEARTEXT
+        apk_nsc = ApkMetadata(
+            target_sdk=28,
+            uses_cleartext_traffic=None,
+            has_network_security_config=True,
+        )
+        res_nsc = evaluate_triage(apk_nsc, dev)
+        self.assertFalse(any("WARN_CLEARTEXT" in w for w in res_nsc["warnings"]))
 
     def test_05_deprecated_permissions(self):
         """Test 5: Deprecated permissions produce WARN_DEPRECATED_PERMISSIONS with remediation text."""
@@ -218,7 +236,7 @@ class TestTriageCoverage(unittest.TestCase):
             self.assertTrue(meta.has_network_security_config)
             self.assertTrue(meta.has_obb)
             self.assertTrue(meta.accesses_scoped_storage_paths)
-            self.assertTrue(meta.has_cleartext_http)
+            self.assertFalse(meta.has_cleartext_http)
             self.assertIn("android.os.SystemProperties", meta.hidden_api_reflections)
             self.assertIn("com/android/internal/", meta.hidden_api_reflections)
             self.assertTrue(any(p in meta.legacy_tls_protocols for p in ["SSLv3", "TLSv1.0", "TrustAll"]))
@@ -230,11 +248,67 @@ class TestTriageCoverage(unittest.TestCase):
             warning_prefixes = [w.split(":")[0] for w in res["warnings"]]
             self.assertIn("WARN_SCOPED_STORAGE_OBB", warning_prefixes)
             self.assertIn("WARN_HIDDEN_API_REFLECTION", warning_prefixes)
-            self.assertIn("WARN_CLEARTEXT_LEGACY_TLS", warning_prefixes)
+            self.assertIn("WARN_LEGACY_TLS", warning_prefixes)
+            self.assertNotIn("WARN_CLEARTEXT", warning_prefixes)
             self.assertIn("WARN_DEPRECATED_PERMISSIONS", warning_prefixes)
         finally:
             if os.path.exists(apk_path):
                 os.remove(apk_path)
+
+    def test_07_warn_cleartext_manifest_and_warn_legacy_tls_dex(self):
+        """Test 7: Verification of manifest-based WARN_CLEARTEXT vs DEX token-based WARN_LEGACY_TLS."""
+        dev = DeviceProfile(os_api_level=35)
+
+        # 1. Manifest-based: App targeting API 28 without cleartext opt-in or network security config
+        apk_manifest_blocked = ApkMetadata(
+            target_sdk=28,
+            uses_cleartext_traffic=None,
+            has_network_security_config=False,
+            legacy_tls_protocols=[],
+        )
+        res1 = evaluate_triage(apk_manifest_blocked, dev)
+        prefixes1 = [w.split(":")[0] for w in res1["warnings"]]
+        self.assertIn("WARN_CLEARTEXT", prefixes1)
+        self.assertNotIn("WARN_LEGACY_TLS", prefixes1)
+
+        # 2. Manifest-based: App declaring usesCleartextTraffic="false" triggers WARN_CLEARTEXT even on target_sdk < 28
+        apk_manifest_explicit_false = ApkMetadata(
+            target_sdk=21,
+            uses_cleartext_traffic=False,
+            has_network_security_config=False,
+            legacy_tls_protocols=[],
+        )
+        res2 = evaluate_triage(apk_manifest_explicit_false, dev)
+        prefixes2 = [w.split(":")[0] for w in res2["warnings"]]
+        self.assertIn("WARN_CLEARTEXT", prefixes2)
+        self.assertNotIn("WARN_LEGACY_TLS", prefixes2)
+
+        # 3. DEX token-based: App with usesCleartextTraffic="true" (no WARN_CLEARTEXT), but DEX has legacy TLS tokens
+        apk_dex_tls = ApkMetadata(
+            target_sdk=28,
+            uses_cleartext_traffic=True,
+            legacy_tls_protocols=["TLSv1.0", "TLSv1.1", "SSLv3"],
+        )
+        res3 = evaluate_triage(apk_dex_tls, dev)
+        prefixes3 = [w.split(":")[0] for w in res3["warnings"]]
+        self.assertNotIn("WARN_CLEARTEXT", prefixes3)
+        self.assertIn("WARN_LEGACY_TLS", prefixes3)
+        warn_tls = next(w for w in res3["warnings"] if w.startswith("WARN_LEGACY_TLS"))
+        self.assertIn("SSLv3", warn_tls)
+        self.assertIn("TLSv1.0", warn_tls)
+        self.assertIn("TLSv1.1", warn_tls)
+
+        # 4. Both present: targeting API 28 default + legacy TLS in DEX
+        apk_both = ApkMetadata(
+            target_sdk=28,
+            uses_cleartext_traffic=None,
+            has_network_security_config=False,
+            legacy_tls_protocols=["SSLv3"],
+        )
+        res4 = evaluate_triage(apk_both, dev)
+        prefixes4 = [w.split(":")[0] for w in res4["warnings"]]
+        self.assertIn("WARN_CLEARTEXT", prefixes4)
+        self.assertIn("WARN_LEGACY_TLS", prefixes4)
 
 
 if __name__ == "__main__":

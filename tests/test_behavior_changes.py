@@ -51,6 +51,7 @@ class TestBehaviorChangesTable(unittest.TestCase):
     def test_01_cleartext_http_default_block(self):
         """Row 1: CLEARTEXT_HTTP_DEFAULT_BLOCK (min_target_sdk=28, min_device_api=28)."""
         rule_id = "CLEARTEXT_HTTP_DEFAULT_BLOCK"
+        self.assertEqual(self.change_map[rule_id].action_or_signal, "WARN_CLEARTEXT")
 
         # Positive: targetSdk 28 on API 28, cleartext not enabled (uses_cleartext_traffic=None)
         apk_pos = ApkMetadata(target_sdk=28, uses_cleartext_traffic=None)
@@ -82,6 +83,12 @@ class TestBehaviorChangesTable(unittest.TestCase):
         applicable = [c.id for c in get_applicable_behavior_changes(apk_neg_enabled, dev_pos)]
         self.assertNotIn(rule_id, applicable)
         self.assertFalse(self.change_map[rule_id].condition(apk_neg_enabled, dev_pos))
+
+        # Negative: targetSdk 28 on API 28 with network_security_config declared
+        apk_neg_nsc = ApkMetadata(target_sdk=28, uses_cleartext_traffic=None, has_network_security_config=True)
+        applicable_nsc = [c.id for c in get_applicable_behavior_changes(apk_neg_nsc, dev_pos)]
+        self.assertNotIn(rule_id, applicable_nsc)
+        self.assertFalse(self.change_map[rule_id].condition(apk_neg_nsc, dev_pos))
 
     def test_02_apache_http_legacy_removal(self):
         """Row 2: APACHE_HTTP_LEGACY_REMOVAL (min_target_sdk=28, min_device_api=28)."""
