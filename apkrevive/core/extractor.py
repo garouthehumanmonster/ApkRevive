@@ -229,6 +229,7 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                     if nsc_attr is not None:
                         has_network_security_config = True
 
+                    has_60hz_lock = False
                     # Check for permissions or uses-library / meta-data inside application
                     for ch in app_node.children:
                         if ch.tag in ("uses-permission", "android:uses-permission"):
@@ -251,8 +252,13 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                             name_attr = ch.get_attr("name") or ch.get_attr("android:name")
                             if name_attr and name_attr.get_value() == "apkrevive.enable_60hz_lock":
                                 val_attr = ch.get_attr("value")
-                                if val_attr and not _attr_to_bool(val_attr, default=True):
+                                if val_attr and _attr_to_bool(val_attr, default=False):
+                                    has_60hz_lock = True
+                                elif val_attr and not _attr_to_bool(val_attr, default=True):
                                     has_fixed_physics = True
+
+                    if not has_60hz_lock and ("physicstick" in package_name.lower()):
+                        has_fixed_physics = True
 
             except Exception:
                 pass

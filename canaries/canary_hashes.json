@@ -1,0 +1,18 @@
+{
+  "canary_apache_http_control.apk": "488beff66cc38876bf8f4f385e4386ec9d3464f6b409380ab0eb0b7f7f3d0a0a",
+  "canary_apache_http_failing.apk": "1ce1f5726c7816cfeb9272266ab41ea2c8bcbfd7f703e50a4ff2b5f3bcb7253d",
+  "canary_aspect_ratio_control.apk": "5758dceef6e6ecb2d728967d8f704eadbddc4faf97de16cafdc3b94694308331",
+  "canary_aspect_ratio_failing.apk": "04b4a20eeb85152ac5fe999aadcfe472ef0724ca3a516ec44d16dc06f7ddebbb",
+  "canary_bionic_greylist_control.apk": "9df9ed9925ceaddad11d8102c1e5df33e0af4ce6e030acb3a102a70464bd2fd0",
+  "canary_bionic_greylist_failing.apk": "c58a2d3654e3d9e2c8c3c0af5311d50e6a02ea8135de6484153a749f3c34b093",
+  "canary_has_code_control.apk": "c8b4703f5e1d6615de47b0326c7811cd2d002d8d10b60a49af147dc515abaf4a",
+  "canary_has_code_failing.apk": "69afc593c646118beb792a7d0c909e2c9c6230084deb757add852a6712b92d2a",
+  "canary_install_floor_control.apk": "545670afd8c79ba33a0f912e11c56001dc1bf00226e46c6c44daf1f12ce99a10",
+  "canary_install_floor_failing.apk": "efcc02f95841c3776ffb2bc563f9502d9d3fb750902262a803e3edcc2cbd9f03",
+  "canary_obb_version_control.apk": "8fee10b65c25e8e8c4b9178e91c9415b0a7805559ec95a9afd6874ba6fafb01c",
+  "canary_obb_version_failing.apk": "873a9478d769e215de53ed2b0da3c1c658df0b6c3a054d982deb46a2dcfd25d9",
+  "canary_page_size_control.apk": "473424d01c7b27a7b28b3bdff7e51f8c1a926a8192631b658daf1f14c789b3b7",
+  "canary_page_size_failing.apk": "3ea060ebef70e6d735aaf43cf0d768fc4cb8120e7126e5d9f3a0272ac6ff1d7d",
+  "canary_physics_tick_control.apk": "2462bc5d7f0da5764e761c27cb93b2e753b23dca2e38eada26dc9eaa41c29ba2",
+  "canary_physics_tick_failing.apk": "f2d96bf8cad4212c02c25ec02fefe55166448585dbe0c4df168226bec9ff3656"
+}

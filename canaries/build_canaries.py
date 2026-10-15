@@ -10,6 +10,8 @@ import struct
 import shutil
 import zipfile
 import subprocess
+import hashlib
+import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -485,10 +487,25 @@ def build_all() -> Dict[str, Any]:
     # Clean up temporary build artifacts
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
+    # Calculate SHA256 of every built canary APK in BUILD_DIR and save to canaries/canary_hashes.json
+    hashes: Dict[str, str] = {}
+    for apk_name in sorted([f"{d['id']}_{d['variant']}.apk" for d in CANARY_DEFINITIONS]):
+        apk_file = BUILD_DIR / apk_name
+        if apk_file.exists():
+            with open(apk_file, "rb") as f:
+                hashes[apk_name] = hashlib.sha256(f.read()).hexdigest()
+
+    hashes_file = CANARIES_DIR / "canary_hashes.json"
+    with open(hashes_file, "w", encoding="utf-8") as f:
+        json.dump(hashes, f, indent=2)
+        f.write("\n")
+    print(f"[*] Saved canary hashes for {len(hashes)} APKs to {hashes_file}")
+
     summary = {
         "apks": [os.path.basename(p) for p in built_apks],
         "obbs": [p.name for p in obbs],
         "count": len(built_apks),
+        "hashes": hashes,
     }
     print(f"[+] Successfully built {len(built_apks)} signed canary APKs and {len(obbs)} OBB files.")
     return summary
