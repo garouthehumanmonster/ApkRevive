@@ -16,6 +16,7 @@ from apkrevive.core.triage import evaluate_triage
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.signer import sign_apk
+from apkrevive.core.behavior_changes import TRANSFORM_RISK_LEVELS
 from apkrevive.core.obb import validate_obb_delivery
 from apkrevive.core.extractor import inspect_apk
 from apkrevive.core.doctor import run_doctor, format_doctor_report
@@ -36,6 +37,7 @@ def format_triage_summary(res: Dict[str, Any]) -> str:
     reason = res.get("reason", "N/A")
     install_method = res.get("install_method", "N/A")
     transforms = res.get("required_transforms", [])
+    transform_risks = res.get("transform_risks", {})
     warnings = res.get("warnings", [])
     details = res.get("details", "")
 
@@ -45,8 +47,15 @@ def format_triage_summary(res: Dict[str, Any]) -> str:
         f"Verdict: {verdict}",
         f"Reason: {reason}",
         f"Install Method: {install_method}",
-        f"Required Transforms: {', '.join(transforms) if transforms else 'None'}",
     ]
+    if transforms:
+        lines.append(f"Required Transforms ({len(transforms)}):")
+        for t in transforms:
+            risk_level = transform_risks.get(t, TRANSFORM_RISK_LEVELS.get(t, "MEDIUM"))
+            lines.append(f"  - {t} [Risk: {risk_level}]")
+    else:
+        lines.append("Required Transforms: None")
+
     if warnings:
         lines.append(f"Warnings ({len(warnings)}):")
         for w in warnings:
@@ -70,9 +79,17 @@ def format_patch_report(report: PatchReport) -> str:
         f"Verdict: {report.verdict}",
         f"Reason: {report.reason}",
         f"Install Method: {report.install_method or 'N/A'}",
-        f"Required Transforms: {', '.join(report.required_transforms) if report.required_transforms else 'None'}",
-        f"Output APK: {report.output_apk or 'None'}",
     ]
+    if report.required_transforms:
+        lines.append(f"Required Transforms ({len(report.required_transforms)}):")
+        for t in report.required_transforms:
+            risk_level = report.transform_risks.get(t, TRANSFORM_RISK_LEVELS.get(t, "MEDIUM"))
+            lines.append(f"  - {t} [Risk: {risk_level}]")
+    else:
+        lines.append("Required Transforms: None")
+
+    lines.append(f"Output APK: {report.output_apk or 'None'}")
+
     if report.warnings:
         lines.append(f"Warnings ({len(report.warnings)}):")
         for w in report.warnings:
@@ -143,9 +160,23 @@ def revive_cmd(args):
         transforms.append("LOCK_60HZ_DISPLAY_MODE")
     if getattr(args, "enable_cutout", False) and "CUTOUT_SHORT_EDGES" not in transforms:
         transforms.append("CUTOUT_SHORT_EDGES")
+    if getattr(args, "enable_resizable", False) and "EXPAND_ASPECT_RATIO" not in transforms:
+        transforms.append("EXPAND_ASPECT_RATIO")
+
+    skipped_aspect = False
+    active_transforms = list(transforms)
+    if "EXPAND_ASPECT_RATIO" in active_transforms and not getattr(args, "enable_resizable", False):
+        active_transforms.remove("EXPAND_ASPECT_RATIO")
+        skipped_aspect = True
+
+    transform_risks = {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in transforms}
+    skip_note = "Skipped EXPAND_ASPECT_RATIO (opt-in requires --enable-resizable)"
 
     dry_run = getattr(args, "dry_run", False)
     if dry_run:
+        dry_run_details = "Dry run: planned transformations without creating output APK or signing."
+        if skipped_aspect:
+            dry_run_details = f"{dry_run_details} {skip_note}."
         report = PatchReport(
             timestamp=datetime.now().isoformat(),
             apk_path=input_path,
@@ -156,8 +187,9 @@ def revive_cmd(args):
             install_method=triage.get("install_method"),
             required_transforms=transforms,
             warnings=triage.get("warnings", []),
-            details="Dry run: planned transformations without creating output APK or signing.",
+            details=dry_run_details,
             output_apk=None,
+            transform_risks=transform_risks,
         )
         if getattr(args, "json", False):
             print(json.dumps(report.to_dict(), indent=2))
@@ -170,11 +202,11 @@ def revive_cmd(args):
         manifest_data = zf.read("AndroidManifest.xml")
 
     # Mutate AXML with active transforms and options
-    enable_60hz = getattr(args, "enable_60hz", False) or ("LOCK_60HZ_DISPLAY_MODE" in transforms)
-    enable_cutout = getattr(args, "enable_cutout", False) or ("CUTOUT_SHORT_EDGES" in transforms)
+    enable_60hz = getattr(args, "enable_60hz", False) or ("LOCK_60HZ_DISPLAY_MODE" in active_transforms)
+    enable_cutout = getattr(args, "enable_cutout", False) or ("CUTOUT_SHORT_EDGES" in active_transforms)
     patched_axml = AxmlSurgeon.patch_manifest(
         manifest_data,
-        transforms,
+        active_transforms,
         options={"enable_60hz": enable_60hz, "enable_cutout": enable_cutout}
     )
 
@@ -234,6 +266,13 @@ def revive_cmd(args):
     if not sign_apk(output_path, keystore_path=ks, keystore_pass=ks_pass, key_alias=ks_alias, key_pass=key_pass):
         return 1
 
+    details = triage.get("details", "")
+    if skipped_aspect:
+        if details:
+            details = f"{details}. {skip_note}."
+        else:
+            details = skip_note
+
     report = PatchReport(
         timestamp=datetime.now().isoformat(),
         apk_path=input_path,
@@ -244,8 +283,9 @@ def revive_cmd(args):
         install_method=triage.get("install_method"),
         required_transforms=transforms,
         warnings=triage.get("warnings", []),
-        details=triage.get("details", ""),
-        output_apk=output_path
+        details=details,
+        output_apk=output_path,
+        transform_risks=transform_risks,
     )
     if getattr(args, "json", False):
         print(json.dumps(report.to_dict(), indent=2))
@@ -305,6 +345,7 @@ def main():
     p_revive.add_argument("--dry-run", action="store_true", help="Perform triage and plan transforms without writing files or signing")
     p_revive.add_argument("--enable-60hz", action="store_true")
     p_revive.add_argument("--enable-cutout", action="store_true")
+    p_revive.add_argument("--enable-resizable", action="store_true", help="Opt-in: inject resizeableActivity=true (Caution: may distort 2D canvas/HUD scaling)")
     p_revive.add_argument("--ks", dest="ks", help="Path to PKCS12 keystore file")
     p_revive.add_argument("--ks-pass", dest="ks_pass", help="Keystore password")
     p_revive.add_argument("--ks-alias", dest="ks_alias", help="Key alias name")

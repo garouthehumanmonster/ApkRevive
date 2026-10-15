@@ -21,6 +21,14 @@ BIONIC_GREYLIST: Set[str] = {
     "libssl.so"
 }
 
+TRANSFORM_RISK_LEVELS: Dict[str, str] = {
+    "INJECT_USES_LIBRARY_APACHE_HTTP": "LOW",
+    "SET_HAS_CODE_TRUE": "MEDIUM",
+    "LOCK_60HZ_DISPLAY_MODE": "MEDIUM",
+    "EXPAND_ASPECT_RATIO": "HIGH",
+    "PAGE_SIZE_COMPAT": "HIGH",
+}
+
 
 @dataclass
 class PlatformBehaviorChange:

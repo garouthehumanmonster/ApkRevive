@@ -8,6 +8,7 @@ from apkrevive.core.models import Verdict, TriageSignal, DeviceProfile, ApkMetad
 from apkrevive.core.behavior_changes import (
     PUBLIC_SYSTEM_LIBRARIES,
     BIONIC_GREYLIST,
+    TRANSFORM_RISK_LEVELS,
     get_applicable_behavior_changes,
 )
 
@@ -61,7 +62,8 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
             "reason": TriageSignal.SPLIT_APK_UNSUPPORTED.value,
             "details": "Split APKs cannot be modernized independently. Modernize the base APK.",
             "warnings": warnings,
-            "required_transforms": []
+            "required_transforms": [],
+            "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
         }
 
     # 1. Device ABI Check (with Warning 1: 32-bit-only app on 64-bit-only device)
@@ -82,7 +84,8 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "reason": TriageSignal.INCOMPATIBLE_DEVICE_ABI.value,
                 "details": f"APK ABIs {sorted(list(apk_abis))} do not match device ABIs {sorted(list(device_abis))}",
                 "warnings": warnings,
-                "required_transforms": []
+                "required_transforms": [],
+                "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
             }
 
     # Additional Triage Warnings with Remediation Guidance
@@ -158,7 +161,8 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "reason": TriageSignal.UNRESOLVABLE_SYSTEM_LIBRARY.value,
                 "details": f"Blocked private platform libraries: {blocked_libs} (targetSdk={target_sdk})",
                 "warnings": warnings,
-                "required_transforms": []
+                "required_transforms": [],
+                "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
             }
 
     # 3. 16KB Page Size Segment Alignment Check
@@ -169,7 +173,8 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "reason": TriageSignal.INCOMPATIBLE_PAGE_SIZE.value,
                 "details": f"64-bit ELF has invalid or <16KB segment alignment on 16KB kernel (OS API={device_sdk} < 36)",
                 "warnings": warnings,
-                "required_transforms": []
+                "required_transforms": [],
+                "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
             }
         else:
             required_transforms.append("PAGE_SIZE_COMPAT")
@@ -205,7 +210,8 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "reason": TriageSignal.EXCEEDS_2GB_LIMIT_FOR_REPACKING.value,
                 "details": f"Archive size {apk_size} exceeds 2GB container repacker limit",
                 "warnings": warnings,
-                "required_transforms": required_transforms
+                "required_transforms": required_transforms,
+                "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
             }
 
         if has_self_sig_check:
@@ -214,7 +220,8 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "reason": TriageSignal.SIGNATURE_VERIFICATION_DETECTED.value,
                 "details": "APK contains self-signature checks; re-signing will alter signature fingerprint",
                 "warnings": warnings,
-                "required_transforms": required_transforms
+                "required_transforms": required_transforms,
+                "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
             }
 
         return {
@@ -222,7 +229,8 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
             "reason": TriageSignal.MODIFICATION_REQUIRED.value,
             "details": f"Requires transforms: {required_transforms}",
             "warnings": warnings,
-            "required_transforms": required_transforms
+            "required_transforms": required_transforms,
+            "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
         }
 
     # 6. Unmodified Path (Green)
@@ -238,5 +246,6 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
         "install_method": install_method,
         "details": f"No transforms needed. Install method: {install_method} (targetSdk={target_sdk}, floor={device_floor})",
         "warnings": warnings,
-        "required_transforms": []
+        "required_transforms": [],
+        "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
     }

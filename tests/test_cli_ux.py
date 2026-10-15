@@ -12,7 +12,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from apkrevive.cli import triage_cmd, revive_cmd, doctor_cmd, VERDICT_EXIT_CODES
+from apkrevive.cli import triage_cmd, revive_cmd, doctor_cmd, VERDICT_EXIT_CODES, main
 from apkrevive.core.axml import AxmlNode, AxmlSurgeon
 from apkrevive.core.doctor import run_doctor, format_doctor_report
 
@@ -204,6 +204,205 @@ class TestCliUx(unittest.TestCase):
         self.assertIn("[tool.coverage.report]", content)
         self.assertIn("fail_under = 80", content)
         self.assertIn("show_missing = true", content)
+
+    @patch("apkrevive.cli.sign_apk", return_value=True)
+    def test_revive_enable_resizable_opt_in(self, mock_sign):
+        """Verifies:
+        1. revive without --enable-resizable defaults to minimal changes and does NOT inject resizeableActivity="true".
+        2. revive with --enable-resizable injects resizeableActivity="true"."""
+        manifest = AxmlNode(tag="manifest")
+        manifest.set_attr("package", "com.apkrevive.resizable", ns="")
+        app = AxmlNode(tag="application")
+        app.set_attr("resizeableActivity", False)
+        manifest.children.append(app)
+        raw_manifest = AxmlSurgeon.serialize(manifest)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            in_apk = os.path.join(tmp_dir, "input.apk")
+            with zipfile.ZipFile(in_apk, "w") as zf:
+                zf.writestr("AndroidManifest.xml", raw_manifest)
+                zf.writestr("classes.dex", b"DEX\n035\x00")
+
+            # 1. revive without --enable-resizable
+            out_apk_default = os.path.join(tmp_dir, "out_default.apk")
+            args_default = argparse.Namespace(
+                apk=in_apk,
+                output=out_apk_default,
+                dry_run=False,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+                key_pass=None,
+                json=False,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                code_default = revive_cmd(args_default)
+            self.assertEqual(code_default, VERDICT_EXIT_CODES["YELLOW"])
+            self.assertIn("Skipped EXPAND_ASPECT_RATIO (opt-in requires --enable-resizable)", mock_out.getvalue())
+
+            # Verify resizeableActivity is NOT set to true in output APK
+            with zipfile.ZipFile(out_apk_default, "r") as zf_out:
+                out_manifest = zf_out.read("AndroidManifest.xml")
+            node = AxmlSurgeon.parse(out_manifest)
+            app_out = node.find_child("application")
+            self.assertIsNotNone(app_out)
+            assert app_out is not None
+            resiz_attr = app_out.get_attr("resizeableActivity")
+            self.assertIsNotNone(resiz_attr)
+            assert resiz_attr is not None
+            self.assertFalse(resiz_attr.get_value())
+
+            # 2. revive with --enable-resizable
+            out_apk_optin = os.path.join(tmp_dir, "out_optin.apk")
+            args_optin = argparse.Namespace(
+                apk=in_apk,
+                output=out_apk_optin,
+                dry_run=False,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=True,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+                key_pass=None,
+                json=False,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                code_optin = revive_cmd(args_optin)
+            self.assertEqual(code_optin, VERDICT_EXIT_CODES["YELLOW"])
+            self.assertNotIn("Skipped EXPAND_ASPECT_RATIO (opt-in requires --enable-resizable)", mock_out.getvalue())
+
+            # Verify resizeableActivity IS injected as true in output APK
+            with zipfile.ZipFile(out_apk_optin, "r") as zf_out:
+                out_manifest_optin = zf_out.read("AndroidManifest.xml")
+            node_optin = AxmlSurgeon.parse(out_manifest_optin)
+            app_optin = node_optin.find_child("application")
+            self.assertIsNotNone(app_optin)
+            assert app_optin is not None
+            resiz_attr_optin = app_optin.get_attr("resizeableActivity")
+            self.assertIsNotNone(resiz_attr_optin)
+            assert resiz_attr_optin is not None
+            self.assertTrue(resiz_attr_optin.get_value())
+
+    def test_triage_and_revive_risk_levels_output(self):
+        """Verifies triage and revive outputs (both text and JSON) display risk levels (LOW, MEDIUM, HIGH) for each transform."""
+        manifest = AxmlNode(tag="manifest")
+        manifest.set_attr("package", "com.apkrevive.risks", ns="")
+        uses_sdk = AxmlNode(tag="uses-sdk")
+        uses_sdk.set_attr("targetSdkVersion", 28)
+        manifest.children.append(uses_sdk)
+        app = AxmlNode(tag="application")
+        app.set_attr("hasCode", False)
+        app.set_attr("resizeableActivity", False)
+        manifest.children.append(app)
+        raw_manifest = AxmlSurgeon.serialize(manifest)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            apk_path = os.path.join(tmp_dir, "risks_test.apk")
+            with zipfile.ZipFile(apk_path, "w") as zf:
+                zf.writestr("AndroidManifest.xml", raw_manifest)
+                zf.writestr("classes.dex", b"DEX\n035\x00org/apache/http/client/HttpClient")
+
+            # 1. Triage human-readable text output
+            triage_args_text = argparse.Namespace(
+                apk=apk_path,
+                device_api=35,
+                device_abis="arm64-v8a",
+                page_size=16384,
+                device_floor=24,
+                target_sdk=28,
+                apk_abis="arm64-v8a",
+                uses_apache_http=True,
+                json=False,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                triage_cmd(triage_args_text)
+            text_out = mock_out.getvalue()
+            self.assertIn("Required Transforms (", text_out)
+            self.assertIn("INJECT_USES_LIBRARY_APACHE_HTTP [Risk: LOW]", text_out)
+            self.assertIn("SET_HAS_CODE_TRUE [Risk: MEDIUM]", text_out)
+            self.assertIn("EXPAND_ASPECT_RATIO [Risk: HIGH]", text_out)
+
+            # 2. Triage JSON output
+            triage_args_json = argparse.Namespace(
+                apk=apk_path,
+                device_api=35,
+                device_abis="arm64-v8a",
+                page_size=16384,
+                device_floor=24,
+                target_sdk=28,
+                apk_abis="arm64-v8a",
+                uses_apache_http=True,
+                json=True,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                triage_cmd(triage_args_json)
+            json_res = json.loads(mock_out.getvalue())
+            self.assertIn("transform_risks", json_res)
+            self.assertEqual(json_res["transform_risks"]["INJECT_USES_LIBRARY_APACHE_HTTP"], "LOW")
+            self.assertEqual(json_res["transform_risks"]["SET_HAS_CODE_TRUE"], "MEDIUM")
+            self.assertEqual(json_res["transform_risks"]["EXPAND_ASPECT_RATIO"], "HIGH")
+
+            # 3. Revive text output (dry-run)
+            revive_args_text = argparse.Namespace(
+                apk=apk_path,
+                output=os.path.join(tmp_dir, "unused.apk"),
+                dry_run=True,
+                enable_60hz=True,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+                key_pass=None,
+                json=False,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                revive_cmd(revive_args_text)
+            revive_text = mock_out.getvalue()
+            self.assertIn("Required Transforms (", revive_text)
+            self.assertIn("INJECT_USES_LIBRARY_APACHE_HTTP [Risk: LOW]", revive_text)
+            self.assertIn("SET_HAS_CODE_TRUE [Risk: MEDIUM]", revive_text)
+            self.assertIn("LOCK_60HZ_DISPLAY_MODE [Risk: MEDIUM]", revive_text)
+            self.assertIn("EXPAND_ASPECT_RATIO [Risk: HIGH]", revive_text)
+            self.assertIn("Skipped EXPAND_ASPECT_RATIO (opt-in requires --enable-resizable)", revive_text)
+
+            # 4. Revive JSON output (dry-run)
+            revive_args_json = argparse.Namespace(
+                apk=apk_path,
+                output=os.path.join(tmp_dir, "unused.apk"),
+                dry_run=True,
+                enable_60hz=True,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+                key_pass=None,
+                json=True,
+            )
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                revive_cmd(revive_args_json)
+            revive_json = json.loads(mock_out.getvalue())
+            self.assertIn("transform_risks", revive_json)
+            self.assertEqual(revive_json["transform_risks"]["INJECT_USES_LIBRARY_APACHE_HTTP"], "LOW")
+            self.assertEqual(revive_json["transform_risks"]["SET_HAS_CODE_TRUE"], "MEDIUM")
+            self.assertEqual(revive_json["transform_risks"]["LOCK_60HZ_DISPLAY_MODE"], "MEDIUM")
+            self.assertEqual(revive_json["transform_risks"]["EXPAND_ASPECT_RATIO"], "HIGH")
+
+    def test_revive_parser_has_enable_resizable_argument(self):
+        """Verifies that the revive argument parser recognizes --enable-resizable."""
+        with patch("sys.argv", ["apkrevive", "revive", "--help"]):
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                with self.assertRaises(SystemExit) as cm:
+                    main()
+                self.assertEqual(cm.exception.code, 0)
+                help_text = mock_out.getvalue()
+                self.assertIn("--enable-resizable", help_text)
+                self.assertIn("resizeableActivity=true", help_text)
 
 
 if __name__ == "__main__":

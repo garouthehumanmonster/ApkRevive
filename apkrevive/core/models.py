@@ -104,6 +104,7 @@ class PatchReport:
     warnings: List[str] = field(default_factory=list)
     details: str = ""
     output_apk: Optional[str] = None
+    transform_risks: Dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
