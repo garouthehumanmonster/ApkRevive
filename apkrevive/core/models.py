@@ -74,6 +74,14 @@ class ApkMetadata:
     has_drm: bool = False
     size_bytes: int = 0
     static_removed_apis: List[str] = field(default_factory=list)
+    permissions: List[str] = field(default_factory=list)
+    uses_cleartext_traffic: Optional[bool] = None
+    has_network_security_config: bool = False
+    legacy_tls_protocols: List[str] = field(default_factory=list)
+    has_cleartext_http: bool = False
+    hidden_api_reflections: List[str] = field(default_factory=list)
+    accesses_scoped_storage_paths: bool = False
+    has_obb: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -20,6 +20,36 @@ PUBLIC_SYSTEM_LIBRARIES = {
     "libvulkan.so", "libmediandk.so", "libaaudio.so"
 }
 
+HIDDEN_FRAMEWORK_APIS = [
+    "android/os/SystemProperties",
+    "android.os.SystemProperties",
+    "android/app/ActivityThread",
+    "android.app.ActivityThread",
+    "com/android/internal/",
+    "com.android.internal.",
+    "android/view/WindowManagerGlobal",
+    "android.view.WindowManagerGlobal",
+    "android/content/pm/IPackageManager",
+]
+
+SCOPED_STORAGE_TOKENS = [
+    b"Android/data/",
+    b"Android/obb/",
+    b"Environment.getExternalStorageDirectory",
+    b"getExternalStorageDirectory",
+    b"getObbDir",
+    b"getObbDirs",
+]
+
+LEGACY_TLS_TOKENS = [
+    (b"SSLv3", "SSLv3"),
+    (b"TLSv1\x00", "TLSv1"),
+    (b"TLSv1.0", "TLSv1.0"),
+    (b"TLSv1.1", "TLSv1.1"),
+    (b"SSLSocketFactory", "SSLSocketFactory"),
+    (b"TrustAll", "TrustAll"),
+]
+
 
 def _attr_to_int(attr: Optional[AxmlAttribute], default: int = 1) -> int:
     if attr is None:
@@ -116,6 +146,15 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
     has_fixed_physics = False
     is_split_apk = False
 
+    permissions: List[str] = []
+    uses_cleartext_traffic: Optional[bool] = None
+    has_network_security_config = False
+    accesses_scoped_storage_paths = False
+    has_cleartext_http = False
+    has_obb = False
+    hidden_api_reflections: List[str] = []
+    legacy_tls_protocols: List[str] = []
+
     abis_set: Set[str] = set()
     dex_has_apache_http = False
     bundled_sos: Set[str] = set()
@@ -160,6 +199,16 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                     min_sdk = 1
                     target_sdk = 1
 
+                # Extract <uses-permission> elements from root
+                for ch in root.children:
+                    if ch.tag in ("uses-permission", "android:uses-permission"):
+                        name_attr = ch.get_attr("name") or ch.get_attr("android:name")
+                        if name_attr:
+                            val = name_attr.get_value()
+                            val_str = str(val if val is not None else (name_attr.raw_value or "")).strip()
+                            if val_str and val_str not in permissions:
+                                permissions.append(val_str)
+
                 # Application attributes & child elements
                 app_node = root.find_child("application")
                 if app_node:
@@ -170,10 +219,28 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                     if resiz_attr is not None:
                         is_non_resizeable = not _attr_to_bool(resiz_attr, default=True)
 
-                    # Check for <uses-library android:name="org.apache.http.legacy">
+                    # usesCleartextTraffic
+                    uct_attr = app_node.get_attr("usesCleartextTraffic") or app_node.get_attr("android:usesCleartextTraffic")
+                    if uct_attr is not None:
+                        uses_cleartext_traffic = _attr_to_bool(uct_attr, default=True)
+
+                    # networkSecurityConfig
+                    nsc_attr = app_node.get_attr("networkSecurityConfig") or app_node.get_attr("android:networkSecurityConfig")
+                    if nsc_attr is not None:
+                        has_network_security_config = True
+
+                    # Check for permissions or uses-library / meta-data inside application
                     for ch in app_node.children:
+                        if ch.tag in ("uses-permission", "android:uses-permission"):
+                            name_attr = ch.get_attr("name") or ch.get_attr("android:name")
+                            if name_attr:
+                                val = name_attr.get_value()
+                                val_str = str(val if val is not None else (name_attr.raw_value or "")).strip()
+                                if val_str and val_str not in permissions:
+                                    permissions.append(val_str)
+
                         if ch.tag == "uses-library":
-                            name_attr = ch.get_attr("name")
+                            name_attr = ch.get_attr("name") or ch.get_attr("android:name")
                             if name_attr:
                                 val = name_attr.get_value()
                                 raw = name_attr.raw_value
@@ -181,7 +248,7 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                                     has_apache_library_decl = True
 
                         if ch.tag == "meta-data":
-                            name_attr = ch.get_attr("name")
+                            name_attr = ch.get_attr("name") or ch.get_attr("android:name")
                             if name_attr and name_attr.get_value() == "apkrevive.enable_60hz_lock":
                                 val_attr = ch.get_attr("value")
                                 if val_attr and not _attr_to_bool(val_attr, default=True):
@@ -190,18 +257,50 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
             except Exception:
                 pass
 
-        # 2. Scan classes*.dex for Apache HTTP references
+        # 2. Scan classes*.dex for Apache HTTP, hidden API reflection, scoped storage, cleartext HTTP, legacy TLS
         for name in namelist:
             if re.fullmatch(r"classes\d*\.dex", name):
                 try:
                     dex_bytes = zf.read(name)
+                    # Apache HTTP
                     if (
                         b"org/apache/http/" in dex_bytes
                         or b"Lorg/apache/http/" in dex_bytes
                         or b"org.apache.http." in dex_bytes
                     ):
                         dex_has_apache_http = True
+
+                    # Hidden API reflection
+                    for api in HIDDEN_FRAMEWORK_APIS:
+                        if api.encode("utf-8") in dex_bytes:
+                            if api not in hidden_api_reflections:
+                                hidden_api_reflections.append(api)
+
+                    # Scoped storage & OBB paths
+                    for token in SCOPED_STORAGE_TOKENS:
+                        if token in dex_bytes:
+                            accesses_scoped_storage_paths = True
+                            break
+
+                    # Cleartext HTTP (ignore XML namespaces)
+                    for m in re.finditer(rb"http://[^\s\"'<>\x00]+", dex_bytes):
+                        url = m.group(0)
+                        if (
+                            url.startswith(b"http://schemas.android.com")
+                            or url.startswith(b"http://www.w3.org")
+                            or url.startswith(b"http://xmlpull.org")
+                            or url.startswith(b"http://xml.org")
+                        ):
+                            continue
+                        has_cleartext_http = True
                         break
+
+                    # Legacy TLS
+                    for token_bytes, token_name in LEGACY_TLS_TOKENS:
+                        if token_bytes in dex_bytes:
+                            if token_name not in legacy_tls_protocols:
+                                legacy_tls_protocols.append(token_name)
+
                 except Exception:
                     pass
 
@@ -227,10 +326,17 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                 except Exception:
                     pass
 
-    # 4. Inspect 64-bit ELF load alignment and layout validity
+        # 4. Container scan: Check if namelist has any .obb files or references
+        for name in namelist:
+            name_lower = name.lower()
+            if name_lower.endswith(".obb") or "/obb/" in name_lower or name_lower.startswith("obb/"):
+                has_obb = True
+                break
+
+    # 5. Inspect 64-bit ELF load alignment and layout validity
     elf_load_align_64bit, has_invalid_elf_layout = inspect_apk_elf_details(apk_path)
 
-    # 5. Determine uses_apache_http: True if referenced in DEX and NOT declared in uses-library
+    # 6. Determine uses_apache_http: True if referenced in DEX and NOT declared in uses-library
     uses_apache_http = bool(dex_has_apache_http and not has_apache_library_decl)
 
     return ApkMetadata(
@@ -248,4 +354,12 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
         is_non_resizeable=is_non_resizeable,
         has_fixed_physics=has_fixed_physics,
         size_bytes=size_bytes,
+        permissions=permissions,
+        uses_cleartext_traffic=uses_cleartext_traffic,
+        has_network_security_config=has_network_security_config,
+        legacy_tls_protocols=sorted(list(set(legacy_tls_protocols))),
+        has_cleartext_http=has_cleartext_http,
+        hidden_api_reflections=sorted(list(set(hidden_api_reflections))),
+        accesses_scoped_storage_paths=accesses_scoped_storage_paths,
+        has_obb=has_obb,
     )

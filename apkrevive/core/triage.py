@@ -21,6 +21,15 @@ PUBLIC_SYSTEM_LIBRARIES = {
     "libvulkan.so", "libmediandk.so", "libaaudio.so"
 }
 
+DEPRECATED_PERMISSIONS = {
+    "android.permission.WRITE_EXTERNAL_STORAGE": "Use MediaStore API or Storage Access Framework (SAF).",
+    "android.permission.READ_PHONE_STATE": "Restricted hardware ID access; use Android ID or app-generated UUID.",
+    "android.permission.GET_TASKS": "Deprecated in API 21; use ActivityManager.getRunningAppProcesses().",
+    "android.permission.PROCESS_OUTGOING_CALLS": "Deprecated in API 29; use CallScreeningService.",
+    "android.permission.USE_FINGERPRINT": "Deprecated in API 28; use androidx.biometric.BiometricPrompt.",
+    "android.permission.SYSTEM_ALERT_WINDOW": "Restricted overlay permission; requires user grant via Settings.",
+}
+
 
 def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dict[str, Any]:
     apk = apk_meta.to_dict()
@@ -59,10 +68,19 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
             "required_transforms": []
         }
 
-    # 1. Device ABI Check
+    # 1. Device ABI Check (with Warning 1: 32-bit-only app on 64-bit-only device)
     if apk_abis:
         matching_abis = apk_abis.intersection(device_abis)
         if not matching_abis:
+            is_apk_32bit = apk_abis.issubset({"armeabi-v7a", "armeabi", "x86", "mips"})
+            is_device_64bit = device_abis.issubset({"arm64-v8a", "x86_64"})
+            if is_apk_32bit and is_device_64bit:
+                warnings.append(
+                    f"WARN_32BIT_ONLY_ON_64BIT: Application bundles only 32-bit native libraries ({sorted(list(apk_abis))}), "
+                    f"but target device supports only 64-bit ABIs ({sorted(list(device_abis))}). Remediation: Recompile native "
+                    f"libraries with 64-bit support (arm64-v8a), provide a 32-bit translation layer (such as "
+                    f"Houdini/libndk_translation), or run on a device/emulator supporting 32-bit execution."
+                )
             return {
                 "verdict": Verdict.RED.value,
                 "reason": TriageSignal.INCOMPATIBLE_DEVICE_ABI.value,
@@ -70,6 +88,61 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
                 "warnings": warnings,
                 "required_transforms": []
             }
+
+    # Additional Triage Warnings with Remediation Guidance
+    permissions = apk.get("permissions", [])
+
+    # Warning 2: Scoped Storage & OBB on Android 11+
+    has_storage_perms = any(
+        p in permissions
+        for p in ["android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.READ_EXTERNAL_STORAGE"]
+    )
+    if (device_sdk >= 30 or target_sdk >= 30) and (
+        has_storage_perms or apk.get("accesses_scoped_storage_paths") or apk.get("has_obb")
+    ):
+        warnings.append(
+            "WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions or accesses external storage/OBB "
+            "paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access "
+            "to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / "
+            "MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver "
+            "OBB files via standard app expansion / Play Asset Delivery."
+        )
+
+    # Warning 3: Hidden-API reflection
+    if apk.get("hidden_api_reflections"):
+        hidden_matches = sorted(list(set(apk["hidden_api_reflections"])))
+        warnings.append(
+            f"WARN_HIDDEN_API_REFLECTION: Non-SDK / hidden Android API reflection detected ({hidden_matches}). "
+            f"Restricted on Android 9+ (API 28+). Remediation: Replace non-SDK reflection with public AndroidX/Jetpack APIs, "
+            f"or inject runtime reflection bypass shims (e.g. HiddenApiBypass / VMRuntime exemptions) during Application initialization."
+        )
+
+    # Warning 4: Cleartext / legacy TLS
+    has_cleartext = bool(apk.get("has_cleartext_http"))
+    has_legacy_tls = bool(apk.get("legacy_tls_protocols"))
+    uses_cleartext = apk.get("uses_cleartext_traffic")
+    has_nsc = bool(apk.get("has_network_security_config"))
+    if (
+        has_cleartext
+        or has_legacy_tls
+        or (uses_cleartext is True)
+        or (target_sdk < 28 and uses_cleartext is None and not has_nsc)
+    ):
+        warnings.append(
+            "WARN_CLEARTEXT_LEGACY_TLS: Cleartext HTTP traffic or legacy TLS protocol references detected. "
+            "Blocked by default on Android 9+ (API 28+). Remediation: Enforce HTTPS using TLS 1.2+, declare "
+            "android:usesCleartextTraffic=\"true\" in AndroidManifest.xml if unencrypted HTTP is strictly required, "
+            "or supply a res/xml/network_security_config.xml."
+        )
+
+    # Warning 5: Deprecated permissions
+    found_deprecated = sorted(list(set(p for p in permissions if p in DEPRECATED_PERMISSIONS)))
+    if found_deprecated:
+        remediations_text = "; ".join(f"{p}: {DEPRECATED_PERMISSIONS[p]}" for p in found_deprecated)
+        warnings.append(
+            f"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: {found_deprecated}. "
+            f"Remediation: {remediations_text}"
+        )
 
     # 2. Private System Libraries & Bionic Greylist Check
     if private_libs:
