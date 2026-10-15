@@ -1,25 +1,15 @@
 """
-triage.py - Authoritative Triage Engine for ApkRevive v3.3.
-Adheres strictly to the 16 verified test vectors and bionic linker rules.
+triage.py - Authoritative Triage Engine for ApkRevive.
+Adheres strictly to platform behavior table, verified test vectors, and bionic linker rules.
 """
 
 from typing import Dict, Any, List
 from apkrevive.core.models import Verdict, TriageSignal, DeviceProfile, ApkMetadata
-
-
-BIONIC_GREYLIST = {
-    "libandroid_runtime.so",
-    "libcutils.so",
-    "libcrypto.so",
-    "libssl.so"
-}
-
-PUBLIC_SYSTEM_LIBRARIES = {
-    "libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so",
-    "libandroid.so", "libjnigraphics.so", "libEGL.so", "libGLESv1_CM.so",
-    "libGLESv2.so", "libGLESv3.so", "libOpenSLES.so", "libOpenMAXAL.so",
-    "libvulkan.so", "libmediandk.so", "libaaudio.so"
-}
+from apkrevive.core.behavior_changes import (
+    PUBLIC_SYSTEM_LIBRARIES,
+    BIONIC_GREYLIST,
+    get_applicable_behavior_changes,
+)
 
 DEPRECATED_PERMISSIONS = {
     "android.permission.WRITE_EXTERNAL_STORAGE": "Use MediaStore API or Storage Access Framework (SAF).",
@@ -32,14 +22,17 @@ DEPRECATED_PERMISSIONS = {
 
 
 def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dict[str, Any]:
+    if isinstance(apk_meta, dict):
+        apk_meta = ApkMetadata.from_dict(apk_meta)
+    if isinstance(device_profile, dict):
+        device_profile = DeviceProfile.from_dict(device_profile)
+
     apk = apk_meta.to_dict()
     device = device_profile.to_dict()
 
     target_sdk = apk.get("target_sdk", 1)
     apk_abis = set(apk.get("abis", []))
-    elf_load_align = apk.get("elf_load_align_64bit")
     private_libs = apk.get("private_libs", [])
-    uses_apache_http = apk.get("uses_apache_http", False)
     has_code = apk.get("has_code", True)
     is_non_resizeable = apk.get("is_non_resizeable", False)
     has_fixed_physics = apk.get("has_fixed_physics", False)
@@ -50,13 +43,16 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
     device_sdk = device.get("os_api_level", 35)
     device_floor = device.get("install_floor", 24)
     device_abis = set(device.get("supported_abis", ["arm64-v8a"]))
-    device_page_size = device.get("page_size_bytes", 16384)
     device_is_widescreen = device.get("is_widescreen", True)
     device_is_high_refresh = device.get("is_high_refresh", False)
 
     reasons: List[str] = []
     warnings: List[str] = []
     required_transforms: List[str] = []
+
+    # Query applicable platform behavior changes
+    applicable_changes = get_applicable_behavior_changes(apk_meta, device_profile)
+    applicable_ids = {c.id for c in applicable_changes}
 
     # 0. Split APK Check
     if apk.get("is_split_apk"):
@@ -93,13 +89,9 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
     permissions = apk.get("permissions", [])
 
     # Warning 2: Scoped Storage & OBB on Android 11+
-    has_storage_perms = any(
-        p in permissions
-        for p in ["android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.READ_EXTERNAL_STORAGE"]
-    )
-    if (device_sdk >= 30 or target_sdk >= 30) and (
-        has_storage_perms or apk.get("accesses_scoped_storage_paths") or apk.get("has_obb")
-    ):
+    # Only emitted if SCOPED_STORAGE_ENFORCEMENT (targetSdk >= 30 on API 30+)
+    # or RAW_OBB_DATA_PATH_RESTRICTION (accessing raw Android/data, Android/obb or has OBB) applies.
+    if "SCOPED_STORAGE_ENFORCEMENT" in applicable_ids or "RAW_OBB_DATA_PATH_RESTRICTION" in applicable_ids:
         warnings.append(
             "WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions or accesses external storage/OBB "
             "paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access "
@@ -109,8 +101,8 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
         )
 
     # Warning 3: Hidden-API reflection
-    if apk.get("hidden_api_reflections"):
-        hidden_matches = sorted(list(set(apk["hidden_api_reflections"])))
+    if "HIDDEN_API_REFLECTION_RESTRICTION" in applicable_ids:
+        hidden_matches = sorted(list(set(apk.get("hidden_api_reflections", []))))
         warnings.append(
             f"WARN_HIDDEN_API_REFLECTION: Non-SDK / hidden Android API reflection detected ({hidden_matches}). "
             f"Restricted on Android 9+ (API 28+). Remediation: Replace non-SDK reflection with public AndroidX/Jetpack APIs, "
@@ -118,16 +110,23 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
         )
 
     # Warning 4: Cleartext / legacy TLS
+    # Cleartext warning must NOT be emitted for apps with targetSdk < 28 on device API >= 28 unless uses_cleartext_traffic is False.
     has_cleartext = bool(apk.get("has_cleartext_http"))
     has_legacy_tls = bool(apk.get("legacy_tls_protocols"))
     uses_cleartext = apk.get("uses_cleartext_traffic")
-    has_nsc = bool(apk.get("has_network_security_config"))
-    if (
-        has_cleartext
-        or has_legacy_tls
-        or (uses_cleartext is True)
-        or (target_sdk < 28 and uses_cleartext is None and not has_nsc)
-    ):
+
+    should_warn_cleartext = False
+    if target_sdk < 28:
+        if device_sdk >= 28 and uses_cleartext is False:
+            should_warn_cleartext = True
+    else:
+        if "CLEARTEXT_HTTP_DEFAULT_BLOCK" in applicable_ids:
+            if has_cleartext or has_legacy_tls or uses_cleartext is False:
+                should_warn_cleartext = True
+        elif uses_cleartext is True or has_legacy_tls:
+            should_warn_cleartext = True
+
+    if should_warn_cleartext:
         warnings.append(
             "WARN_CLEARTEXT_LEGACY_TLS: Cleartext HTTP traffic or legacy TLS protocol references detected. "
             "Blocked by default on Android 9+ (API 28+). Remediation: Enforce HTTPS using TLS 1.2+, declare "
@@ -150,7 +149,7 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
         for lib in private_libs:
             if lib in PUBLIC_SYSTEM_LIBRARIES:
                 continue
-            if target_sdk < 24 and lib in BIONIC_GREYLIST:
+            if "BIONIC_NAMESPACE_ISOLATION" not in applicable_ids and lib in BIONIC_GREYLIST:
                 continue
             blocked_libs.append(lib)
 
@@ -164,23 +163,21 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
             }
 
     # 3. 16KB Page Size Segment Alignment Check
-    has_64bit_native = bool(apk_abis.intersection({"arm64-v8a", "x86_64"}))
-    if device_page_size == 16384 and has_64bit_native:
-        if (elf_load_align is not None and elf_load_align < 16384) or apk.get("has_invalid_elf_layout"):
-            if device_sdk < 36:
-                return {
-                    "verdict": Verdict.RED.value,
-                    "reason": TriageSignal.INCOMPATIBLE_PAGE_SIZE.value,
-                    "details": f"64-bit ELF has invalid or <16KB segment alignment on 16KB kernel (OS API={device_sdk} < 36)",
-                    "warnings": warnings,
-                    "required_transforms": []
-                }
-            else:
-                required_transforms.append("PAGE_SIZE_COMPAT")
-                reasons.append(TriageSignal.NEEDS_PAGE_SIZE_COMPAT_ANDROID16.value)
+    if "16KB_PAGE_SIZE_KERNEL" in applicable_ids:
+        if device_sdk < 36:
+            return {
+                "verdict": Verdict.RED.value,
+                "reason": TriageSignal.INCOMPATIBLE_PAGE_SIZE.value,
+                "details": f"64-bit ELF has invalid or <16KB segment alignment on 16KB kernel (OS API={device_sdk} < 36)",
+                "warnings": warnings,
+                "required_transforms": []
+            }
+        else:
+            required_transforms.append("PAGE_SIZE_COMPAT")
+            reasons.append(TriageSignal.NEEDS_PAGE_SIZE_COMPAT_ANDROID16.value)
 
     # 4. Modification Requirements Analysis
-    if target_sdk == 28 and uses_apache_http:
+    if "APACHE_HTTP_LEGACY_REMOVAL" in applicable_ids:
         required_transforms.append("INJECT_USES_LIBRARY_APACHE_HTTP")
         reasons.append(TriageSignal.NEEDS_APACHE_HTTP_LEGACY.value)
 
@@ -230,7 +227,12 @@ def evaluate_triage(apk_meta: ApkMetadata, device_profile: DeviceProfile) -> Dic
         }
 
     # 6. Unmodified Path (Green)
-    install_method = "DIRECT_INSTALL" if target_sdk >= device_floor else "BYPASS_LOW_TARGET_SDK_BLOCK"
+    is_blocked_by_floor = (
+        "TARGET_SDK_INSTALL_FLOOR_API34" in applicable_ids
+        or "TARGET_SDK_INSTALL_FLOOR_API35" in applicable_ids
+        or target_sdk < device_floor
+    )
+    install_method = "BYPASS_LOW_TARGET_SDK_BLOCK" if is_blocked_by_floor else "DIRECT_INSTALL"
     return {
         "verdict": Verdict.GREEN.value,
         "reason": TriageSignal.RUNNABLE_UNMODIFIED.value,

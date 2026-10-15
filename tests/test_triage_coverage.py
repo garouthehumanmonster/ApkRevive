@@ -45,9 +45,9 @@ class TestTriageCoverage(unittest.TestCase):
 
     def test_02_scoped_storage_and_obb_android11_plus(self):
         """Test 2: Scoped storage & OBB on Android 11+ produces WARN_SCOPED_STORAGE_OBB with remediation text."""
-        # Case A: External storage permission on device_sdk 30+
+        # Case A: External storage permission on device_sdk 30+ for targetSdk >= 30
         apk_perm = ApkMetadata(
-            target_sdk=29,
+            target_sdk=30,
             permissions=["android.permission.WRITE_EXTERNAL_STORAGE"],
         )
         dev = DeviceProfile(os_api_level=30)
@@ -55,6 +55,14 @@ class TestTriageCoverage(unittest.TestCase):
         warns_perm = [w for w in res_perm["warnings"] if "WARN_SCOPED_STORAGE_OBB" in w]
         self.assertEqual(len(warns_perm), 1)
         self.assertIn("Remediation: Adopt Storage Access Framework (SAF) / MediaStore API", warns_perm[0])
+
+        # Scoped storage general warning must NOT be emitted for apps with targetSdk < 30
+        apk_perm_29 = ApkMetadata(
+            target_sdk=29,
+            permissions=["android.permission.WRITE_EXTERNAL_STORAGE"],
+        )
+        res_perm_29 = evaluate_triage(apk_perm_29, dev)
+        self.assertFalse(any("WARN_SCOPED_STORAGE_OBB" in w for w in res_perm_29["warnings"]))
 
         # Case B: Scoped storage paths in DEX
         apk_paths = ApkMetadata(
@@ -119,14 +127,22 @@ class TestTriageCoverage(unittest.TestCase):
         res_uct = evaluate_triage(apk_uct, dev)
         self.assertTrue(any("WARN_CLEARTEXT_LEGACY_TLS" in w for w in res_uct["warnings"]))
 
-        # Case D: target_sdk < 28 without network_security_config
+        # Case D: target_sdk < 28 without network_security_config must NOT emit cleartext warning unless usesCleartextTraffic is False
         apk_legacy_sdk = ApkMetadata(
             target_sdk=22,
             uses_cleartext_traffic=None,
             has_network_security_config=False,
         )
         res_legacy_sdk = evaluate_triage(apk_legacy_sdk, dev)
-        self.assertTrue(any("WARN_CLEARTEXT_LEGACY_TLS" in w for w in res_legacy_sdk["warnings"]))
+        self.assertFalse(any("WARN_CLEARTEXT_LEGACY_TLS" in w for w in res_legacy_sdk["warnings"]))
+
+        # Case E: target_sdk < 28 with uses_cleartext_traffic=False DOES emit warning
+        apk_legacy_disabled = ApkMetadata(
+            target_sdk=22,
+            uses_cleartext_traffic=False,
+        )
+        res_legacy_disabled = evaluate_triage(apk_legacy_disabled, dev)
+        self.assertTrue(any("WARN_CLEARTEXT_LEGACY_TLS" in w for w in res_legacy_disabled["warnings"]))
 
     def test_05_deprecated_permissions(self):
         """Test 5: Deprecated permissions produce WARN_DEPRECATED_PERMISSIONS with remediation text."""
