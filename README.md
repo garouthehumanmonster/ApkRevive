@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
 [![Android Target](https://img.shields.io/badge/Android%20API-3%20to%2035+-brightgreen.svg)](https://developer.android.com)
-[![Page Alignment](https://img.shields.io/badge/16KB%20Page%20Size-Supported-orange.svg)](https://developer.android.com/guide/practices/page-sizes)
+[![Page Alignment](https://img.shields.io/badge/16KB%20Page%20Size-Compat%20Only%20Triage-orange.svg)](https://developer.android.com/guide/practices/page-sizes)
 [![Status](https://img.shields.io/badge/Status-Alpha%20(0.3.3)-yellow.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey.svg)](LICENSE)
 
@@ -29,8 +29,8 @@ flowchart TD
     C -->|"RED"| F["Fatal Incompatibility (SARIF / Diagnostic Report)"]
     
     E --> G["AXML Surgeon (Manifest Mutation)"]
-    E --> H["Dalvik Primary DEX Trampoline & Shim Injection"]
-    E --> ES["16KB ELF Surgeon (PT_LOAD Modulo Congruence)"]
+    E --> H["Bytecode Shim Injection (ApkReviveInitProvider)"]
+    E --> ES["16KB ELF Classification (elf16k)"]
     E --> I["16KB Boundary ZipAligner (Tag 0xD935)"]
     E --> J["V2/V3 APK Re-Signer"]
     
@@ -63,16 +63,17 @@ Mutates compiled Android binary XML (`AndroidManifest.xml`) directly in-place wi
 - Forces `android:hasCode="true"` when injecting initialization shims into resource-only APKs.
 - Injects metadata flags for runtime display controls and `android:pageSizeCompat="enabled"` for Android 16.
 
-### 3. 16KB ELF Segment Surgeon (`elf_surgeon.py`)
-Rewrites 64-bit ELF shared libraries (`EM_AARCH64`, `EM_X86_64`) to enforce Android 15+ 16KB kernel requirements:
-- Guarantees `p_align >= 0x4000` (16,384 bytes) on all `PT_LOAD` segments.
-- Enforces linker modulo congruence: `p_vaddr % 0x4000 == p_offset % 0x4000`.
-- Inserts zero-padding bytes, remaps program headers (`Phdr`), section headers (`Shdr`), `e_phoff`, and `e_shoff` while preserving relative virtual addresses (`p_vaddr`) and GOT/PLT relocations.
+### 3. 16KB ELF Verification & Compatibility (`elf16k.py`)
+Evaluates 64-bit ELF shared libraries (`EM_AARCH64`, `EM_X86_64`) against Android 15+ 16KB kernel requirements without corrupting relocations:
+- Computes `PT_LOAD` modulo congruence: `p_vaddr % 0x4000 == p_offset % 0x4000`.
+- Audits segment page isolation: detects whether adjacent `PT_LOAD` segments share a 16KB virtual address page (`p_vaddr2 - p_vaddr1 < 0x4000`), which causes `MAP_FIXED` collisions and SIGSEGV crashes on 16KB kernels.
+- Enforces 3-state classification: `ALIGNED` (natively 16KB clean), `COMPAT_ONLY` (requires Android 15/16 `pageSizeCompat` backcompat mode), or `UNSAFE`.
+- Preserves 4KB-linked and unfixable binaries byte-identical, safely injecting `android:pageSizeCompat="enabled"` in `AndroidManifest.xml` rather than breaking code with invalid header hacks.
 
-### 4. Dalvik Primary DEX Trampoline (`dex_trampoline.py`)
-Injects runtime compatibility hooks into primary `classes.dex` for Dalvik runtimes (`API < 21`):
-- Avoids dependency on secondary DEX native multi-dex classloader initialization during early application startup.
-- Recomputes DEX header checksum (Adler-32) and SHA-1 signature after mutation.
+### 4. Bytecode Shim Injection (`ApkReviveInitProvider`)
+Injects runtime compatibility shims into the application lifecycle:
+- Injects `ApkReviveInitProvider` into secondary/primary DEX and registers the provider in `AndroidManifest.xml` for zero-overhead startup initialization on modern ART.
+- Avoids fragile bytecode patching of multi-dex classes on legacy Dalvik runtimes (`API < 21`).
 
 ### 5. Split APK / App Bundle Reassembly Engine (`split_merger.py`)
 Reassembles split APK packages (`base.apk` + feature/config splits, `.apks`, `.xapk`):
@@ -113,9 +114,9 @@ ApkRevive/
 │   └── workflows/ci.yml        # Multi-version Python & Android CI pipeline
 ├── apkrevive/                  # Core Python Modernizer Engine & CLI
 │   ├── adb/                    # ADB bridge and device install-floor probe
+│   ├── cli/                    # CLI entrypoint and UX modules (TUI, diff)
 │   ├── core/                   # Triage, behavior rules, AXML surgeon, ELF, aligner, signer, OBB
-│   ├── shim/                   # Precompiled bytecode shim & build harness (ApkReviveInitProvider)
-│   └── cli.py                  # CLI entrypoint (`apkrevive`)
+│   └── shim/                   # Precompiled bytecode shim & build harness (ApkReviveInitProvider)
 ├── apkrevive-android/          # On-device companion app (Kotlin, Compose, Shizuku)
 │   ├── app/src/main/           # Android app source & installer bridge
 │   └── build.gradle.kts        # Gradle build configuration
@@ -136,6 +137,23 @@ ApkRevive/
 ├── README.md                   # Project documentation & usage guides
 └── SECURITY.md                 # Security policy, shim provenance & vulnerability disclosure
 ```
+
+---
+
+## Verified Capabilities Matrix
+
+In accordance with strict verification discipline, capabilities are classified as verified only with non-simulated receipts from physical hardware or official Android emulators. Host Python test harnesses and `--simulate` runs carry `"simulated": true` and are reported as `SIMULATED` or `NOT RUN (No Live AVD)`.
+
+| Capability | Core Mechanism | Verification Artifact / Receipt | Status |
+|---|---|---|---|
+| AXML Manifest Mutation | Binary AST parser & byte rewriter (`AxmlSurgeon`) | `tests/test_axml.py`, `results/local_rig_canary_apache_http.json` | VERIFIED (Unit/Host) |
+| 16KB Page Size Triage | 3-state header & congruence auditor (`elf16k.py`) | `tests/test_elf16k.py`, `tests/test_elf_surgeon.py` | VERIFIED (Host / Clang ELF) |
+| 16KB Kernel dlopen | bionic dynamic linker on 16KB page kernel | Android Emulator API 35 (16KB) | NOT RUN (No Live AVD) |
+| targetSdk Floor Bypass | Package manager `-d --bypass-low-target-sdk-block` | Android Emulator API 34+ / Shizuku IPC | NOT RUN (No Live AVD) |
+| Runtime Shim Injection | ContentProvider initialization hook (`ApkReviveInitProvider`) | `tests/test_shim.py` | VERIFIED (Bytecode / Hash) |
+| Zero-Trust Zip Slip Guard | Path canonicalization & ratio thresholds (`zip_guard.py`) | `tests/test_security.py` | VERIFIED (Unit) |
+| V2/V3 APK Re-signing | `apksigner` integration & keytool keystore management | `tests/test_signer.py` | VERIFIED (Unit / Toolchain) |
+| Split APK Reassembly | Archive merge & DEX renumbering (`split_merger.py`) | `tests/test_split_merger.py` | VERIFIED (Unit) |
 
 ---
 

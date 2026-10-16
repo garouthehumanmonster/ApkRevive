@@ -11,9 +11,6 @@ import zipfile
 from datetime import datetime
 from typing import Dict, Any
 
-# Enable cli/ subpackage discovery for tui, sarif, and diff submodules
-__path__ = [os.path.join(os.path.dirname(__file__), "cli")]
-
 from apkrevive.core.models import DeviceProfile, ApkMetadata, PatchReport
 from apkrevive.core.triage import evaluate_triage
 from apkrevive.core.axml import AxmlSurgeon
@@ -300,7 +297,7 @@ def revive_cmd(args):
                 zout.writestr(item, data)
 
         if (enable_60hz or enable_cutout) and not has_shim_provider:
-            shim_path = os.path.join(os.path.dirname(__file__), "shim", "shim.dex")
+            shim_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "shim", "shim.dex")
             if os.path.exists(shim_path):
                 next_idx = max(dex_indices) + 1 if dex_indices else 1
                 shim_dex_name = f"classes{next_idx}.dex" if next_idx > 1 else "classes.dex"
