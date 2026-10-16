@@ -5,49 +5,15 @@ align.py - 4KB and 16KB ZIP boundary aligner for uncompressed entries (.so, reso
 import mmap
 import os
 import struct
-import zipfile
 from typing import Dict, Any
 
-
-def validate_zip_archive(apk_path: str, max_uncompressed_bytes: int = 4 * 1024 * 1024 * 1024, max_ratio: float = 100.0) -> None:
-    """
-    Validates zip archive integrity and enforces security constraints:
-    - Verifies file exists and is non-empty.
-    - Rejects path traversal (Zip-Slip).
-    - Detects Zip bombs (compression ratio > max_ratio and single file > 10MB, or single file > 500MB, or total uncompressed > 4GB).
-    - Detects corrupted or truncated archives cleanly.
-    """
-    if not os.path.exists(apk_path):
-        raise FileNotFoundError(f"Archive file not found: {apk_path}")
-    if os.path.getsize(apk_path) == 0:
-        raise ValueError(f"Archive file is empty: {apk_path}")
-
-    total_uncompressed = 0
-    try:
-        with zipfile.ZipFile(apk_path, "r") as zf:
-            for entry in zf.infolist():
-                name = entry.filename
-                if ".." in name or name.startswith("/") or name.startswith("\\") or ":" in name or "\0" in name:
-                    raise ValueError(f"Zip-slip path traversal detected: {name}")
-
-                if entry.compress_size > 0 and (entry.file_size / entry.compress_size) > max_ratio and entry.file_size > 10 * 1024 * 1024:
-                    raise ValueError(f"Zip bomb detected (high compression ratio): {name}")
-
-                if entry.file_size > 500 * 1024 * 1024:
-                    raise ValueError(f"Zip entry exceeds maximum permitted size: {name}")
-
-                total_uncompressed += entry.file_size
-                if total_uncompressed > max_uncompressed_bytes:
-                    raise ValueError("Zip bomb detected (total uncompressed size exceeds limit)")
-    except (zipfile.BadZipFile, struct.error, EOFError, IndexError) as e:
-        raise ValueError(f"Truncated ZIP archive entry: {e}")
+from apkrevive.security.zip_guard import validate_zip_archive
 
 
 def align_apk(input_apk: str, output_apk: str, page_align_64bit: int = 16384) -> None:
+    validate_zip_archive(input_apk)
+
     with open(input_apk, "rb") as f_in:
-        file_len = os.path.getsize(input_apk)
-        if file_len == 0:
-            raise ValueError("Empty ZIP archive")
         with mmap.mmap(f_in.fileno(), 0, access=mmap.ACCESS_READ) as in_buf:
             buf_len = len(in_buf)
             eocd_pos = in_buf.rfind(b"PK\x05\x06")
@@ -118,12 +84,12 @@ def align_apk(input_apk: str, output_apk: str, page_align_64bit: int = 16384) ->
                     if 0 < pad_len < 4:
                         pad_len += alignment
 
-                    # Write LFH with padding extra field
+                    # Write LFH with padding extra field (tag 0xD935)
                     new_lfh = bytearray(lfh_header)
                     if pad_len >= 4:
                         extra_field = struct.pack("<HH", 0xD935, pad_len - 4) + (b"\x00" * (pad_len - 4))
                     else:
-                        extra_field = b"\x00" * pad_len
+                        extra_field = b""
                     struct.pack_into("<H", new_lfh, 28, len(extra_field))
                     f_out.write(new_lfh)
                     f_out.write(extra_field)
@@ -157,10 +123,9 @@ def align_apk(input_apk: str, output_apk: str, page_align_64bit: int = 16384) ->
 
 
 def verify_apk_alignment(apk_path: str) -> Dict[str, Any]:
+    validate_zip_archive(apk_path)
+
     with open(apk_path, "rb") as f:
-        file_len = os.path.getsize(apk_path)
-        if file_len == 0:
-            raise ValueError("Empty ZIP archive")
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as buf:
             buf_len = len(buf)
             eocd_pos = buf.rfind(b"PK\x05\x06")
@@ -191,9 +156,11 @@ def verify_apk_alignment(apk_path: str) -> Dict[str, Any]:
                         break
                     lfh_fn_len, lfh_ef_len = struct.unpack_from("<HH", buf, lfh_offset + 26)
                     data_offset = lfh_offset + 30 + lfh_fn_len + lfh_ef_len
-                    req_align = 4096
+                    req_align = 4
                     if fn.endswith(".so") and ("arm64-v8a" in fn or "x86_64" in fn):
                         req_align = 16384
+                    elif fn == "resources.arsc" or fn.endswith(".so"):
+                        req_align = 4096
 
                     aligned = (data_offset % req_align == 0)
                     results[fn] = {"offset": data_offset, "required_align": req_align, "aligned": aligned}

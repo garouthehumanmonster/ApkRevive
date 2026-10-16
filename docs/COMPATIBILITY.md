@@ -78,14 +78,14 @@ ApkRevive tests against 8 standardized canary pairs (16 APK packages total). Eac
 
 | Canary | Environment | Tool Commit | Date | Observed Result | Status |
 |---|---|:---:|:---:|---|:---:|
-| `canary_apache_http` | Local Verification Rig | `20778b3` | 2026-10-15 | Failing APK identified missing library; AxmlSurgeon injected <uses-library android:name="org.apache.http.legacy" android:required="false"/>; post-patch triage confirmed GREEN. | PASS |
-| `canary_aspect_ratio` | Local Verification Rig | `20778b3` | 2026-10-15 | Triage flagged EXPAND_ASPECT_RATIO; AxmlSurgeon set resizeableActivity=true and stripped max_aspect; post-patch triage confirmed GREEN. | PASS |
-| `canary_bionic_greylist` | Local Verification Rig | `20778b3` | 2026-10-15 | ELF DT_NEEDED parser identified libgui.so dependency; evaluate_triage returned RED verdict with UNRESOLVABLE_SYSTEM_LIBRARY; control with libcrypto.so on targetSdk 22 passed. | PASS |
-| `canary_has_code` | Local Verification Rig | `20778b3` | 2026-10-15 | Triage flagged SET_HAS_CODE_TRUE; AxmlSurgeon flipped hasCode from false to true and inserted classes.dex; post-patch inspection confirmed has_code=True. | PASS |
-| `canary_install_floor` | Local Verification Rig | `20778b3` | 2026-10-15 | Manifest targetSdkVersion verified (22 vs 24); evaluate_triage selected BYPASS_LOW_TARGET_SDK_BLOCK; adb bridge install lifecycle verified with mock bypass flag. | PASS |
-| `canary_obb_version` | Local Verification Rig | `20778b3` | 2026-10-15 | validate_obb_delivery flagged EXPANSION_VERSION_AHEAD_OF_APK warning for OBB version 200 with APK versionCode 100; control with OBB 100 and APK 150 validated with no warnings. | PASS |
-| `canary_page_size` | Local Verification Rig | `20778b3` | 2026-10-15 | ELF load alignment inspected (4096 vs 16384 bytes); API 35 triage yielded RED INCOMPATIBLE_PAGE_SIZE; API 36 triage yielded YELLOW with pageSizeCompat injected. | PASS |
-| `canary_physics_tick` | Local Verification Rig | `20778b3` | 2026-10-15 | Triage flagged LOCK_60HZ_DISPLAY_MODE; AxmlSurgeon injected ApkReviveInitProvider and apkrevive.enable_60hz_lock meta-data; post-patch triage confirmed GREEN. | PASS |
+| `canary_apache_http` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: uses-library absent; triage flags INJECT_USES_LIBRARY_APACHE_HTTP (NoClassDefFoundError avoided) \| Revived: uses-library org.apache.http.legacy injected with android:required=false | PASS |
+| `canary_aspect_ratio` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: resizeableActivity=false with max_aspect cap flagged EXPAND_ASPECT_RATIO on widescreen \| Revived: resizeableActivity=true injected; fills modern viewport without letterboxing | PASS |
+| `canary_bionic_greylist` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: Direct DT_NEEDED linkage to libgui.so rejected with RED UNRESOLVABLE_SYSTEM_LIBRARY \| Revived: Triage halts corrupt deployment of unresolvable system library; control greylist allowed on targetSdk 22 | PASS |
+| `canary_has_code` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: hasCode=False prevents Dalvik/ART bytecode execution \| Revived: hasCode=true injected and primary DEX trampoline enabled | PASS |
+| `canary_install_floor` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: targetSdk 22 < floor 24; direct install blocked \| Revived: Bypass strategy selected: BYPASS_LOW_TARGET_SDK_BLOCK; verdict GREEN | PASS |
+| `canary_obb_version` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: OBB v200 ahead of APK v100 triggers warning: EXPANSION_VERSION_AHEAD_OF_APK (200 > 100) \| Revived: OBB v100 with APK v150 delivery validated cleanly with version aligned | PASS |
+| `canary_page_size` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: ELF align 4KB on 16KB kernel rejected with RED INCOMPATIBLE_PAGE_SIZE \| Revived: Control ELF rewritten with 16384B alignment; 16KB page size constraint satisfied | PASS |
+| `canary_physics_tick` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: High refresh display detected without 60Hz lock; flags LOCK_60HZ_DISPLAY_MODE \| Revived: ApkReviveInitProvider shim and apkrevive.enable_60hz_lock metadata injected | PASS |
 
 <!-- CANARY_RESULTS_END -->
 

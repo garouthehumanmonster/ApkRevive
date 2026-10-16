@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ApkRevive // Web Triage Hub & 16KB Visualizer</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/brand/logo.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-obsidian-900 text-slate-100 font-sans antialiased min-h-screen">
+
+  <!-- TOP OSCILLOSCOPE HEADER -->
+  <header class="border-b border-obsidian-600 bg-obsidian-950/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <!-- Logo SVG -->
+        <svg class="w-8 h-8" viewBox="0 0 100 100" fill="none">
+          <path d="M 48 10 L 22 28 L 36 42 L 48 38 Z" fill="#FF4D6A" opacity="0.8" />
+          <path d="M 16 36 L 44 48 L 40 68 L 16 64 Z" fill="#1B2432" stroke="#F5A623" stroke-width="2" />
+          <path d="M 18 72 L 48 90 L 48 76 L 28 66 Z" fill="#FF4D6A" />
+          <path d="M 38 50 L 46 50 L 50 32 L 54 68 L 57 44 L 60 54 L 64 50 L 72 50" stroke="#00E5A3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M 52 10 L 84 30 L 84 70 L 52 90 L 52 68 L 68 50 L 52 32 Z" fill="#121822" stroke="#00E5A3" stroke-width="2.5" />
+        </svg>
+        <span class="text-xl font-bold font-display tracking-tight text-white">Apk<span class="text-emerald-500">Revive</span></span>
+        <span class="badge-emerald text-xs px-2 py-0.5 rounded font-mono font-bold tracking-wider">TRIAGE HUB</span>
+      </div>
+
+      <div class="flex items-center space-x-4 text-xs font-mono text-slate-400">
+        <span class="hidden md:inline-flex items-center">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 pulse-dot"></span>
+          ZERO-UPLOAD CLIENT ENGINE
+        </span>
+        <a href="https://github.com/apkrevive/apkrevive" target="_blank" rel="noopener" class="btn-secondary text-xs px-3 py-1 rounded border border-obsidian-600 hover:border-cyan-400 text-slate-200">
+          GitHub Repo
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- HERO SECTION -->
+    <section class="text-center space-y-3 pt-4 pb-2">
+      <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-obsidian-800 border border-obsidian-600 text-xs font-mono text-cyan-400">
+        <span>ARM64-V8A</span> • <span>16KB MODULO CONGRUENCE</span> • <span>ANDROID 15/16 READY</span>
+      </div>
+      <h1 class="text-3xl sm:text-5xl font-extrabold font-display tracking-tight text-white">
+        Precision Binary Surgery &amp; APK Triage
+      </h1>
+      <p class="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base">
+        Inspect 16KB ELF alignment, simulate binary AXML transformations, and detect linker incompatibilities entirely inside your browser with zero server uploads.
+      </p>
+    </section>
+
+    <!-- DROPZONE & PRESETS -->
+    <section class="space-y-4">
+      <div id="dropzone" class="border-2 border-dashed border-obsidian-600 hover:border-emerald-500 bg-obsidian-800/60 rounded-xl p-8 sm:p-12 text-center transition-all cursor-pointer relative group">
+        <input type="file" id="fileInput" accept=".apk,.xapk,.zip" class="hidden" />
+        
+        <div class="space-y-4">
+          <div class="w-16 h-16 mx-auto rounded-full bg-obsidian-700/80 border border-obsidian-600 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-base sm:text-lg font-medium text-white">
+              Drag &amp; drop APK or <span class="text-emerald-400 underline underline-offset-4">browse filesystem</span>
+            </p>
+            <p class="text-xs font-mono text-slate-400 mt-1">
+              Supports .apk, .xapk, or .zip. Processed purely in Web Worker memory.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEMO PRESETS -->
+      <div class="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs">
+        <span class="font-mono text-slate-500 mr-1">Load sample fixture:</span>
+        <button type="button" class="preset-btn" data-preset="arcade4k">
+          🎮 Legacy 4KB Arcade (TargetSDK 22)
+        </button>
+        <button type="button" class="preset-btn" data-preset="enterprise34">
+          🏢 Enterprise Suite (TargetSDK 28)
+        </button>
+        <button type="button" class="preset-btn" data-preset="congruenceFault">
+          ⚠️ Modulo Congruence Fault
+        </button>
+        <button type="button" class="preset-btn" data-preset="modern16k">
+          ✅ 16KB-Ready Modern APK
+        </button>
+      </div>
+    </section>
+
+    <!-- TRIAGE VERDICT SUMMARY BANNER (DYNAMIC) -->
+    <section id="verdictBanner" class="hidden rounded-xl border p-5 transition-all"></section>
+
+    <!-- INTERACTIVE TABBED WORKBENCH -->
+    <section id="workbench" class="hidden space-y-6">
+      
+      <!-- TAB NAVIGATION -->
+      <div class="flex border-b border-obsidian-600 space-x-1 sm:space-x-4 overflow-x-auto text-sm font-mono">
+        <button class="tab-btn active" data-tab="tab-elf">
+          <span class="text-cyan-400">01.</span> 16KB ELF Segment Layout
+        </button>
+        <button class="tab-btn" data-tab="tab-manifest">
+          <span class="text-emerald-400">02.</span> AXML Manifest Diff Tree
+        </button>
+        <button class="tab-btn" data-tab="tab-telemetry">
+          <span class="text-amber-400">03.</span> Export &amp; CLI Preview
+        </button>
+      </div>
+
+      <!-- TAB 1: 16KB ELF SEGMENT VISUALIZER -->
+      <div id="tab-elf" class="tab-content active space-y-6">
+        <div class="card p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-obsidian-600 pb-3">
+            <div>
+              <h2 class="text-lg font-bold font-display text-white">ELF PT_LOAD Alignment &amp; Modulo Congruence</h2>
+              <p class="text-xs font-mono text-slate-400">Android 15+ invariant: p_align >= 0x4000 (16,384) AND (p_vaddr % 0x4000 == p_offset % 0x4000)</p>
+            </div>
+            <div id="elfBadge" class="self-start sm:self-auto font-mono text-xs px-2.5 py-1 rounded"></div>
+          </div>
+
+          <!-- SEGMENT MEMORY MAP -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+              <span>Segment Offset Memory Map</span>
+              <span id="congruenceFormula" class="text-cyan-400"></span>
+            </div>
+            
+            <div id="segmentMap" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+          </div>
+
+          <!-- SURGICAL REWRITER EXPLANATION -->
+          <div class="bg-obsidian-950 p-4 rounded-lg border border-obsidian-600 font-mono text-xs space-y-2">
+            <div class="text-emerald-400 font-bold flex items-center">
+              <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Surgery Simulation: Zero-Padding Segment Remapping</span>
+            </div>
+            <p class="text-slate-300" id="surgeryExplanation">
+              Inspecting ELF headers...
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: AXML MANIFEST DIFF TREE -->
+      <div id="tab-manifest" class="tab-content hidden space-y-6">
+        <div class="card p-6 space-y-4">
+          <div class="flex items-center justify-between border-b border-obsidian-600 pb-3">
+            <div>
+              <h2 class="text-lg font-bold font-display text-white">Before / After AXML Manifest AST</h2>
+              <p class="text-xs font-mono text-slate-400">Strictly idempotent AST mutation with ApkReviveInitProvider shims</p>
+            </div>
+            <span class="badge-cyan text-xs font-mono px-2 py-0.5 rounded">AXML(N) == AXML(N+1)</span>
+          </div>
+
+          <!-- COMPARISON SPLIT -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="text-xs font-mono text-crimson-400 uppercase tracking-wider font-bold flex items-center">
+                <span class="w-2 h-2 rounded-full bg-crimson-500 mr-2"></span> Original Manifest Attributes
+              </div>
+              <div id="manifestBefore" class="code-block h-96 overflow-y-auto"></div>
+            </div>
+
+            <div class="space-y-2">
+              <div class="text-xs font-mono text-emerald-400 uppercase tracking-wider font-bold flex items-center">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span> Revived Manifest (Injected Compatibility)
+              </div>
+              <div id="manifestAfter" class="code-block h-96 overflow-y-auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: TELEMETRY & CLI SCORECARD -->
+      <div id="tab-telemetry" class="tab-content hidden space-y-6">
+        <div class="card p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-obsidian-600 pb-3">
+            <div>
+              <h2 class="text-lg font-bold font-display text-white">CLI Diff &amp; Telemetry Scorecard</h2>
+              <p class="text-xs font-mono text-slate-400">Equivalent to: apkrevive diff original.apk revived.apk</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button id="btnDownloadJson" class="btn-primary text-xs font-mono px-3 py-1.5 rounded flex items-center space-x-1.5">
+                <span>Export JSON</span>
+              </button>
+              <button id="btnDownloadSarif" class="btn-secondary text-xs font-mono px-3 py-1.5 rounded flex items-center space-x-1.5">
+                <span>Export SARIF v2.1.0</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- TERMINAL CLI SCORECARD PREVIEW -->
+          <div class="rounded-lg bg-obsidian-950 border border-obsidian-600 p-4 font-mono text-xs space-y-2 text-slate-200 overflow-x-auto">
+            <div class="text-slate-500 pb-2 border-b border-obsidian-700"># TERMINAL REPRODUCTION</div>
+            <pre id="cliLadderOutput" class="text-xs text-emerald-400 leading-relaxed"></pre>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="border-t border-obsidian-600 py-6 text-center text-xs font-mono text-slate-500">
+    ApkRevive Ecosystem • Cyber-Preservation Engine • Released under MIT License
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -13,6 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +39,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
@@ -53,6 +56,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -64,7 +68,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,14 +79,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.apkrevive.R
 import com.apkrevive.core.ApkInspectionResult
 import com.apkrevive.core.ApkInspector
@@ -93,6 +99,7 @@ import com.apkrevive.core.TriageEvaluator
 import com.apkrevive.core.TriageResult
 import com.apkrevive.core.TriageSignal
 import com.apkrevive.core.Verdict
+import com.apkrevive.installer.ShizukuConnectionState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -106,11 +113,11 @@ fun ApkReviveScreen(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val shizukuState by viewModel.shizukuConnectionState.collectAsStateWithLifecycle()
+    val reviveJobState by viewModel.reviveJobState.collectAsStateWithLifecycle()
 
-    // Host device profile
     val deviceProfile = remember { getHostDeviceProfile(context) }
 
-    // SAF Document Picker
     val safLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -158,7 +165,26 @@ fun ApkReviveScreen(
                 isInstalled = uiState.installSuccess == true
             )
 
-            // Post-Install Success Card (Shown when installSuccess == true and installedPackageName != null)
+            // Animated step progress bar during pipeline execution
+            if (reviveJobState is ReviveJobState.ExecutingPipeline) {
+                PipelineProgressCard(
+                    pipeline = reviveJobState as ReviveJobState.ExecutingPipeline
+                )
+            }
+
+            // One-tap signature conflict remediation card
+            val failedJob = reviveJobState as? ReviveJobState.InstallFailed
+            if (failedJob != null && failedJob.errorCode == -7) {
+                ConflictingSignatureRemediationCard(
+                    failure = failedJob,
+                    isInstalling = uiState.isInstalling,
+                    onUninstallAndRetry = {
+                        viewModel.uninstallAndRetry(context)
+                    }
+                )
+            }
+
+            // Post-Install Success Card
             if (uiState.installSuccess == true && uiState.installedPackageName != null) {
                 PostInstallCard(
                     packageName = uiState.installedPackageName!!,
@@ -168,6 +194,7 @@ fun ApkReviveScreen(
 
             // 1. Shizuku Service Card
             ShizukuStatusCard(
+                connectionState = shizukuState,
                 isAvailable = uiState.isShizukuAvailable,
                 isAuthorized = uiState.isShizukuAuthorized,
                 onRequestPermission = onRequestShizukuPermission
@@ -187,6 +214,15 @@ fun ApkReviveScreen(
                 }
             )
 
+            // Architecture & Capability Badges
+            if (uiState.apkMetadata != null) {
+                ApkCapabilitiesCard(
+                    metadata = uiState.apkMetadata!!,
+                    lock60Hz = uiState.lock60Hz,
+                    expandAspectRatio = uiState.expandAspectRatio
+                )
+            }
+
             // 3. Compatibility Summary (Triage Card)
             if (uiState.triageResult != null && uiState.apkMetadata != null) {
                 TriageResultCard(
@@ -196,7 +232,7 @@ fun ApkReviveScreen(
                 )
             }
 
-            // 4. Modernization Feature Toggles Card (hidden until app analyzed)
+            // 4. Modernization Feature Toggles Card
             if (uiState.triageResult != null && uiState.apkMetadata != null) {
                 ModernizerTogglesCard(
                     expandAspectRatio = uiState.expandAspectRatio,
@@ -245,6 +281,313 @@ fun ApkReviveScreen(
         onRequestShizukuPermission = onRequestShizukuPermission,
         modifier = modifier
     )
+}
+
+// ---------------------------------------------------------------------------
+// Architecture & Capabilities Badge Card
+// ---------------------------------------------------------------------------
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ApkCapabilitiesCard(
+    metadata: ApkMetadata,
+    lock60Hz: Boolean,
+    expandAspectRatio: Boolean,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Architecture & Capability Badges",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.semantics { heading() }
+            )
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // ABI Chips
+                if (metadata.abis.isNotEmpty()) {
+                    metadata.abis.forEach { abi ->
+                        CapabilityBadge(
+                            label = abi,
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            icon = Icons.Default.Memory
+                        )
+                    }
+                } else {
+                    CapabilityBadge(
+                        label = "Java-only (Universal)",
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        icon = Icons.Default.Memory
+                    )
+                }
+
+                // 16KB Readiness Chip
+                val elfAlign = metadata.elfLoadAlign64bit
+                if (elfAlign != null && elfAlign >= 16384L) {
+                    CapabilityBadge(
+                        label = "16KB-ready",
+                        containerColor = Color(0xFF2E7D32).copy(alpha = 0.15f),
+                        contentColor = Color(0xFF1B5E20),
+                        icon = Icons.Default.CheckCircle
+                    )
+                } else if (metadata.abis.any { it.contains("64") } || (elfAlign != null && elfAlign < 16384L)) {
+                    CapabilityBadge(
+                        label = "4KB-legacy",
+                        containerColor = Color(0xFFFF8F00).copy(alpha = 0.15f),
+                        contentColor = Color(0xFFE65100),
+                        icon = Icons.Default.Warning
+                    )
+                }
+
+                // Display Lock Chip
+                if (lock60Hz) {
+                    CapabilityBadge(
+                        label = "60Hz-locked",
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        icon = Icons.Default.Tune
+                    )
+                }
+
+                // Dangerous Permissions Badges
+                val dangerousPerms = setOf(
+                    "WRITE_EXTERNAL_STORAGE",
+                    "READ_EXTERNAL_STORAGE",
+                    "SYSTEM_ALERT_WINDOW",
+                    "READ_PHONE_STATE",
+                    "GET_TASKS",
+                    "PROCESS_OUTGOING_CALLS",
+                    "RECORD_AUDIO",
+                    "CAMERA",
+                    "ACCESS_FINE_LOCATION",
+                    "ACCESS_COARSE_LOCATION"
+                )
+                metadata.permissions.filter { perm ->
+                    dangerousPerms.any { perm.endsWith(it) }
+                }.forEach { perm ->
+                    val shortName = perm.substringAfterLast('.')
+                    val isSevere = shortName == "SYSTEM_ALERT_WINDOW" || shortName == "WRITE_EXTERNAL_STORAGE"
+                    CapabilityBadge(
+                        label = shortName,
+                        containerColor = if (isSevere) MaterialTheme.colorScheme.errorContainer else Color(0xFFFFECB3),
+                        contentColor = if (isSevere) MaterialTheme.colorScheme.onErrorContainer else Color(0xFFB78103),
+                        icon = Icons.Default.Security
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CapabilityBadge(
+    label: String,
+    containerColor: Color,
+    contentColor: Color,
+    icon: ImageVector? = null,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = containerColor,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline Progress Card
+// ---------------------------------------------------------------------------
+@Composable
+fun PipelineProgressCard(
+    pipeline: ReviveJobState.ExecutingPipeline,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { liveRegion = LiveRegionMode.Polite },
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.5.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Step ${pipeline.stepIndex + 1} of ${pipeline.totalSteps}: ${pipeline.step}",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                Text(
+                    text = "${(pipeline.progressFraction * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            LinearProgressIndicator(
+                progress = { pipeline.progressFraction.coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Conflicting Signature Remediation Card (One-Tap Remediation)
+// ---------------------------------------------------------------------------
+@Composable
+fun ConflictingSignatureRemediationCard(
+    failure: ReviveJobState.InstallFailed,
+    isInstalling: Boolean,
+    onUninstallAndRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { liveRegion = LiveRegionMode.Assertive },
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Signature Conflict Warning",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Conflicting Signature Detected",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                    Text(
+                        text = failure.humanExplanation,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f)
+                    )
+                }
+            }
+
+            Text(
+                text = failure.remediation,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+
+            Button(
+                onClick = onUninstallAndRetry,
+                enabled = !isInstalling,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            ) {
+                if (isInstalling) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = MaterialTheme.colorScheme.onError,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Uninstalling & Retrying...")
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Uninstall Conflicting App & Retry Install",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -437,7 +780,6 @@ fun PostInstallCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Large "Launch App" button (min height 56dp)
                 Button(
                     onClick = {
                         val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
@@ -467,7 +809,6 @@ fun PostInstallCard(
                     )
                 }
 
-                // "App Settings" button (min height 48dp)
                 OutlinedButton(
                     onClick = {
                         val intent = Intent(
@@ -503,6 +844,7 @@ fun PostInstallCard(
 // ---------------------------------------------------------------------------
 @Composable
 fun ShizukuStatusCard(
+    connectionState: ShizukuConnectionState = ShizukuConnectionState.ServiceStopped,
     isAvailable: Boolean,
     isAuthorized: Boolean,
     onRequestPermission: () -> Unit
@@ -683,7 +1025,6 @@ fun ShizukuStatusCard(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                // Expandable setup tip card
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -894,7 +1235,8 @@ fun FilePickerCard(
                                 minSdk = 16,
                                 abis = listOf("arm64-v8a"),
                                 elfLoadAlign64bit = 16384L,
-                                sizeBytes = 8_500_000L
+                                sizeBytes = 8_500_000L,
+                                permissions = listOf("android.permission.WRITE_EXTERNAL_STORAGE")
                             ),
                             "Arcade Classic Game"
                         )
@@ -910,7 +1252,8 @@ fun FilePickerCard(
                                 targetSdk = 28,
                                 minSdk = 21,
                                 usesApacheHttp = true,
-                                sizeBytes = 12_000_000L
+                                sizeBytes = 12_000_000L,
+                                permissions = listOf("android.permission.INTERNET", "android.permission.WRITE_EXTERNAL_STORAGE")
                             ),
                             "Legacy HTTP Game"
                         )
@@ -926,7 +1269,8 @@ fun FilePickerCard(
                                 targetSdk = 22,
                                 minSdk = 16,
                                 abis = listOf("armeabi-v7a"),
-                                sizeBytes = 15_000_000L
+                                sizeBytes = 15_000_000L,
+                                permissions = listOf("android.permission.SYSTEM_ALERT_WINDOW", "android.permission.WRITE_EXTERNAL_STORAGE")
                             ),
                             "32-bit Native Game"
                         )
@@ -1468,7 +1812,11 @@ fun InstallActionCard(
                 }
 
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            liveRegion = if (installSuccess == false) LiveRegionMode.Assertive else LiveRegionMode.Polite
+                        },
                     shape = RoundedCornerShape(10.dp),
                     color = containerColor
                 ) {
@@ -1515,13 +1863,19 @@ fun getHostDeviceProfile(context: Context? = null): DeviceProfile {
         false
     }
 
-    val installFloor = if (Build.VERSION.SDK_INT >= 34) 24 else 1
+    val osApi = try { Build.VERSION.SDK_INT } catch (_: Throwable) { 35 }
+    val installFloor = if (osApi >= 34) 24 else 1
+    val abis = try {
+        Build.SUPPORTED_ABIS?.filterNotNull()?.ifEmpty { null } ?: listOf("arm64-v8a")
+    } catch (_: Throwable) {
+        listOf("arm64-v8a")
+    }
 
     return DeviceProfile(
-        osApiLevel = Build.VERSION.SDK_INT,
+        osApiLevel = if (osApi > 0) osApi else 35,
         installFloor = installFloor,
-        supportedAbis = Build.SUPPORTED_ABIS.toList(),
-        pageSizeBytes = pageSize,
+        supportedAbis = abis,
+        pageSizeBytes = if (pageSize > 0) pageSize else 4096L,
         isWidescreen = true,
         isHighRefresh = isHighRefresh
     )

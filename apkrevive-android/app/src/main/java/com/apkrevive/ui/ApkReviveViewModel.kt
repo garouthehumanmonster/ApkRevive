@@ -10,6 +10,7 @@ import com.apkrevive.core.DeviceProfile
 import com.apkrevive.core.TriageEvaluator
 import com.apkrevive.core.TriageResult
 import com.apkrevive.installer.InstallResultReceiver
+import com.apkrevive.installer.ShizukuConnectionState
 import com.apkrevive.installer.ShizukuPackageInstallerBridge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,10 +38,18 @@ data class ApkReviveUiState(
     val installedPackageName: String? = null
 )
 
-class ApkReviveViewModel : ViewModel() {
+class ApkReviveViewModel(
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ApkReviveUiState())
     val uiState: StateFlow<ApkReviveUiState> = _uiState.asStateFlow()
+
+    private val _shizukuConnectionState = MutableStateFlow<ShizukuConnectionState>(ShizukuConnectionState.ServiceStopped)
+    val shizukuConnectionState: StateFlow<ShizukuConnectionState> = _shizukuConnectionState.asStateFlow()
+
+    private val _reviveJobState = MutableStateFlow<ReviveJobState>(ReviveJobState.Idle)
+    val reviveJobState: StateFlow<ReviveJobState> = _reviveJobState.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -51,6 +60,19 @@ class ApkReviveViewModel : ViewModel() {
                         installSuccess = event.isSuccess,
                         installStatusMessage = event.message,
                         installedPackageName = if (event.isSuccess) current.apkMetadata?.packageName else current.installedPackageName
+                    )
+                }
+
+                if (event.isSuccess) {
+                    _reviveJobState.value = ReviveJobState.InstallSuccess(
+                        _uiState.value.apkMetadata?.packageName ?: ""
+                    )
+                } else {
+                    val explanation = ShizukuPackageInstallerBridge.parseInstallError(event.errorCode, event.message)
+                    _reviveJobState.value = ReviveJobState.InstallFailed(
+                        errorCode = explanation.errorCode,
+                        humanExplanation = explanation.humanExplanation,
+                        remediation = explanation.remediation
                     )
                 }
             }
@@ -64,9 +86,32 @@ class ApkReviveViewModel : ViewModel() {
                 isShizukuAuthorized = authorized
             )
         }
+        _shizukuConnectionState.value = when {
+            authorized -> ShizukuConnectionState.Connected(uid = 0, isRootPrivilege = false, binderVersion = 13)
+            available -> ShizukuConnectionState.PermissionDenied(shouldShowRationale = false)
+            else -> ShizukuConnectionState.ServiceStopped
+        }
+    }
+
+    fun setShizukuConnectionState(state: ShizukuConnectionState) {
+        _shizukuConnectionState.value = state
+        val available = state !is ShizukuConnectionState.NotInstalled && state !is ShizukuConnectionState.ServiceStopped
+        val authorized = state is ShizukuConnectionState.Connected
+        _uiState.update {
+            it.copy(
+                isShizukuAvailable = available,
+                isShizukuAuthorized = authorized
+            )
+        }
+    }
+
+    fun refreshShizukuConnection(context: Context? = null) {
+        val state = ShizukuPackageInstallerBridge.checkConnectionState(context)
+        setShizukuConnectionState(state)
     }
 
     fun onFileSelected(context: Context, uri: Uri) {
+        _reviveJobState.value = ReviveJobState.Inspecting
         _uiState.update {
             it.copy(
                 selectedApkUri = uri,
@@ -86,6 +131,7 @@ class ApkReviveViewModel : ViewModel() {
                     val meta = inspection.metadata
                     val triage = TriageEvaluator.evaluateTriage(meta, deviceProfile)
 
+                    _reviveJobState.value = ReviveJobState.ReadyForRevive(triage, meta)
                     _uiState.update {
                         it.copy(
                             selectedApkName = name,
@@ -101,6 +147,12 @@ class ApkReviveViewModel : ViewModel() {
                     }
                 },
                 onFailure = { error ->
+                    val msg = "Failed to inspect APK: ${error.message ?: "Invalid or corrupted file"}"
+                    _reviveJobState.value = ReviveJobState.InstallFailed(
+                        errorCode = -1,
+                        humanExplanation = msg,
+                        remediation = "Verify the APK file is not damaged and retry."
+                    )
                     _uiState.update {
                         it.copy(
                             selectedApkName = name,
@@ -109,7 +161,7 @@ class ApkReviveViewModel : ViewModel() {
                             apkMetadata = null,
                             triageResult = null,
                             isAnalyzingApk = false,
-                            installStatusMessage = "Failed to inspect APK: ${error.message ?: "Invalid or corrupted file"}"
+                            installStatusMessage = msg
                         )
                     }
                 }
@@ -123,6 +175,7 @@ class ApkReviveViewModel : ViewModel() {
         deviceProfile: DeviceProfile = getHostDeviceProfile()
     ) {
         val triage = TriageEvaluator.evaluateTriage(sampleMeta, deviceProfile)
+        _reviveJobState.value = ReviveJobState.ReadyForRevive(triage, sampleMeta)
         _uiState.update {
             it.copy(
                 selectedApkUri = null,
@@ -157,7 +210,9 @@ class ApkReviveViewModel : ViewModel() {
         val currentState = _uiState.value
         val uri = currentState.selectedApkUri
         if (uri == null) {
-            _uiState.update { it.copy(installStatusMessage = "Please select a downloaded app file to install.") }
+            val msg = "Please select a downloaded app file to install."
+            _uiState.update { it.copy(installStatusMessage = msg) }
+            _reviveJobState.value = ReviveJobState.InstallFailed(-1, msg, "Choose an APK file from device storage.")
             return
         }
 
@@ -168,18 +223,26 @@ class ApkReviveViewModel : ViewModel() {
                 installSuccess = null
             )
         }
+        _reviveJobState.value = ReviveJobState.ExecutingPipeline(
+            step = "Opening Stream",
+            stepIndex = 0,
+            totalSteps = 4,
+            progressFraction = 0.1f
+        )
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val stream = context.contentResolver.openInputStream(uri)
                 if (stream == null) {
+                    val msg = "Could not open file. Please select it again."
                     _uiState.update {
                         it.copy(
                             isInstalling = false,
-                            installStatusMessage = "Could not open file. Please select it again.",
+                            installStatusMessage = msg,
                             installSuccess = false
                         )
                     }
+                    _reviveJobState.value = ReviveJobState.InstallFailed(-1, msg, "Re-select the file using the picker.")
                     return@launch
                 }
 
@@ -195,31 +258,60 @@ class ApkReviveViewModel : ViewModel() {
                     context = context,
                     apkStream = stream,
                     apkSize = currentState.selectedApkSizeBytes,
-                    bypassLowTargetSdk = bypass
+                    bypassLowTargetSdk = bypass,
+                    onProgress = { step, index, total, fraction ->
+                        _reviveJobState.value = ReviveJobState.ExecutingPipeline(
+                            step = step,
+                            stepIndex = index,
+                            totalSteps = total,
+                            progressFraction = fraction
+                        )
+                    }
                 )
 
                 result.fold(
                     onSuccess = {
+                        val pkg = currentState.apkMetadata?.packageName ?: ""
+                        _reviveJobState.value = ReviveJobState.InstallSuccess(pkg)
                         _uiState.update {
                             it.copy(
                                 isInstalling = false,
                                 installSuccess = true,
                                 installStatusMessage = "Installation succeeded!",
-                                installedPackageName = currentState.apkMetadata?.packageName
+                                installedPackageName = pkg
                             )
                         }
                     },
                     onFailure = { error ->
+                        val errCode = if (error is ShizukuPackageInstallerBridge.SessionInstallException) {
+                            error.errorCode
+                        } else if (error.message?.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") == true) {
+                            ShizukuPackageInstallerBridge.INSTALL_FAILED_UPDATE_INCOMPATIBLE
+                        } else {
+                            -1
+                        }
+                        val explanation = ShizukuPackageInstallerBridge.parseInstallError(errCode, error.message)
+                        _reviveJobState.value = ReviveJobState.InstallFailed(
+                            errorCode = explanation.errorCode,
+                            humanExplanation = explanation.humanExplanation,
+                            remediation = explanation.remediation
+                        )
                         _uiState.update {
                             it.copy(
                                 isInstalling = false,
                                 installSuccess = false,
-                                installStatusMessage = "Installation failed: ${error.message ?: "Unknown error"}"
+                                installStatusMessage = "Installation failed: ${explanation.humanExplanation}"
                             )
                         }
                     }
                 )
             } catch (t: Throwable) {
+                val explanation = ShizukuPackageInstallerBridge.parseInstallError(-1, t.message)
+                _reviveJobState.value = ReviveJobState.InstallFailed(
+                    errorCode = explanation.errorCode,
+                    humanExplanation = explanation.humanExplanation,
+                    remediation = explanation.remediation
+                )
                 _uiState.update {
                     it.copy(
                         isInstalling = false,
@@ -228,6 +320,59 @@ class ApkReviveViewModel : ViewModel() {
                     )
                 }
             }
+        }
+    }
+
+    fun uninstallAndRetry(context: Context? = null) {
+        val pkgName = _uiState.value.apkMetadata?.packageName
+        if (pkgName.isNullOrBlank()) {
+            val msg = "No package specified to uninstall."
+            _uiState.update { it.copy(installStatusMessage = msg) }
+            _reviveJobState.value = ReviveJobState.InstallFailed(-1, msg, "Select an APK first.")
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                isInstalling = true,
+                installStatusMessage = "Uninstalling conflicting app...",
+                installSuccess = null
+            )
+        }
+        _reviveJobState.value = ReviveJobState.ExecutingPipeline(
+            step = "Uninstalling Conflicting Version",
+            stepIndex = 0,
+            totalSteps = 5,
+            progressFraction = 0.05f
+        )
+
+        viewModelScope.launch(ioDispatcher) {
+            val uninstallResult = ShizukuPackageInstallerBridge.uninstallPackage(context, pkgName)
+            uninstallResult.fold(
+                onSuccess = {
+                    if (context != null) {
+                        installApk(context)
+                    }
+                },
+                onFailure = { error ->
+                    val explanation = ShizukuPackageInstallerBridge.parseInstallError(
+                        ShizukuPackageInstallerBridge.INSTALL_FAILED_UPDATE_INCOMPATIBLE,
+                        "Failed to uninstall conflicting package: ${error.message}"
+                    )
+                    _reviveJobState.value = ReviveJobState.InstallFailed(
+                        errorCode = explanation.errorCode,
+                        humanExplanation = "Failed to uninstall conflicting package $pkgName: ${error.message ?: "Unknown error"}",
+                        remediation = "Uninstall the existing version manually from Settings, then retry."
+                    )
+                    _uiState.update {
+                        it.copy(
+                            isInstalling = false,
+                            installSuccess = false,
+                            installStatusMessage = "Failed to uninstall existing app."
+                        )
+                    }
+                }
+            )
         }
     }
 }

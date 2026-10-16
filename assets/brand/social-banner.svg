@@ -1,0 +1,208 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" fill="none">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGlow" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#121822" />
+      <stop offset="60%" stop-color="#0A0E14" />
+      <stop offset="100%" stop-color="#06090E" />
+    </radialGradient>
+    
+    <!-- Neon Gradients -->
+    <linearGradient id="emeraldNeon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#00E5A3" />
+      <stop offset="100%" stop-color="#00B380" />
+    </linearGradient>
+
+    <linearGradient id="fractureGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF4D6A" />
+      <stop offset="50%" stop-color="#F5A623" />
+      <stop offset="100%" stop-color="#1B2432" />
+    </linearGradient>
+
+    <filter id="cardShadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- CANVAS BACKGROUND -->
+  <rect width="1280" height="640" fill="url(#bgGlow)" />
+
+  <!-- OSCILLOSCOPE CLEANROOM GRID -->
+  <g opacity="0.12">
+    <!-- Horizontal grid lines -->
+    <line x1="0" y1="80" x2="1280" y2="80" stroke="#263245" stroke-width="1" />
+    <line x1="0" y1="160" x2="1280" y2="160" stroke="#263245" stroke-width="1" stroke-dasharray="4 6" />
+    <line x1="0" y1="240" x2="1280" y2="240" stroke="#263245" stroke-width="1" />
+    <line x1="0" y1="320" x2="1280" y2="320" stroke="#263245" stroke-width="1.5" />
+    <line x1="0" y1="400" x2="1280" y2="400" stroke="#263245" stroke-width="1" stroke-dasharray="4 6" />
+    <line x1="0" y1="480" x2="1280" y2="480" stroke="#263245" stroke-width="1" />
+    <line x1="0" y1="560" x2="1280" y2="560" stroke="#263245" stroke-width="1" stroke-dasharray="4 6" />
+
+    <!-- Vertical grid lines -->
+    <line x1="160" y1="0" x2="160" y2="640" stroke="#263245" stroke-width="1" stroke-dasharray="4 6" />
+    <line x1="320" y1="0" x2="320" y2="640" stroke="#263245" stroke-width="1" />
+    <line x1="480" y1="0" x2="480" y2="640" stroke="#263245" stroke-width="1" stroke-dasharray="4 6" />
+    <line x1="640" y1="0" x2="640" y2="640" stroke="#263245" stroke-width="1.5" />
+    <line x1="800" y1="0" x2="800" y2="640" stroke="#263245" stroke-width="1" stroke-dasharray="4 6" />
+    <line x1="960" y1="0" x2="960" y2="640" stroke="#263245" stroke-width="1" />
+    <line x1="1120" y1="0" x2="1120" y2="640" stroke="#263245" stroke-width="1" stroke-dasharray="4 6" />
+  </g>
+
+  <!-- TOP HEADER TELEMETRY STRIP -->
+  <g transform="translate(80, 48)">
+    <text x="0" y="0" fill="#38BDF8" font-family="JetBrains Mono, monospace" font-size="12" font-weight="600" letter-spacing="1.5">
+      SYSTEM.STATUS // <tspan fill="#00E5A3">ONLINE</tspan> [ANDROID 15/16 BIONIC LINKER SPEC COMPLIANT]
+    </text>
+    <text x="1120" y="0" text-anchor="end" fill="#64748B" font-family="JetBrains Mono, monospace" font-size="12">
+      VER 0.3.3 • 16KB PS_ALIGNED
+    </text>
+  </g>
+
+  <!-- HERO BRAND SECTION -->
+  <g transform="translate(80, 110)">
+    <!-- Defibrillator Hexagon Mark -->
+    <g transform="translate(0, 8)">
+      <!-- Left Fractured 4KB Hexagon Half -->
+      <path d="M 58 10 L 22 34 L 38 56 L 58 50 Z" fill="url(#fractureGrad)" stroke="#FF4D6A" stroke-width="2" />
+      <path d="M 14 44 L 54 58 L 48 88 L 14 80 Z" fill="#1B2432" stroke="#F5A623" stroke-width="2" stroke-dasharray="6 3" />
+      <path d="M 18 90 L 58 114 L 58 98 L 32 84 Z" fill="url(#fractureGrad)" stroke="#FF4D6A" stroke-width="2" />
+      <text x="24" y="66" fill="#FF4D6A" font-family="JetBrains Mono, monospace" font-size="10" font-weight="700">4KB FAULT</text>
+
+      <!-- Pulse Bridge -->
+      <path d="M 46 62 L 56 62 L 62 38 L 68 86 L 72 52 L 76 68 L 82 62 L 94 62" 
+            stroke="url(#emeraldNeon)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"
+            filter="url(#neonGlow)" />
+
+      <!-- Right Solid 16KB Hexagon Half -->
+      <path d="M 66 10 L 106 36 L 106 88 L 66 114 L 66 84 L 86 62 L 66 40 Z" 
+            fill="#121822" stroke="url(#emeraldNeon)" stroke-width="3" stroke-linejoin="round" />
+      <circle cx="86" cy="62" r="4.5" fill="#00E5A3" filter="url(#neonGlow)" />
+      <text x="76" y="78" fill="#00E5A3" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700">16KB</text>
+    </g>
+
+    <!-- Main Title & Tags -->
+    <g transform="translate(136, 15)">
+      <text x="0" y="48" fill="#F8FAFC" font-family="Space Grotesk, sans-serif" font-size="56" font-weight="700" letter-spacing="-1.5">
+        Apk<tspan fill="#00E5A3">Revive</tspan>
+      </text>
+
+      <!-- Badge row -->
+      <g transform="translate(320, 16)">
+        <rect x="0" y="0" width="136" height="28" rx="6" fill="#121822" stroke="#00E5A3" stroke-width="1.5" />
+        <circle cx="14" cy="14" r="4" fill="#00E5A3" filter="url(#neonGlow)" />
+        <text x="26" y="19" fill="#00E5A3" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700">16KB PAGE-SIZE</text>
+      </g>
+      <g transform="translate(468, 16)">
+        <rect x="0" y="0" width="140" height="28" rx="6" fill="#121822" stroke="#38BDF8" stroke-width="1.5" />
+        <text x="14" y="19" fill="#38BDF8" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700">ZERO-TRUST ZIP</text>
+      </g>
+      <g transform="translate(620, 16)">
+        <rect x="0" y="0" width="130" height="28" rx="6" fill="#121822" stroke="#F5A623" stroke-width="1.5" />
+        <text x="14" y="19" fill="#F5A623" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700">SHIZUKU STREAM</text>
+      </g>
+
+      <!-- Subtitle -->
+      <text x="0" y="90" fill="#E2E8F0" font-family="Inter, sans-serif" font-size="20" font-weight="400">
+        Autonomous 16KB ELF &amp; Legacy Android Modernization Pipeline
+      </text>
+      <text x="0" y="118" fill="#94A3B8" font-family="Inter, sans-serif" font-size="14" font-weight="400">
+        Resurrect legacy APKs for Android 14–16 with zero-upload web triage, bytecode surgery, and headless canary gates.
+      </text>
+    </g>
+  </g>
+
+  <!-- 4 CAPABILITY ARCHITECTURE CARDS -->
+  <g transform="translate(80, 310)">
+    <!-- Card 1: 16KB ELF Segment Surgeon -->
+    <g transform="translate(0, 0)" filter="url(#cardShadow)">
+      <rect width="260" height="260" rx="10" fill="#121822" stroke="#263245" stroke-width="1.5" />
+      <rect width="260" height="4" rx="2" fill="#00E5A3" />
+      <g transform="translate(20, 28)">
+        <text x="0" y="0" fill="#38BDF8" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600">01 // BINARY SURGERY</text>
+        <text x="0" y="32" fill="#F8FAFC" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">16KB ELF Engine</text>
+        <text x="0" y="68" fill="#94A3B8" font-family="Inter, sans-serif" font-size="13" font-weight="400">
+          Enforces PT_LOAD modulo congruence and aligns ZIP boundaries with 0xD935 padding.
+        </text>
+        <g transform="translate(0, 140)">
+          <rect width="220" height="44" rx="6" fill="#0A0E14" stroke="#1B2432" />
+          <text x="12" y="26" fill="#00E5A3" font-family="JetBrains Mono, monospace" font-size="11">
+            p_align &gt;= 0x4000 [OK]
+          </text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Card 2: AXML Surgeon & Manifest Matrix -->
+    <g transform="translate(284, 0)" filter="url(#cardShadow)">
+      <rect width="260" height="260" rx="10" fill="#121822" stroke="#263245" stroke-width="1.5" />
+      <rect width="260" height="4" rx="2" fill="#38BDF8" />
+      <g transform="translate(20, 28)">
+        <text x="0" y="0" fill="#38BDF8" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600">02 // AST MUTATION</text>
+        <text x="0" y="32" fill="#F8FAFC" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">AXML Surgeon</text>
+        <text x="0" y="68" fill="#94A3B8" font-family="Inter, sans-serif" font-size="13" font-weight="400">
+          Idempotent binary AXML patching: targetSdk floor bypass, pageSizeCompat, and shim sharding.
+        </text>
+        <g transform="translate(0, 140)">
+          <rect width="220" height="44" rx="6" fill="#0A0E14" stroke="#1B2432" />
+          <text x="12" y="26" fill="#38BDF8" font-family="JetBrains Mono, monospace" font-size="11">
+            AXML(N) == AXML(N+1)
+          </text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Card 3: Dalvik Multi-Dex Trampoline -->
+    <g transform="translate(568, 0)" filter="url(#cardShadow)">
+      <rect width="260" height="260" rx="10" fill="#121822" stroke="#263245" stroke-width="1.5" />
+      <rect width="260" height="4" rx="2" fill="#F5A623" />
+      <g transform="translate(20, 28)">
+        <text x="0" y="0" fill="#F5A623" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600">03 // RUNTIME SHIM</text>
+        <text x="0" y="32" fill="#F8FAFC" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">DEX Trampoline</text>
+        <text x="0" y="68" fill="#94A3B8" font-family="Inter, sans-serif" font-size="13" font-weight="400">
+          Dalvik primary DEX patch with Adler32 &amp; SHA-1 recalculation; merges split APKs into one.
+        </text>
+        <g transform="translate(0, 140)">
+          <rect width="220" height="44" rx="6" fill="#0A0E14" stroke="#1B2432" />
+          <text x="12" y="26" fill="#F5A623" font-family="JetBrains Mono, monospace" font-size="11">
+            DEX Header SHA1/Adler
+          </text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Card 4: Android Companion App & Shizuku -->
+    <g transform="translate(852, 0)" filter="url(#cardShadow)">
+      <rect width="268" height="260" rx="10" fill="#121822" stroke="#263245" stroke-width="1.5" />
+      <rect width="268" height="4" rx="2" fill="#00E5A3" />
+      <g transform="translate(20, 28)">
+        <text x="0" y="0" fill="#00E5A3" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600">04 // COMPANION UX</text>
+        <text x="0" y="32" fill="#F8FAFC" font-family="Space Grotesk, sans-serif" font-size="20" font-weight="700">Shizuku IPC App</text>
+        <text x="0" y="68" fill="#94A3B8" font-family="Inter, sans-serif" font-size="13" font-weight="400">
+          Native Jetpack Compose M3 companion with silent streaming installs and signature remediation.
+        </text>
+        <g transform="translate(0, 140)">
+          <rect width="228" height="44" rx="6" fill="#0A0E14" stroke="#1B2432" />
+          <text x="12" y="26" fill="#00E5A3" font-family="JetBrains Mono, monospace" font-size="11">
+            Shizuku Binder [IPC OK]
+          </text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- BOTTOM STATUS FOOTER -->
+  <g transform="translate(80, 595)">
+    <text x="0" y="15" fill="#64748B" font-family="JetBrains Mono, monospace" font-size="11">
+      CANARY MATRIX: API 19 • API 28 • API 34 • API 35 (16KB)
+    </text>
+    <text x="1120" y="15" text-anchor="end" fill="#00E5A3" font-family="JetBrains Mono, monospace" font-size="11">
+      github.com/apkrevive/apkrevive
+    </text>
+  </g>
+</svg>

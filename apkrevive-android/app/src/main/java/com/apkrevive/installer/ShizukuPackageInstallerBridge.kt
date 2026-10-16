@@ -6,9 +6,11 @@ import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.DeadObjectException
 import android.os.IBinder
 import android.os.IInterface
 import android.os.ParcelFileDescriptor
+import android.os.RemoteException
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -28,8 +30,25 @@ object ShizukuPackageInstallerBridge {
     // Framework constant: PackageManager.INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK
     const val INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK: Int = 0x01000000
 
+    const val INSTALL_FAILED_UPDATE_INCOMPATIBLE: Int = -7
+    const val INSTALL_FAILED_DEPRECATED_SDK_VERSION: Int = -127
+
     const val SHELL_PACKAGE_NAME: String = "com.android.shell"
     const val ACTION_INSTALL_RESULT: String = "com.apkrevive.ACTION_INSTALL_STATUS"
+
+    // Test hook for mock uninstallation in JVM unit tests
+    var uninstallExecutor: (suspend (packageName: String) -> Result<Boolean>)? = null
+
+    data class InstallErrorExplanation(
+        val errorCode: Int,
+        val humanExplanation: String,
+        val remediation: String
+    )
+
+    class SessionInstallException(
+        val errorCode: Int,
+        message: String
+    ) : Exception(message)
 
     fun isShizukuAvailable(): Boolean {
         return try {
@@ -55,6 +74,145 @@ object ShizukuPackageInstallerBridge {
             Shizuku.requestPermission(requestCode)
         }
     }
+
+    /**
+     * Inspects Shizuku binder connectivity and returns the current [ShizukuConnectionState].
+     */
+    fun checkConnectionState(context: Context? = null): ShizukuConnectionState {
+        val available = isShizukuAvailable()
+        if (!available) {
+            if (context != null) {
+                val isInstalled = try {
+                    context.packageManager.getPackageInfo("moe.shizuku.privileged.api", 0)
+                    true
+                } catch (_: PackageManager.NameNotFoundException) {
+                    false
+                } catch (_: Throwable) {
+                    false
+                }
+                if (!isInstalled) {
+                    return ShizukuConnectionState.NotInstalled
+                }
+            }
+            return ShizukuConnectionState.ServiceStopped
+        }
+
+        val permissionGranted = isShizukuPermissionGranted()
+        return if (permissionGranted) {
+            val uid = try { Shizuku.getUid() } catch (_: Throwable) { -1 }
+            val isRoot = (uid == 0)
+            val binderVersion = try { Shizuku.getVersion() } catch (_: Throwable) { 0 }
+            ShizukuConnectionState.Connected(
+                uid = uid,
+                isRootPrivilege = isRoot,
+                binderVersion = binderVersion
+            )
+        } else {
+            val rationale = try {
+                Shizuku.shouldShowRequestPermissionRationale()
+            } catch (_: Throwable) {
+                false
+            }
+            ShizukuConnectionState.PermissionDenied(shouldShowRationale = rationale)
+        }
+    }
+
+    /**
+     * Parses PackageInstaller session failure codes into human-readable explanations and remediations.
+     */
+    fun parseInstallError(errorCode: Int, rawMessage: String? = null): InstallErrorExplanation {
+        val msg = rawMessage ?: ""
+        return when {
+            errorCode == INSTALL_FAILED_UPDATE_INCOMPATIBLE ||
+            msg.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE", ignoreCase = true) ||
+            msg.contains("signatures do not match", ignoreCase = true) ||
+            msg.contains("conflicting signature", ignoreCase = true) -> {
+                InstallErrorExplanation(
+                    errorCode = INSTALL_FAILED_UPDATE_INCOMPATIBLE,
+                    humanExplanation = "Existing app has a conflicting cryptographic signature.",
+                    remediation = "Uninstall the existing version first or use the one-tap remediation to uninstall and retry."
+                )
+            }
+            errorCode == INSTALL_FAILED_DEPRECATED_SDK_VERSION ||
+            msg.contains("INSTALL_FAILED_DEPRECATED_SDK_VERSION", ignoreCase = true) ||
+            msg.contains("Target SDK below", ignoreCase = true) -> {
+                InstallErrorExplanation(
+                    errorCode = INSTALL_FAILED_DEPRECATED_SDK_VERSION,
+                    humanExplanation = "Target SDK below device floor.",
+                    remediation = "Bypass flag will be used."
+                )
+            }
+            errorCode == -16 || errorCode == -113 ||
+            msg.contains("NO_MATCHING_ABIS", ignoreCase = true) ||
+            msg.contains("CPU_ABI_INCOMPATIBLE", ignoreCase = true) -> {
+                InstallErrorExplanation(
+                    errorCode = errorCode,
+                    humanExplanation = "The app's native code is incompatible with this device's processor architecture.",
+                    remediation = "Device architecture is not supported by this APK."
+                )
+            }
+            errorCode == -4 || msg.contains("INSUFFICIENT_STORAGE", ignoreCase = true) -> {
+                InstallErrorExplanation(
+                    errorCode = errorCode,
+                    humanExplanation = "Device storage is insufficient to complete installation.",
+                    remediation = "Free up device storage space and retry."
+                )
+            }
+            errorCode == -25 || msg.contains("VERSION_DOWNGRADE", ignoreCase = true) -> {
+                InstallErrorExplanation(
+                    errorCode = errorCode,
+                    humanExplanation = "Cannot install an older version over a newer version.",
+                    remediation = "Uninstall the current version before installing this older release."
+                )
+            }
+            else -> {
+                InstallErrorExplanation(
+                    errorCode = errorCode,
+                    humanExplanation = if (msg.isNotBlank()) msg else "Package installer returned error code $errorCode.",
+                    remediation = "Verify APK compatibility or inspect device logs for additional details."
+                )
+            }
+        }
+    }
+
+    /**
+     * Uninstalls a package cleanly using Shizuku privileged shell execution.
+     */
+    suspend fun uninstallPackage(context: Context? = null, packageName: String): Result<Boolean> {
+        uninstallExecutor?.let { return it.invoke(packageName) }
+
+        return withContext(Dispatchers.IO) {
+            if (!isShizukuPermissionGranted()) {
+                return@withContext Result.failure(
+                    IllegalStateException("Shizuku is not running or permission is not granted.")
+                )
+            }
+
+        try {
+            val newProcessMethod = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            )
+            newProcessMethod.isAccessible = true
+            val process = newProcessMethod.invoke(null, arrayOf("pm", "uninstall", packageName), null, null) as Process
+            val exitCode = process.waitFor()
+            val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+            val errorOutput = process.errorStream.bufferedReader().use { it.readText() }.trim()
+
+            if (exitCode == 0 && (output.contains("Success", ignoreCase = true) || output.isEmpty())) {
+                Result.success(true)
+            } else {
+                val err = if (errorOutput.isNotBlank()) errorOutput else output
+                Result.failure(Exception("Uninstall failed (exit $exitCode): $err"))
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to uninstall package $packageName", t)
+            Result.failure(t)
+        }
+    }
+}
 
     /**
      * Reflectively sets params.installFlags |= 0x01000000 (INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK).
@@ -84,13 +242,14 @@ object ShizukuPackageInstallerBridge {
     }
 
     /**
-     * Installs an APK using Shizuku privileged shell session.
+     * Installs an APK using Shizuku privileged shell session with progress callbacks and DeadObject protection.
      */
     suspend fun installApk(
         context: Context,
         apkStream: InputStream,
         apkSize: Long,
-        bypassLowTargetSdk: Boolean = true
+        bypassLowTargetSdk: Boolean = true,
+        onProgress: (step: String, stepIndex: Int, totalSteps: Int, progressFraction: Float) -> Unit = { _, _, _, _ -> }
     ): Result<Int> = withContext(Dispatchers.IO) {
         var sessionId = -1
         var session: Any? = null
@@ -102,6 +261,8 @@ object ShizukuPackageInstallerBridge {
                     IllegalStateException("Shizuku is not running or permission is not granted.")
                 )
             }
+
+            onProgress("Opening Stream", 0, 4, 0.1f)
 
             // 1. Get IPackageManager wrapped in ShizukuBinderWrapper
             val packageServiceBinder = SystemServiceHelper.getSystemService("package")
@@ -130,11 +291,8 @@ object ShizukuPackageInstallerBridge {
                 applyBypassLowTargetSdkFlag(params)
             }
 
-            // 4. Resolve createSession signature:
-            // API 30: createSession(SessionParams, String installerPackageName, int userId)
-            // API 31+: createSession(SessionParams, String installerPackageName, String callingFeatureId, int userId)
+            // 4. Resolve createSession signature
             sessionId = invokeCreateSession(iPackageInstaller, params, SHELL_PACKAGE_NAME, 0)
-
             if (sessionId <= 0) {
                 return@withContext Result.failure(
                     IllegalStateException("Invalid sessionId received: $sessionId")
@@ -154,6 +312,7 @@ object ShizukuPackageInstallerBridge {
             session = sessionAsInterface.invoke(null, wrappedSessionBinder)
 
             // 6. Stream APK bytes into session.openWrite("package", 0, size)
+            onProgress("Writing APK", 1, 4, 0.35f)
             val openWriteMethod = session.javaClass.getMethod(
                 "openWrite",
                 String::class.java,
@@ -163,11 +322,22 @@ object ShizukuPackageInstallerBridge {
             val pfd = openWriteMethod.invoke(session, "package", 0L, apkSize) as ParcelFileDescriptor
 
             ParcelFileDescriptor.AutoCloseOutputStream(pfd).use { out ->
-                apkStream.copyTo(out)
+                val buffer = ByteArray(65536)
+                var bytesRead: Int
+                var totalRead = 0L
+                while (apkStream.read(buffer).also { bytesRead = it } != -1) {
+                    out.write(buffer, 0, bytesRead)
+                    totalRead += bytesRead
+                    if (apkSize > 0) {
+                        val fraction = 0.35f + 0.4f * (totalRead.toFloat() / apkSize.toFloat()).coerceIn(0f, 1f)
+                        onProgress("Writing APK", 1, 4, fraction)
+                    }
+                }
                 out.flush()
             }
 
             // 7. Commit session with IntentSender
+            onProgress("Committing Session", 2, 4, 0.8f)
             val intent = Intent(context, InstallResultReceiver::class.java).apply {
                 action = ACTION_INSTALL_RESULT
                 putExtra("SESSION_ID", sessionId)
@@ -186,7 +356,8 @@ object ShizukuPackageInstallerBridge {
 
             invokeCommitSession(session, pendingIntent.intentSender)
 
-            // Await terminal broadcast from InstallResultReceiver with 60s timeout
+            // 8. Await verification
+            onProgress("Awaiting Verification", 3, 4, 0.95f)
             val event = withTimeoutOrNull(60_000L) {
                 InstallResultReceiver.events.first { it.sessionId == sessionId }
             }
@@ -202,7 +373,7 @@ object ShizukuPackageInstallerBridge {
                 Result.success(sessionId)
             } else {
                 abandonSessionSafely(session, iPackageInstaller, sessionId)
-                Result.failure(Exception(event.message))
+                Result.failure(SessionInstallException(event.errorCode, event.message))
             }
         } catch (t: Throwable) {
             Log.e(TAG, "Shizuku install failed, performing mandatory cleanup", t)
@@ -219,13 +390,11 @@ object ShizukuPackageInstallerBridge {
     ): Int {
         val methods = iPackageInstaller.javaClass.methods.filter { it.name == "createSession" }
 
-        // Attempt 4-arg signature (API 31+): (SessionParams, String, String, int)
         val fourArgMethod = methods.firstOrNull { it.parameterTypes.size == 4 }
         if (fourArgMethod != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             return fourArgMethod.invoke(iPackageInstaller, params, installerPackageName, null, userId) as Int
         }
 
-        // Attempt 3-arg signature (API 30): (SessionParams, String, int)
         val threeArgMethod = methods.firstOrNull { it.parameterTypes.size == 3 }
         if (threeArgMethod != null) {
             return threeArgMethod.invoke(iPackageInstaller, params, installerPackageName, userId) as Int
@@ -255,7 +424,7 @@ object ShizukuPackageInstallerBridge {
         throw NoSuchMethodException("No matching commit method found on ${session.javaClass.name}")
     }
 
-    private fun abandonSessionSafely(session: Any?, iPackageInstaller: Any?, sessionId: Int) {
+    fun abandonSessionSafely(session: Any?, iPackageInstaller: Any?, sessionId: Int) {
         try {
             if (session != null) {
                 val abandonMethod = session.javaClass.methods.firstOrNull { it.name == "abandon" && it.parameterTypes.isEmpty() }
@@ -263,7 +432,9 @@ object ShizukuPackageInstallerBridge {
             }
         } catch (e: Throwable) {
             val cause = e.cause ?: e
-            if (cause !is SecurityException && cause !is IllegalStateException) {
+            if (cause !is DeadObjectException && cause !is RemoteException &&
+                cause !is SecurityException && cause !is IllegalStateException
+            ) {
                 Log.w(TAG, "Failed abandoning session on IPackageInstallerSession", e)
             }
         }
@@ -277,7 +448,9 @@ object ShizukuPackageInstallerBridge {
             }
         } catch (e: Throwable) {
             val cause = e.cause ?: e
-            if (cause !is SecurityException && cause !is IllegalStateException) {
+            if (cause !is DeadObjectException && cause !is RemoteException &&
+                cause !is SecurityException && cause !is IllegalStateException
+            ) {
                 Log.w(TAG, "Failed abandoning session on IPackageInstaller", e)
             }
         }

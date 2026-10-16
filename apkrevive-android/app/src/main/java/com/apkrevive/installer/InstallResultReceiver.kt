@@ -14,7 +14,8 @@ data class InstallEvent(
     val sessionId: Int,
     val status: Int,
     val message: String,
-    val isSuccess: Boolean
+    val isSuccess: Boolean,
+    val errorCode: Int = status
 )
 
 class InstallResultReceiver : BroadcastReceiver() {
@@ -30,16 +31,28 @@ class InstallResultReceiver : BroadcastReceiver() {
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""
         val sessionId = intent.getIntExtra("SESSION_ID", -1)
+        val legacyStatus = intent.getIntExtra("android.content.pm.extra.LEGACY_STATUS", status)
+
+        val resolvedErrorCode = if (legacyStatus != status) {
+            legacyStatus
+        } else if (message.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE")) {
+            ShizukuPackageInstallerBridge.INSTALL_FAILED_UPDATE_INCOMPATIBLE
+        } else if (message.contains("INSTALL_FAILED_DEPRECATED_SDK_VERSION")) {
+            ShizukuPackageInstallerBridge.INSTALL_FAILED_DEPRECATED_SDK_VERSION
+        } else {
+            status
+        }
 
         val isSuccess = status == PackageInstaller.STATUS_SUCCESS
-        Log.i(TAG, "Session $sessionId install result: status=$status ($message), success=$isSuccess")
+        Log.i(TAG, "Session $sessionId install result: status=$status, errorCode=$resolvedErrorCode ($message), success=$isSuccess")
 
         _events.tryEmit(
             InstallEvent(
                 sessionId = sessionId,
                 status = status,
                 message = if (isSuccess) "Installation succeeded!" else "Install failed ($status): $message",
-                isSuccess = isSuccess
+                isSuccess = isSuccess,
+                errorCode = resolvedErrorCode
             )
         )
 

@@ -6,6 +6,7 @@ import struct
 import zipfile
 from typing import Optional, List, Tuple
 
+from apkrevive.core.elf_surgeon import rewrite_elf_16kb, rewrite_apk_elfs_16kb
 
 ELF_MAGIC = b"\x7fELF"
 EI_CLASS_64 = 2
@@ -146,3 +147,12 @@ def inspect_apk_elf_align(apk_path: str) -> Optional[int]:
     if has_invalid_layout:
         return min_align if min_align < 4096 else 4096
     return min_align
+
+__all__ = [
+    "parse_elf_load_align",
+    "validate_elf_segments",
+    "inspect_apk_elf_details",
+    "inspect_apk_elf_align",
+    "rewrite_elf_16kb",
+    "rewrite_apk_elfs_16kb",
+]

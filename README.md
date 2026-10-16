@@ -17,61 +17,91 @@
 
 ```mermaid
 flowchart TD
-    A["Raw Legacy APK (API 3-28)"] --> B["ApkInspector / Triage Engine"]
-    B --> C{"Compatibility Verdict"}
+    A["Raw Legacy APK / Split Set (API 3-28)"] --> Z["Zero-Trust Zip Guard"]
+    Z --> S{"Split APK?"}
+    S -->|"Yes"| SM["Split Merger (DEX Renumber & AXML Unlock)"]
+    S -->|"No"| B["ApkInspector / Triage Engine"]
+    SM --> B
     
+    B --> C{"Compatibility Verdict"}
     C -->|"GREEN"| D["Install Unmodified / Direct ADB Bypass"]
     C -->|"YELLOW"| E["Modernization Pipeline"]
-    C -->|"RED"| F["Fatal Incompatibility (Report Diagnostics)"]
+    C -->|"RED"| F["Fatal Incompatibility (SARIF / Diagnostic Report)"]
     
     E --> G["AXML Surgeon (Manifest Mutation)"]
-    E --> H["Bytecode Shim Injection (ApkReviveInitProvider)"]
-    E --> I["16KB ZipAligner & PageSizeCompat"]
+    E --> H["Dalvik Primary DEX Trampoline & Shim Injection"]
+    E --> ES["16KB ELF Surgeon (PT_LOAD Modulo Congruence)"]
+    E --> I["16KB Boundary ZipAligner (Tag 0xD935)"]
     E --> J["V2/V3 APK Re-Signer"]
     
     G --> K["Modernized APK (.revived.apk)"]
     H --> K
+    ES --> K
     I --> K
     J --> K
     
     K --> L["On-Device Install (Shizuku Bridge / ADB)"]
+    K --> DIFF["Visual Binary Diff (`apkrevive diff`)"]
+    K --> WEB["Web Triage Hub (`web/`)"]
 ```
 
 ---
 
 ## Key Capabilities
 
-### 1. Authoritative Triage Engine
-Evaluates legacy APK metadata against target device profiles to generate actionable **GREEN**, **YELLOW**, or **RED** verdicts:
+### 1. Authoritative Triage & SARIF Telemetry
+Evaluates legacy APK metadata against target device profiles to generate actionable **GREEN**, **YELLOW**, or **RED** verdicts with optional **SARIF v2.1.0** output (`--sarif`) for CI/CD integration:
 - **ABI Verification:** Validates APK native libraries against target device CPU architectures (`arm64-v8a`, `armeabi-v7a`, `x86_64`).
-- **16KB Page Size Audit:** Scans 64-bit ELF shared libraries (`.so`) for `p_align >= 16384` compliance required by Android 15+.
+- **16KB Page Size Audit:** Scans 64-bit ELF shared libraries (`.so`) for `p_align >= 16384` and modulo congruence compliance required by Android 15+.
 - **Bionic Linker Greylist Detection:** Catches private system library linkage (`libandroid_runtime.so`, `libcutils.so`, `libcrypto.so`, `libgui.so`) blocked by Android 7.0+ namespace isolation.
 - **Install Floor Compliance:** Identifies targetSdk levels blocked by Android's `min_install_version` policy and selects the appropriate bypass method.
 
 ### 2. In-Memory AXML Surgeon
-Mutates compiled Android binary XML (`AndroidManifest.xml`) directly in-place without decompiling resources or invoking heavyweight tools (`apktool`, `aapt`):
+Mutates compiled Android binary XML (`AndroidManifest.xml`) directly in-place without decompiling resources or invoking heavyweight tools (`apktool`, `aapt`), protected by cyclic bounds validation:
 - Injects `<uses-library android:name="org.apache.http.legacy" android:required="false" />` for API 28+ runtimes.
 - Sets `android:resizeableActivity="true"` and removes restrictive `android.max_aspect` metadata to unlock modern widescreen aspect ratios (18:9, 20:9, foldables).
 - Forces `android:hasCode="true"` when injecting initialization shims into resource-only APKs.
-- Injects metadata flags for runtime display controls.
+- Injects metadata flags for runtime display controls and `android:pageSizeCompat="enabled"` for Android 16.
 
-### 3. Runtime Shim & Display Adaptation
-Provides a zero-overhead content provider shim (`ApkReviveInitProvider` in `shim.dex`) that hooks application launch:
-- **60Hz Display Mode Lock:** Fixes game physics and animations that decouple or run at hyperspeed on 90Hz/120Hz/144Hz displays due to fixed-delta game loops.
-- **Display Cutout Layout:** Configures `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES` to eliminate aggressive letterboxing around camera punches and notches.
+### 3. 16KB ELF Segment Surgeon (`elf_surgeon.py`)
+Rewrites 64-bit ELF shared libraries (`EM_AARCH64`, `EM_X86_64`) to enforce Android 15+ 16KB kernel requirements:
+- Guarantees `p_align >= 0x4000` (16,384 bytes) on all `PT_LOAD` segments.
+- Enforces linker modulo congruence: `p_vaddr % 0x4000 == p_offset % 0x4000`.
+- Inserts zero-padding bytes, remaps program headers (`Phdr`), section headers (`Shdr`), `e_phoff`, and `e_shoff` while preserving relative virtual addresses (`p_vaddr`) and GOT/PLT relocations.
 
-### 4. 16KB Alignment & Zip Re-Packing
-- Enforces strict 4-byte resource alignment and 16,384-byte (16KB) uncompressed alignment for native `.so` payloads within the APK ZIP container.
-- For Android 16 (API 36+), enables the platform 16KB compatibility mode flag (`android:pageSizeCompat="enabled"`). *Note: Native ELF segment layout (`p_align`) is not rewritten.*
-- Strips invalid legacy signature blocks (`META-INF/*.SF`, `*.RSA`, `*.DSA`, `*.MF`) and signs with deterministic APK Signature Scheme v2/v3.
+### 4. Dalvik Primary DEX Trampoline (`dex_trampoline.py`)
+Injects runtime compatibility hooks into primary `classes.dex` for Dalvik runtimes (`API < 21`):
+- Avoids dependency on secondary DEX native multi-dex classloader initialization during early application startup.
+- Recomputes DEX header checksum (Adler-32) and SHA-1 signature after mutation.
 
-### 5. OBB Expansion Delivery Validator
-- Validates Google Play Expansion File (OBB) naming patterns (`main.V.packageName.obb` / `patch.V.packageName.obb`).
-- Detects version drift where expansion version codes lead or lag APK `versionCode`.
+### 5. Split APK / App Bundle Reassembly Engine (`split_merger.py`)
+Reassembles split APK packages (`base.apk` + feature/config splits, `.apks`, `.xapk`):
+- Merges native libraries (`lib/*`) across splits into a single unified directory.
+- Sequentially renumbers multi-dex entries (`classes.dex`, `classes2.dex`, ...) preventing collisions.
+- Strips split-lock attributes (`android:isSplitRequired`, `com.android.vending.splits.required`) from `AndroidManifest.xml`.
 
-### 6. Shizuku-Powered Android Companion App (`apkrevive-android`)
-- Native on-device companion app built with Jetpack Compose.
-- Connects to Shizuku to install low-targetSdk packages without requiring a PC, root access, or terminal ADB.
+### 6. Zero-Trust Archive Guard (`security/zip_guard.py`)
+Validates every input archive prior to extraction or mutation:
+- Rejects Zip Slip path traversal attempts (`..`, absolute paths, drive letters, null bytes).
+- Rejects POSIX symlink archive entries (`0o120000`).
+- Enforces decompression bomb thresholds (maximum compression ratio, individual file ceiling, total uncompressed size ceiling).
+
+### 7. Visual Binary Diff & ASCII Byte-Alignment Ladder (`apkrevive diff`)
+Inspects modifications between original and modernized APKs:
+- Side-by-side comparison of manifest AST, DEX shims, and injected providers.
+- ASCII byte-alignment ladder showing `.so` `PT_LOAD` and ZIP boundary offsets before and after surgery.
+- Emits machine-readable `--json` and `--sarif` v2.1.0 output.
+
+### 8. Shizuku-Powered Android Companion App (`apkrevive-android`)
+- Native on-device companion app built with Jetpack Compose and Material 3.
+- Robust state machines: `ShizukuConnectionState` and `ReviveJobState`.
+- Real-time capability chips (`arm64-v8a`, `16KB-ready`, `60Hz-locked`) and WCAG 2.2 AA accessibility semantics (`LiveRegionMode.Polite`/`Assertive`).
+- One-tap remediation for `INSTALL_FAILED_UPDATE_INCOMPATIBLE` signature mismatch.
+
+### 9. Client-Side Web APK Triage Hub (`web/`)
+- Zero-upload, browser-based APK triage and diagnostic suite built with pure client-side Web Workers.
+- Interactive 16KB ELF Segment Layout Visualizer with modulo congruence equations.
+- Before/After AXML Manifest Diff tree and CLI command preview.
 
 ---
 
@@ -251,6 +281,23 @@ Check whether an expansion file matches the target package and APK version:
 $ apkrevive push-obb main.100.com.retro.spaceace.obb com.retro.spaceace --current-apk-version 100
 ```
 
+### 7. Visual Binary Diff (`apkrevive diff`)
+Compare an original legacy APK with its revived output, rendering manifest AST deltas and an ASCII byte-alignment ladder:
+```bash
+$ apkrevive diff original.apk revived.apk
+```
+
+With `--sarif` or `--json` for automated CI/CD gating:
+```bash
+$ apkrevive diff original.apk revived.apk --sarif > diff_report.sarif
+```
+
+### 8. Multi-Tier Headless Canary Matrix Runner
+Run automated dual positive/negative verification across all 4 AVD tiers (API 19, 28, 34, 35-16KB):
+```bash
+$ python scripts/verify_canary_matrix.py --simulate --tier all --write-results --update-docs
+```
+
 ---
 
 ## On-Device Companion App (`apkrevive-android`)
@@ -324,13 +371,11 @@ For the complete OS and device support matrix, refresh rate behaviors, and hardw
 
 ---
 
-## Known Limitations
+## Known Limitations & Security Considerations
 
-- **Native ELF `p_align` Not Rewritten:** ApkRevive aligns native libraries within the ZIP archive container to 16KB boundaries, but it **does not rewrite compiled ELF binary segments or `p_align` fields**. On Android 15 with 16KB page size kernels, 64-bit binaries built with 4KB segment alignment cannot load and will trigger a fatal `RED` verdict. On Android 16 (API 36+), ApkRevive injects `android:pageSizeCompat="enabled"` to leverage the OS-level emulator mode.
-- **Signature Invalidation & Data Loss:** Re-signing an APK with a new keystore alters its cryptographic certificate digest. Installing a revived APK over an existing installation causes an `INSTALL_FAILED_UPDATE_INCOMPATIBLE` error. **The original application must be uninstalled first, resulting in the permanent loss of existing user data, local app preferences, and game saves.**
-- **Self-Signature Checks & Anti-Tamper:** Applications that perform runtime self-signature checks or use proprietary DRM/licensing mechanisms will detect package re-signing and fail to boot.
-- **Dalvik Multi-Dex Limitations:** Injected content provider shims placed in secondary DEX files (`classes2.dex`) require modern ART runtimes (Android 5.0+ / API 21+). Legacy Dalvik runtimes do not load secondary DEX files prior to ContentProvider initialization.
-- **Split APKs / App Bundles:** ApkRevive currently expects single, monolithic APK files. Split APK sets (Android App Bundles) are not supported.
+- **Cryptographic Signature Invalidation:** Re-signing an APK alters its certificate fingerprint. Installing a revived APK over an existing installation causes `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The companion app provides a one-tap remediation flow to cleanly uninstall the conflicting package and retry.
+- **Self-Signature Checks & Anti-Tamper DRM:** Binaries that implement runtime checksum validation against their own signing certificate or employ proprietary DRM wrappers will detect package re-signing and refuse execution.
+- **32-bit ELF Binaries:** 32-bit ELF binaries (`ELFCLASS32`) are exempt from 16KB kernel requirements and are preserved unmodified. Devices with 64-bit-only hardware (e.g., Pixel 7+) require 64-bit native libraries or an OS-level 32-bit translation layer.
 
 ---
 

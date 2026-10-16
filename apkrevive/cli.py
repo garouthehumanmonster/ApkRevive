@@ -11,6 +11,9 @@ import zipfile
 from datetime import datetime
 from typing import Dict, Any
 
+# Enable cli/ subpackage discovery for tui, sarif, and diff submodules
+__path__ = [os.path.join(os.path.dirname(__file__), "cli")]
+
 from apkrevive.core.models import DeviceProfile, ApkMetadata, PatchReport
 from apkrevive.core.triage import evaluate_triage
 from apkrevive.core.axml import AxmlSurgeon
@@ -23,6 +26,16 @@ from apkrevive.core.doctor import run_doctor, format_doctor_report
 from apkrevive.adb.bridge import AdbBridge
 from apkrevive.adb.probe import probe_install_floor
 from apkrevive import __version__
+
+from apkrevive.cli.tui import (
+    HAS_RICH,
+    _is_interactive,
+    render_verdict_banner,
+    render_triage_table,
+    render_alignment_ladder,
+)
+from apkrevive.cli.sarif import triage_to_sarif, diff_to_sarif
+from apkrevive.cli.diff import compute_apk_diff, render_apk_diff
 
 VERDICT_EXIT_CODES = {
     "GREEN": 0,
@@ -159,10 +172,24 @@ def triage_cmd(args):
         dev.is_widescreen = True
 
     res = evaluate_triage(apk, dev)
-    if getattr(args, "json", False):
+
+    if getattr(args, "sarif", False):
+        sarif_data = triage_to_sarif(res, getattr(args, "apk", "unknown.apk"))
+        print(json.dumps(sarif_data, indent=2))
+    elif getattr(args, "json", False):
         print(json.dumps(res, indent=2))
+    elif HAS_RICH and _is_interactive():
+        banner = render_verdict_banner(
+            res.get("verdict", "UNKNOWN"),
+            res.get("reason", "N/A"),
+            res.get("install_method"),
+        )
+        table = render_triage_table(res)
+        print(banner)
+        print(table)
     else:
         print(format_triage_summary(res))
+
     return VERDICT_EXIT_CODES.get(res["verdict"], 1)
 
 
@@ -172,7 +199,6 @@ def revive_cmd(args):
         validate_zip_archive(input_path)
     output_path = args.output or input_path.replace(".apk", ".revived.apk")
 
-    # Dynamically extract APK metadata and evaluate triage verdict
     meta = inspect_apk(input_path)
     if meta.is_split_apk:
         sys.stderr.write("ERROR: Split APK detected. Split APKs cannot be modernized independently.\n")
@@ -184,7 +210,6 @@ def revive_cmd(args):
     ) if (hasattr(args, "device_api") or hasattr(args, "page_size")) else DeviceProfile()
     triage = evaluate_triage(meta, dev)
 
-    # Build active transforms from triage and CLI overrides
     transforms = list(triage.get("required_transforms", []))
     if getattr(args, "enable_60hz", False) and "LOCK_60HZ_DISPLAY_MODE" not in transforms:
         transforms.append("LOCK_60HZ_DISPLAY_MODE")
@@ -223,17 +248,23 @@ def revive_cmd(args):
             page_size_compat_verified=triage.get("page_size_compat_verified", True),
             verdict_display=triage.get("verdict_display"),
         )
-        if getattr(args, "json", False):
+        if getattr(args, "sarif", False):
+            sarif_data = triage_to_sarif(report.to_dict(), input_path)
+            print(json.dumps(sarif_data, indent=2))
+        elif getattr(args, "json", False):
             print(json.dumps(report.to_dict(), indent=2))
+        elif HAS_RICH and _is_interactive():
+            banner = render_verdict_banner(report.verdict, report.reason, report.install_method)
+            table = render_triage_table(report)
+            print(banner)
+            print(table)
         else:
             print(format_patch_report(report))
         return VERDICT_EXIT_CODES.get(triage.get("verdict", "YELLOW"), 0)
 
-    # Read AndroidManifest.xml from input APK
     with zipfile.ZipFile(input_path, "r") as zf:
         manifest_data = zf.read("AndroidManifest.xml")
 
-    # Mutate AXML with active transforms and options
     enable_60hz = getattr(args, "enable_60hz", False) or ("LOCK_60HZ_DISPLAY_MODE" in active_transforms)
     enable_cutout = getattr(args, "enable_cutout", False) or ("CUTOUT_SHORT_EDGES" in active_transforms)
     patched_axml = AxmlSurgeon.patch_manifest(
@@ -247,7 +278,6 @@ def revive_cmd(args):
     temp_apk = output_path + ".tmp"
     with zipfile.ZipFile(input_path, "r") as zin, zipfile.ZipFile(temp_apk, "w") as zout:
         for item in zin.infolist():
-            # Strip stale signature artifacts so re-signing succeeds without digest conflict
             if item.filename.startswith("META-INF/") and (
                 item.filename.endswith(".SF") or item.filename.endswith(".RSA") or
                 item.filename.endswith(".DSA") or item.filename.endswith(".EC") or
@@ -270,7 +300,6 @@ def revive_cmd(args):
             else:
                 zout.writestr(item, data)
 
-        # Inject shim only if requested and not already present in existing DEX
         if (enable_60hz or enable_cutout) and not has_shim_provider:
             shim_path = os.path.join(os.path.dirname(__file__), "shim", "shim.dex")
             if os.path.exists(shim_path):
@@ -283,14 +312,12 @@ def revive_cmd(args):
     if os.path.exists(temp_apk):
         os.remove(temp_apk)
 
-    # Warn that signature change requires uninstall and causes data loss
     sys.stderr.write(
         "WARNING: APK signature has changed. Re-signing requires uninstalling the existing "
         "application on device, which will permanently delete all existing user data.\n"
     )
     sys.stderr.flush()
 
-    # Abort with non-zero exit code if signing fails
     ks = getattr(args, "ks", None)
     ks_pass = getattr(args, "ks_pass", None)
     ks_alias = getattr(args, "ks_alias", None)
@@ -321,11 +348,40 @@ def revive_cmd(args):
         page_size_compat_verified=triage.get("page_size_compat_verified", True),
         verdict_display=triage.get("verdict_display"),
     )
-    if getattr(args, "json", False):
+    if getattr(args, "sarif", False):
+        sarif_data = triage_to_sarif(report.to_dict(), input_path)
+        print(json.dumps(sarif_data, indent=2))
+    elif getattr(args, "json", False):
         print(json.dumps(report.to_dict(), indent=2))
+    elif HAS_RICH and _is_interactive():
+        banner = render_verdict_banner(report.verdict, report.reason, report.install_method)
+        table = render_triage_table(report)
+        print(banner)
+        print(table)
     else:
         print(format_patch_report(report))
     return VERDICT_EXIT_CODES.get(triage.get("verdict", "YELLOW"), 0)
+
+
+def diff_cmd(args):
+    orig = args.original_apk
+    revived = args.revived_apk
+    if not os.path.exists(orig):
+        sys.stderr.write(f"ERROR: Original APK not found: {orig}\n")
+        return 1
+    if not os.path.exists(revived):
+        sys.stderr.write(f"ERROR: Revived APK not found: {revived}\n")
+        return 1
+
+    diff_data = compute_apk_diff(orig, revived)
+    if getattr(args, "sarif", False):
+        sarif_data = diff_to_sarif(diff_data, orig, revived)
+        print(json.dumps(sarif_data, indent=2))
+    elif getattr(args, "json", False):
+        print(json.dumps(diff_data, indent=2))
+    else:
+        print(render_apk_diff(diff_data))
+    return 0
 
 
 def probe_cmd(args):
@@ -374,6 +430,7 @@ def main():
     p_triage.add_argument("--enable-60hz", action="store_true", help="Include 60Hz display lock shim transform")
     p_triage.add_argument("--enable-cutout", action="store_true", help="Include display cutout layout transform")
     p_triage.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    p_triage.add_argument("--sarif", action="store_true", help="Output SARIF v2.1.0 telemetry")
 
     p_revive = sub.add_parser("revive", help="Modernize, patch, align and sign APK")
     p_revive.add_argument("apk", help="Path to APK file")
@@ -389,6 +446,13 @@ def main():
     p_revive.add_argument("--ks-alias", dest="ks_alias", help="Key alias name")
     p_revive.add_argument("--key-pass", dest="key_pass", help="Key password (if different from keystore)")
     p_revive.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    p_revive.add_argument("--sarif", action="store_true", help="Output SARIF v2.1.0 telemetry")
+
+    p_diff = sub.add_parser("diff", help="Visual binary diff between original and revived APK")
+    p_diff.add_argument("original_apk", help="Path to original APK")
+    p_diff.add_argument("revived_apk", help="Path to revived APK")
+    p_diff.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    p_diff.add_argument("--sarif", action="store_true", help="Output SARIF v2.1.0 telemetry")
 
     p_probe = sub.add_parser("probe", help="Probe connected ADB device install floor")
     p_probe.add_argument("--device", help="Device serial")
@@ -406,6 +470,7 @@ def main():
     args = parser.parse_args()
     if args.command == "triage": return triage_cmd(args)
     elif args.command == "revive": return revive_cmd(args)
+    elif args.command == "diff": return diff_cmd(args)
     elif args.command == "probe": return probe_cmd(args)
     elif args.command == "push-obb": return push_obb_cmd(args)
     elif args.command == "doctor": return doctor_cmd(args)

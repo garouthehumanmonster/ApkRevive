@@ -105,63 +105,111 @@ class AxmlSurgeon:
         chunk_type, header_size, file_size = struct.unpack_from("<HHI", data, 0)
         if chunk_type != CHUNK_XML:
             raise ValueError(f"Invalid AXML magic chunk: 0x{chunk_type:04x}")
+        if header_size < 8 or header_size > len(data):
+            raise ValueError(f"Invalid AXML root header size: {header_size}")
 
         offset = 8
         strings: List[str] = []
         _resource_map: List[int] = []
         root_nodes: List[AxmlNode] = []
         element_stack: List[AxmlNode] = []
+        chunk_count = 0
+        MAX_CHUNKS = 100_000
 
         while offset < len(data):
+            chunk_count += 1
+            if chunk_count > MAX_CHUNKS:
+                raise ValueError("AXML chunk count exceeded limit (cyclic chunk loop detected)")
+
+            if offset + 8 > len(data):
+                raise ValueError("Invalid AXML: unexpected EOF reading chunk header")
+
             c_type, c_hsize, c_size = struct.unpack_from("<HHI", data, offset)
-            if c_size == 0:
-                break
+            if c_hsize < 8:
+                raise ValueError(f"Invalid AXML chunk header size: {c_hsize}")
+            if c_size < c_hsize or offset + c_size > len(data):
+                raise ValueError(f"Invalid AXML chunk size: {c_size} (offset {offset}, total {len(data)})")
 
             if c_type == CHUNK_STRING_POOL:
+                if offset + 28 > len(data):
+                    raise ValueError("String pool header truncated")
                 str_count, style_count, flags, str_start, styles_start = struct.unpack_from("<IIIII", data, offset + 8)
                 is_utf8 = bool(flags & 0x0100)
+                if offset + 28 + (str_count * 4) > offset + c_size:
+                    raise ValueError("String pool offset table exceeds chunk bounds")
                 offsets = [struct.unpack_from("<I", data, offset + 28 + (i * 4))[0] for i in range(str_count)]
-                pool_data = data[offset + str_start:]
+
+                pool_data_start = offset + str_start
+                if pool_data_start > offset + c_size:
+                    raise ValueError("String pool data offset out of bounds")
+                pool_data = data[pool_data_start : offset + c_size]
+
                 strings = []
                 for o in offsets:
+                    if o >= len(pool_data):
+                        strings.append("")
+                        continue
                     if is_utf8:
                         p = o
-                        while p < len(pool_data) and pool_data[p] & 0x80: p += 1
+                        while p < len(pool_data) and (pool_data[p] & 0x80):
+                            p += 1
                         p += 1
+                        if p >= len(pool_data):
+                            strings.append("")
+                            continue
                         blen = pool_data[p]
                         if blen & 0x80:
+                            if p + 1 >= len(pool_data):
+                                strings.append("")
+                                continue
                             blen = ((blen & 0x7F) << 8) | pool_data[p + 1]
                             p += 2
                         else:
                             p += 1
-                        s = pool_data[p:p + blen].decode("utf-8", errors="replace")
+                        if p + blen > len(pool_data):
+                            strings.append("")
+                            continue
+                        s = pool_data[p : p + blen].decode("utf-8", errors="replace")
                         strings.append(s)
                     else:
                         p = o
+                        if p + 2 > len(pool_data):
+                            strings.append("")
+                            continue
                         u16_len = struct.unpack_from("<H", pool_data, p)[0]
                         p += 2
-                        raw_bytes = pool_data[p:p + (u16_len * 2)]
+                        if p + (u16_len * 2) > len(pool_data):
+                            strings.append("")
+                            continue
+                        raw_bytes = pool_data[p : p + (u16_len * 2)]
                         s = raw_bytes.decode("utf-16le", errors="replace")
                         strings.append(s)
 
             elif c_type == CHUNK_RESOURCE_MAP:
                 res_count = (c_size - 8) // 4
-                _resource_map = [struct.unpack_from("<I", data, offset + 8 + (i * 4))[0] for i in range(res_count)]
+                if offset + 8 + (res_count * 4) <= offset + c_size:
+                    _resource_map = [struct.unpack_from("<I", data, offset + 8 + (i * 4))[0] for i in range(res_count)]
 
             elif c_type == CHUNK_START_ELEMENT:
-                line_no, comment, ns_idx, name_idx, attr_start, attr_size, attr_count, id_idx, cl_idx, st_idx = struct.unpack_from("<IIIIHHHHHH", data, offset + 8)
-                tag_ns = strings[ns_idx] if ns_idx < len(strings) else ""
-                tag_name = strings[name_idx] if name_idx < len(strings) else ""
+                if offset + 28 > len(data):
+                    raise ValueError("Start element header truncated")
+                line_no, comment, ns_idx, name_idx, attr_start, attr_size, attr_count, id_idx, cl_idx, st_idx = struct.unpack_from(
+                    "<IIIIHHHHHH", data, offset + 8
+                )
+                tag_ns = strings[ns_idx] if 0 <= ns_idx < len(strings) else ""
+                tag_name = strings[name_idx] if 0 <= name_idx < len(strings) else ""
                 node = AxmlNode(tag=tag_name, ns=tag_ns)
 
                 attr_offset = offset + c_hsize + attr_start
                 for _ in range(attr_count):
+                    if attr_offset + 20 > offset + c_size:
+                        break
                     a_ns, a_name, a_raw, a_sz, a_res0, a_type, a_data = struct.unpack_from("<IIIHBB I", data, attr_offset)
-                    ans_str = strings[a_ns] if a_ns < len(strings) else ""
-                    aname_str = strings[a_name] if a_name < len(strings) else ""
-                    araw_str = strings[a_raw] if a_raw < len(strings) else None
+                    ans_str = strings[a_ns] if 0 <= a_ns < len(strings) else ""
+                    aname_str = strings[a_name] if 0 <= a_name < len(strings) else ""
+                    araw_str = strings[a_raw] if 0 <= a_raw < len(strings) else None
                     node.attributes.append(AxmlAttribute(ns=ans_str, name=aname_str, raw_value=araw_str, data_type=a_type, data=a_data))
-                    attr_offset += attr_size
+                    attr_offset += attr_size if attr_size >= 20 else 20
 
                 if element_stack:
                     element_stack[-1].children.append(node)

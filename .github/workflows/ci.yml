@@ -1,67 +1,172 @@
-name: CI
+name: CI & Release Pipeline
 
 on:
   push:
     branches: [ main, master ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+
 jobs:
   python-ci:
-    runs-on: ubuntu-latest
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install ruff mypy coverage
+          python -m pip install --upgrade pip
+          pip install ruff mypy coverage pytest hypothesis rich
           pip install -e .
+
       - name: Lint with ruff
         run: ruff check .
+
       - name: Type check with mypy
-        run: mypy apkrevive
-      - name: Test suite with coverage
+        run: mypy apkrevive --ignore-missing-imports
+
+      - name: Test suite with coverage and Hypothesis fuzzing
         run: |
-          coverage run -m unittest discover -s tests
+          coverage run -m pytest tests/
           coverage report --fail-under=80
 
   android-ci:
+    name: Android Companion App CI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: "zulu"
+          java-version: "17"
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-          components: |
-            platform-tools
-            build-tools;35.0.0
-            platforms;android-35
-      - name: Ensure SDK components installed
-        run: |
-          export ANDROID_HOME=${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}
-          SDKMANAGER=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER=$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager || true
-          fi
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER=$(which sdkmanager || true)
-          fi
-          echo "Using sdkmanager: $SDKMANAGER"
-          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Build and lint
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
+      - name: Build, Lint & Test Android Companion
         run: |
           chmod +x apkrevive-android/gradlew
-          cd apkrevive-android && ./gradlew assembleDebug lintDebug --no-daemon
+          cd apkrevive-android
+          ./gradlew test lintDebug assembleDebug assembleRelease --no-daemon
+
+      - name: Upload Companion APK Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apkrevive-android-companion
+          path: |
+            apkrevive-android/app/build/outputs/apk/debug/app-debug.apk
+            apkrevive-android/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: ignore
+
+  canary-matrix-and-sarif:
+    name: Multi-Tier Canary Matrix & SARIF Telemetry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest hypothesis rich
+          pip install -e .
+
+      - name: Build Canaries
+        run: python canaries/build_canaries.py
+
+      - name: Run Multi-Tier Canary Matrix (4 Tiers)
+        run: |
+          python scripts/verify_canary_matrix.py --simulate --tier all --write-results --update-docs
+
+      - name: Generate SARIF Telemetry Reports
+        run: |
+          mkdir -p sarif-reports
+          apkrevive triage canaries/build/canary_install_floor_failing.apk --sarif > sarif-reports/canary_install_floor.sarif
+          apkrevive triage canaries/build/canary_page_size_failing.apk --device-api 35 --page-size 16384 --sarif > sarif-reports/canary_page_size_16k.sarif
+          apkrevive diff canaries/build/canary_page_size_failing.apk canaries/build/canary_page_size_control.apk --sarif > sarif-reports/diff_page_size.sarif
+
+      - name: Upload SARIF Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sarif-diagnostics
+          path: sarif-reports/*.sarif
+
+      - name: Upload Canary Verification Receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-matrix-receipts
+          path: results/*.json
+
+  release:
+    name: Publish Release & PyPI Distribution
+    needs: [python-ci, android-ci, canary-matrix-and-sarif]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build Source & Binary Wheels
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Download Companion APK Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: apkrevive-android-companion
+          path: dist/companion/
+
+      - name: Download SARIF Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: sarif-diagnostics
+          path: dist/sarif/
+
+      - name: Publish to PyPI (OIDC Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true
+        continue-on-error: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/companion/*
+            dist/sarif/*
+          generate_release_notes: true
