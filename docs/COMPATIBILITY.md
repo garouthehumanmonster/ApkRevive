@@ -78,14 +78,14 @@ ApkRevive tests against 8 standardized canary pairs (16 APK packages total). Eac
 
 | Canary | Environment | Tool Commit | Date | Observed Result | Status |
 |---|---|:---:|:---:|---|:---:|
-| `canary_apache_http` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: uses-library absent; triage flags INJECT_USES_LIBRARY_APACHE_HTTP (NoClassDefFoundError avoided) \| Revived: uses-library org.apache.http.legacy injected with android:required=false | PASS |
-| `canary_aspect_ratio` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: resizeableActivity=false with max_aspect cap flagged EXPAND_ASPECT_RATIO on widescreen \| Revived: resizeableActivity=true injected; fills modern viewport without letterboxing | PASS |
-| `canary_bionic_greylist` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: Direct DT_NEEDED linkage to libgui.so rejected with RED UNRESOLVABLE_SYSTEM_LIBRARY \| Revived: Triage halts corrupt deployment of unresolvable system library; control greylist allowed on targetSdk 22 | PASS |
-| `canary_has_code` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: hasCode=False prevents Dalvik/ART bytecode execution \| Revived: hasCode=true injected and primary DEX trampoline enabled | PASS |
-| `canary_install_floor` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: targetSdk 22 < floor 24; direct install blocked \| Revived: Bypass strategy selected: BYPASS_LOW_TARGET_SDK_BLOCK; verdict GREEN | PASS |
-| `canary_obb_version` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: OBB v200 ahead of APK v100 triggers warning: EXPANSION_VERSION_AHEAD_OF_APK (200 > 100) \| Revived: OBB v100 with APK v150 delivery validated cleanly with version aligned | PASS |
-| `canary_page_size` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: ELF align 4KB on 16KB kernel rejected with RED INCOMPATIBLE_PAGE_SIZE \| Revived: Control ELF rewritten with 16384B alignment; 16KB page size constraint satisfied | PASS |
-| `canary_physics_tick` | Local Verification Rig | `cb95fad` | 2026-10-16 | Control: High refresh display detected without 60Hz lock; flags LOCK_60HZ_DISPLAY_MODE \| Revived: ApkReviveInitProvider shim and apkrevive.enable_60hz_lock metadata injected | PASS |
+| `canary_apache_http` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: uses-library absent; triage flags INJECT_USES_LIBRARY_APACHE_HTTP (NoClassDefFoundError avoided) \| Revived: uses-library org.apache.http.legacy injected with android:required=false | PASS |
+| `canary_aspect_ratio` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: resizeableActivity=false with max_aspect cap flagged EXPAND_ASPECT_RATIO on widescreen \| Revived: resizeableActivity=true injected; fills modern viewport without letterboxing | PASS |
+| `canary_bionic_greylist` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: Direct DT_NEEDED linkage to libgui.so rejected with RED UNRESOLVABLE_SYSTEM_LIBRARY \| Revived: Triage halts corrupt deployment of unresolvable system library; control greylist allowed on targetSdk 22 | PASS |
+| `canary_has_code` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: hasCode=False prevents Dalvik/ART bytecode execution \| Revived: hasCode=true injected and primary DEX trampoline enabled | PASS |
+| `canary_install_floor` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: targetSdk 22 < floor 24; direct install blocked \| Revived: Bypass strategy selected: BYPASS_LOW_TARGET_SDK_BLOCK; verdict GREEN | PASS |
+| `canary_obb_version` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: OBB v200 ahead of APK v100 triggers warning: EXPANSION_VERSION_AHEAD_OF_APK (200 > 100) \| Revived: OBB v100 with APK v150 delivery validated cleanly with version aligned | PASS |
+| `canary_page_size` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: ELF align 4KB on 16KB kernel rejected with RED INCOMPATIBLE_PAGE_SIZE \| Revived: Control ELF rewritten with 16384B alignment; 16KB page size constraint satisfied | PASS |
+| `canary_physics_tick` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: High refresh display detected without 60Hz lock; flags LOCK_60HZ_DISPLAY_MODE \| Revived: ApkReviveInitProvider shim and apkrevive.enable_60hz_lock metadata injected | PASS |
 
 <!-- CANARY_RESULTS_END -->
 
@@ -120,3 +120,7 @@ The following hardware configurations and runtime subsystems are currently outsi
    - ApkRevive inspects static ELF `DT_NEEDED` entries. If an application invokes `dlopen("libgui.so", RTLD_NOW)` at runtime via string reflection or dynamic assembly, static triage cannot intercept the call.
 6. **Obsolete Hardware Architectures:**
    - Native binaries compiled for MIPS, MIPS64, ARMv5, or ARMv6 are unsupported on modern Android 64-bit devices.
+7. **Live Headless AVD Matrix Execution:**
+   - Headless AVD execution requires running emulator instances attached via ADB. In the current environment, no running AVD instances were attached (`adb devices` returned empty), so live AVD tests are recorded as `NOT RUN (No Live AVD)`.
+8. **16KB ZIP Alignment & 16KB Page-Size Backcompat Detection:**
+   - In Android 15+, the package manager enables 16KB page-size backcompat mode (`pageSizeCompat`) if uncompressed 64-bit ELF shared libraries inside the APK are 4KB-aligned. If a 4KB-linked library is forcibly aligned to 16KB inside the ZIP archive without actual 16KB vaddr isolation, the package manager may erroneously bypass the backcompat layer, resulting in crash on load. ApkRevive preserves 4KB native libraries byte-identical and explicitly declares `android:pageSizeCompat="enabled"` in `AndroidManifest.xml`.

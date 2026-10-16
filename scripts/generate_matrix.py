@@ -67,6 +67,7 @@ SCHEMA_FIELD_TYPES: dict[str, type] = {
     "expected": str,
     "observed": str,
     "pass_fail": str,
+    "simulated": bool,
 }
 
 VALID_EMULATOR_OR_HARDWARE = {"emulator", "hardware", "local_host"}
@@ -162,7 +163,10 @@ def format_markdown_table(results: list[dict[str, Any]]) -> str:
         env_name = match_environment(res)
         canary = res.get("canary_id")
         if env_name and canary:
-            matrix[(canary, env_name)] = res.get("pass_fail", "NOT RUN")
+            if res.get("simulated", False) and env_name != "Local Verification Rig":
+                matrix[(canary, env_name)] = "NOT RUN"
+            else:
+                matrix[(canary, env_name)] = res.get("pass_fail", "NOT RUN")
 
     headers = ["Canary"] + STANDARD_ENVIRONMENTS
     alignments = ["---"] + [":---:"] * len(STANDARD_ENVIRONMENTS)

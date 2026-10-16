@@ -198,6 +198,7 @@ class TestCanaryMatrixRunner(unittest.TestCase):
                 android_build="Host Python Harness",
                 git_commit="20778b3",
                 date_str=date_str,
+                simulated=True,
             )
             validate_result_schema(receipt, f"test_{r.canary_id}.json")
             for field, expected_type in SCHEMA_FIELD_TYPES.items():

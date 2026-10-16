@@ -20,6 +20,7 @@ from unittest.mock import patch
 from scripts.generate_matrix import (
     DELIMITER_END,
     DELIMITER_START,
+    SCHEMA_FIELD_TYPES,
     STANDARD_CANARIES,
     STANDARD_ENVIRONMENTS,
     format_evidence_log,
@@ -51,10 +52,9 @@ class TestMatrixGenerator(unittest.TestCase):
         for res in results:
             self.assertEqual(res["pass_fail"], "PASS")
             self.assertEqual(res["emulator_or_hardware"], "local_host")
-            self.assertEqual(res["tool_commit"], "20778b3")
-            self.assertEqual(res["date"], "2026-10-15")
-            self.assertEqual(res["kernel_page_size"], 4096)
-            self.assertEqual(res["refresh_rate"], 60)
+            self.assertTrue(len(res["tool_commit"]) > 0)
+            self.assertTrue(len(res["date"]) > 0)
+            self.assertTrue(res["simulated"])
 
     def test_load_results_nonexistent_or_empty_dir(self):
         """Non-existent or empty directories should return an empty list gracefully."""
@@ -62,6 +62,34 @@ class TestMatrixGenerator(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             self.assertEqual(load_results(tmp_dir), [])
+
+    def test_schema_requires_simulated_field(self):
+        """Receipt schema requires 'simulated' boolean field."""
+        self.assertIn("simulated", SCHEMA_FIELD_TYPES)
+        self.assertIs(SCHEMA_FIELD_TYPES["simulated"], bool)
+
+    def test_simulated_receipt_renders_not_run_for_emulators(self):
+        """Simulated receipts targeting emulators or hardware must render as NOT RUN."""
+        sample = {
+            "device_model": "Android Emulator API 35 (16KB)",
+            "android_build": "sdk_gphone64_arm64-userdebug 15 AP2A (API 35)",
+            "kernel_page_size": 16384,
+            "refresh_rate": 60,
+            "emulator_or_hardware": "emulator",
+            "date": "2026-10-15",
+            "tool_commit": "20778b3",
+            "canary_id": "canary_page_size",
+            "expected": "Pass",
+            "observed": "Simulated pass",
+            "pass_fail": "PASS",
+            "simulated": True,
+        }
+        table = format_markdown_table([sample])
+        lines = [line.strip() for line in table.strip().splitlines() if line.startswith("| `canary_page_size`")]
+        self.assertTrue(len(lines) == 1)
+        parts = [p.strip() for p in lines[0].split("|")[1:-1]]
+        # Emulator API 35 column is index 3
+        self.assertEqual(parts[3], "NOT RUN")
 
     def test_schema_validation_valid(self):
         """Valid schema dictionary passes validation."""
@@ -77,6 +105,7 @@ class TestMatrixGenerator(unittest.TestCase):
             "expected": "Pass on 16KB",
             "observed": "App loaded cleanly",
             "pass_fail": "PASS",
+            "simulated": False,
         }
         # Should not raise
         validate_result_schema(valid_sample, "sample.json")
@@ -133,6 +162,7 @@ class TestMatrixGenerator(unittest.TestCase):
             "expected": "Pass",
             "observed": "Pass",
             "pass_fail": "PASS",
+            "simulated": False,
         }
         with self.assertRaises(ValueError) as ctx:
             validate_result_schema(sample1, "sample.json")

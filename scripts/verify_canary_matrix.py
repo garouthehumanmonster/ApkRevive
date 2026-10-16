@@ -609,6 +609,7 @@ def build_receipt_dict(
     android_build: str,
     git_commit: str,
     date_str: str,
+    simulated: bool = False,
 ) -> dict[str, Any]:
     return {
         "device_model": device_model,
@@ -622,6 +623,7 @@ def build_receipt_dict(
         "expected": record.expected,
         "observed": record.observed,
         "pass_fail": record.pass_fail,
+        "simulated": simulated,
     }
 
 
@@ -796,6 +798,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     render_results_table(all_results)
 
     if args.write_results:
+        is_simulated = (args.device is None) or bool(args.simulate)
         for tier, records in all_results:
             env_slug = "local_rig" if args.device is None else f"device_api{tier.api_level}"
             for r in records:
@@ -807,6 +810,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                     android_build=android_build,
                     git_commit=git_commit,
                     date_str=date_str,
+                    simulated=is_simulated,
                 )
                 write_receipt(receipt, args.results_dir, env_slug)
         print(f"Wrote verification receipts to {args.results_dir}")
