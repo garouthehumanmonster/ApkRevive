@@ -83,6 +83,24 @@ class TestFuzzAxmlElf(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_zip_archive(trunc_path)
 
+    def test_axml_cyclic_chunk_bounds(self):
+        """Verifies cyclic chunk loops are bounded and reject with ValueError without hanging."""
+        import struct
+        root_hdr = struct.pack("<HHI", 0x0003, 8, 1024)
+        zero_chunk = root_hdr + struct.pack("<HHI", 0x0180, 8, 0) + b"\x00" * 32
+        with self.assertRaises(ValueError) as ctx:
+            AxmlSurgeon.parse(zero_chunk)
+        self.assertIn("Invalid AXML chunk size", str(ctx.exception))
+
+    def test_axml_overflow_bounds_rejection(self):
+        """Verifies integer overflow and out-of-bounds chunk sizes reject cleanly."""
+        import struct
+        root_hdr = struct.pack("<HHI", 0x0003, 8, 1024)
+        overflow_chunk = root_hdr + struct.pack("<HHI", 0x0180, 8, 0xFFFFFFFF) + b"\x00" * 32
+        with self.assertRaises(ValueError) as ctx:
+            AxmlSurgeon.parse(overflow_chunk)
+        self.assertIn("Invalid AXML chunk size", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
