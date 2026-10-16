@@ -350,7 +350,7 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                 break
 
     # 5. Inspect 64-bit ELF load alignment and layout validity
-    elf_load_align_64bit, has_invalid_elf_layout = inspect_apk_elf_details(apk_path)
+    elf_load_align_64bit, has_invalid_elf_layout, elf_16kb_status = inspect_apk_elf_details(apk_path)
 
     # 6. Determine uses_apache_http: True if referenced in DEX and NOT declared in uses-library
     uses_apache_http = bool(dex_has_apache_http and not has_apache_library_decl)
@@ -363,6 +363,7 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
         abis=sorted(list(abis_set)),
         elf_load_align_64bit=elf_load_align_64bit,
         has_invalid_elf_layout=has_invalid_elf_layout,
+        elf_16kb_status=elf_16kb_status,
         is_split_apk=is_split_apk,
         private_libs=sorted(list(needed_libs)),
         uses_apache_http=uses_apache_http,

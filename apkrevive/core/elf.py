@@ -53,14 +53,14 @@ def parse_elf_load_align(data: bytes) -> Optional[int]:
     return min(load_alignments)
 
 
+from apkrevive.core import elf16k
+
+
 def validate_elf_segments(data: bytes) -> Tuple[bool, Optional[int], Optional[str]]:
     """
-    For 64-bit ELF, parse PT_LOAD program headers.
-    Check alignment congruence: for each PT_LOAD segment, if p_align > 1, check
-    (p_vaddr % p_align) == (p_offset % p_align).
-    If p_align >= 16384 but (p_vaddr % p_align) != (p_offset % p_align), return
-    (False, p_align, "Segment layout incongruent with p_align (header patched without page-aligned layout)").
-    If all valid, return (True, min_p_align, None).
+    Validates 64-bit ELF segment layout using elf16k.check().
+    Detects fake header patches where p_align was inflated but vaddrs collide on 16KB pages.
+    Returns (is_valid, min_p_align, error_message).
     """
     if len(data) < 64 or not data.startswith(ELF_MAGIC):
         return True, None, None
@@ -69,69 +69,53 @@ def validate_elf_segments(data: bytes) -> Tuple[bool, Optional[int], Optional[st
     if ei_class != EI_CLASS_64:
         return True, None, None
 
-    ei_data = data[5]
-    endian = "<" if ei_data == EI_DATA_LSB else ">"
+    rep = elf16k.check(data)
+    if rep.status == elf16k.Elf16kStatus.UNSAFE:
+        err = "; ".join(rep.reasons) if rep.reasons else "Invalid ELF segment layout"
+        return False, rep.min_align, err
 
-    e_phoff = struct.unpack_from(f"{endian}Q", data, 0x20)[0]
-    e_phentsize = struct.unpack_from(f"{endian}H", data, 0x36)[0]
-    e_phnum = struct.unpack_from(f"{endian}H", data, 0x38)[0]
-
-    if e_phoff == 0 or e_phnum == 0 or e_phentsize < 56:
-        return True, None, None
-
-    load_alignments: List[int] = []
-
-    for i in range(e_phnum):
-        ph_offset = e_phoff + (i * e_phentsize)
-        if ph_offset + 56 > len(data):
-            break
-
-        p_type = struct.unpack_from(f"{endian}I", data, ph_offset)[0]
-        if p_type == PT_LOAD:
-            p_offset = struct.unpack_from(f"{endian}Q", data, ph_offset + 0x08)[0]
-            p_vaddr = struct.unpack_from(f"{endian}Q", data, ph_offset + 0x10)[0]
-            p_align = struct.unpack_from(f"{endian}Q", data, ph_offset + 0x30)[0]
-            load_alignments.append(p_align)
-
-            if p_align > 1:
-                if (p_vaddr % p_align) != (p_offset % p_align):
-                    if p_align >= 16384:
-                        return False, p_align, "Segment layout incongruent with p_align (header patched without page-aligned layout)"
-
-    if not load_alignments:
-        return True, None, None
-
-    return True, min(load_alignments), None
+    return True, rep.min_align, None
 
 
-def inspect_apk_elf_details(apk_path: str) -> Tuple[Optional[int], bool]:
+def inspect_apk_elf_details(apk_path: str) -> Tuple[Optional[int], bool, Optional[str]]:
     """
     Scans 64-bit native libraries in an APK (lib/arm64-v8a/*.so or lib/x86_64/*.so)
-    and returns (min_align, has_invalid_layout).
+    using elf16k.check() and returns (min_align, has_invalid_layout, elf_16kb_status).
+    elf_16kb_status is one of: ALIGNED, COMPAT_ONLY, UNSAFE, or None if no 64-bit libs.
     """
     valid_aligns: List[int] = []
     all_aligns: List[int] = []
     has_invalid_layout = False
+    statuses: List[str] = []
+
     try:
         with zipfile.ZipFile(apk_path, "r") as zf:
             for name in zf.namelist():
                 if name.endswith(".so") and (name.startswith("lib/arm64-v8a/") or name.startswith("lib/x86_64/")):
                     so_bytes = zf.read(name)
-                    valid, align, err = validate_elf_segments(so_bytes)
-                    if not valid:
+                    rep = elf16k.check(so_bytes)
+                    statuses.append(rep.status.value)
+                    if rep.status == elf16k.Elf16kStatus.UNSAFE:
                         has_invalid_layout = True
-                    if align is not None:
-                        all_aligns.append(align)
-                        if valid:
-                            valid_aligns.append(align)
+                    if rep.min_align > 0:
+                        all_aligns.append(rep.min_align)
+                        if rep.status != elf16k.Elf16kStatus.UNSAFE:
+                            valid_aligns.append(rep.min_align)
     except Exception:
-        return None, False
+        return None, False, None
 
-    if not all_aligns:
-        return None, False
+    if not statuses:
+        return None, False, None
 
-    min_align = min(valid_aligns) if valid_aligns else min(all_aligns)
-    return min_align, has_invalid_layout
+    min_align = min(valid_aligns) if valid_aligns else (min(all_aligns) if all_aligns else None)
+    if "UNSAFE" in statuses or has_invalid_layout:
+        overall_status = "UNSAFE"
+    elif "COMPAT_ONLY" in statuses:
+        overall_status = "COMPAT_ONLY"
+    else:
+        overall_status = "ALIGNED"
+
+    return min_align, has_invalid_layout, overall_status
 
 
 def inspect_apk_elf_align(apk_path: str) -> Optional[int]:
@@ -141,10 +125,10 @@ def inspect_apk_elf_align(apk_path: str) -> Optional[int]:
     If any 64-bit ELF has invalid layout or align < 16384, returns the lowest valid align
     or 4096 if layout is invalid.
     """
-    min_align, has_invalid_layout = inspect_apk_elf_details(apk_path)
+    min_align, has_invalid_layout, status = inspect_apk_elf_details(apk_path)
     if min_align is None:
         return None
-    if has_invalid_layout:
+    if status == "UNSAFE" or has_invalid_layout:
         return min_align if min_align < 4096 else 4096
     return min_align
 

@@ -64,6 +64,7 @@ class ApkMetadata:
     abis: List[str] = field(default_factory=list)
     elf_load_align_64bit: Optional[int] = None
     has_invalid_elf_layout: bool = False
+    elf_16kb_status: Optional[str] = None
     is_split_apk: bool = False
     private_libs: List[str] = field(default_factory=list)
     uses_apache_http: bool = False

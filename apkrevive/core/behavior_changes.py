@@ -97,11 +97,18 @@ def _cond_raw_obb_data_path(apk: ApkMetadata, dev: DeviceProfile) -> bool:
 
 def _cond_16kb_page_size(apk: ApkMetadata, dev: DeviceProfile) -> bool:
     has_64bit = bool(set(apk.abis).intersection({"arm64-v8a", "x86_64"}))
+    if not has_64bit:
+        return False
+    if dev.os_api_level < 35 or dev.page_size_bytes != 16384:
+        return False
+    if apk.elf_16kb_status == "ALIGNED":
+        return False
     unaligned_or_invalid = (
-        (apk.elf_load_align_64bit is not None and apk.elf_load_align_64bit < 16384)
+        apk.elf_16kb_status in ("COMPAT_ONLY", "UNSAFE")
+        or (apk.elf_load_align_64bit is not None and apk.elf_load_align_64bit < 16384)
         or apk.has_invalid_elf_layout
     )
-    return dev.os_api_level >= 35 and dev.page_size_bytes == 16384 and has_64bit and unaligned_or_invalid
+    return unaligned_or_invalid
 
 
 def _cond_floor_34(apk: ApkMetadata, dev: DeviceProfile) -> bool:

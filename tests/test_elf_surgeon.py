@@ -1,7 +1,10 @@
 """
-test_elf_surgeon.py - Unit tests for 16KB ELF Segment Rewriter.
-Validates 16KB alignment and modulo congruence on synthetic 64-bit ELFs, 32-bit ELF exemption,
-and real 64-bit ELFs (e.g. test_4k.so).
+test_elf_surgeon.py - Unit tests for 16KB ELF Segment Rewriter and elf16k integration.
+Validates:
+- 4KB-linked ELFs evaluate to COMPAT_ONLY (never ALIGNED) and rewrite_elf_16kb leaves them byte-identical.
+- ALIGNED ELFs evaluate to ALIGNED and remain untouched.
+- UNSAFE ELFs (fake header patches sharing 16KB pages, incongruent offsets) are flagged and not claimed fixed.
+- 32-bit ELFs are exempt and untouched.
 """
 
 import os
@@ -10,8 +13,9 @@ import tempfile
 import unittest
 import zipfile
 
+from apkrevive.core.elf16k import check, fix, Elf16kStatus
 from apkrevive.core.elf_surgeon import rewrite_elf_16kb, rewrite_apk_elfs_16kb
-from apkrevive.core.elf import validate_elf_segments, parse_elf_load_align
+from apkrevive.core.elf import validate_elf_segments
 
 
 def make_synthetic_64bit_elf(
@@ -40,21 +44,68 @@ def make_synthetic_64bit_elf(
     return bytes(data)
 
 
+def make_aligned_16kb_elf() -> bytes:
+    """Builds a truly 16KB-aligned synthetic 64-bit ELF on distinct 16KB pages."""
+    endian = "<"
+    ident = b"\x7fELF\x02\x01\x01\x00" + (b"\x00" * 8)
+    header = struct.pack(
+        f"{endian}HHIQQQIHHHHHH",
+        3, 183, 1, 0x1000, 64, 0, 0, 64, 56, 2, 64, 0, 0
+    )
+    elf_hdr = ident + header
+
+    ph0 = struct.pack(f"{endian}IIQQQQQQ", 1, 5, 0x0000, 0x0000, 0x0000, 0x1000, 0x1000, 16384)
+    ph1 = struct.pack(f"{endian}IIQQQQQQ", 1, 6, 0x4000, 0x4000, 0x4000, 0x1000, 0x1000, 16384)
+
+    data = bytearray(elf_hdr + ph0 + ph1)
+    if len(data) < 0x5000:
+        data.extend(b"\x00" * (0x5000 - len(data)))
+    return bytes(data)
+
+
 class TestElfSurgeon(unittest.TestCase):
     def test_synthetic_64bit_elf_congruence_and_alignment(self):
-        elf_incongruent = make_synthetic_64bit_elf(p_offset=0x1D30, p_vaddr=0x2D30, p_align=4096)
-        valid, align, err = validate_elf_segments(elf_incongruent)
-        self.assertEqual(align, 4096)
+        # 4KB-linked synthetic ELF
+        elf_4k = make_synthetic_64bit_elf(p_offset=0x1D30, p_vaddr=0x2D30, p_align=4096)
+        rep = check(elf_4k)
+        # Evaluates to COMPAT_ONLY, never ALIGNED
+        self.assertEqual(rep.status, Elf16kStatus.COMPAT_ONLY)
+        self.assertNotEqual(rep.status, Elf16kStatus.ALIGNED)
 
-        elf_rewritten = rewrite_elf_16kb(elf_incongruent)
-        self.assertNotEqual(elf_rewritten, elf_incongruent)
+        # Calling rewrite_elf_16kb leaves the .so byte-identical
+        elf_rewritten = rewrite_elf_16kb(elf_4k)
+        self.assertEqual(elf_rewritten, elf_4k)
 
-        valid, align, err = validate_elf_segments(elf_rewritten)
-        self.assertTrue(valid, f"Rewritten ELF failed segment validation: {err}")
+        # fix() reports remaining problems explaining why relinking cannot be done in-place
+        fixed, problems = fix(elf_4k)
+        self.assertEqual(fixed, elf_4k)
+        self.assertTrue(len(problems) > 0)
+        self.assertTrue(any("relink" in p.lower() or "compat" in p.lower() for p in problems))
+
+    def test_aligned_16kb_elf_untouched(self):
+        elf_aligned = make_aligned_16kb_elf()
+        rep = check(elf_aligned)
+        self.assertEqual(rep.status, Elf16kStatus.ALIGNED)
+
+        rewritten = rewrite_elf_16kb(elf_aligned)
+        self.assertEqual(rewritten, elf_aligned)
+
+        valid, align, err = validate_elf_segments(rewritten)
+        self.assertTrue(valid)
         self.assertGreaterEqual(align, 16384)
 
-        min_align = parse_elf_load_align(elf_rewritten)
-        self.assertGreaterEqual(min_align, 16384)
+    def test_unsafe_fake_header_patch(self):
+        # Fake patch: p_align claimed 16KB, but segment 0 (0x0) and segment 1 (0x2D30) share page 0
+        elf_fake = make_synthetic_64bit_elf(p_offset=0x2D30, p_vaddr=0x2D30, p_align=16384)
+        rep = check(elf_fake)
+        self.assertEqual(rep.status, Elf16kStatus.UNSAFE)
+
+        valid, align, err = validate_elf_segments(elf_fake)
+        self.assertFalse(valid)
+
+        # rewrite_elf_16kb leaves it untouched and uncorrupted
+        rewritten = rewrite_elf_16kb(elf_fake)
+        self.assertEqual(rewritten, elf_fake)
 
     def test_32bit_elf_exemption(self):
         elf32 = b"\x7fELF\x01\x01\x01\x00" + (b"\x00" * 40)
@@ -69,10 +120,13 @@ class TestElfSurgeon(unittest.TestCase):
             with open(test_4k_path, "rb") as f:
                 data = f.read()
 
+            rep = check(data)
+            self.assertEqual(rep.status, Elf16kStatus.COMPAT_ONLY)
+            self.assertNotEqual(rep.status, Elf16kStatus.ALIGNED)
+
+            # Leaves byte-identical
             rewritten = rewrite_elf_16kb(data)
-            valid, align, err = validate_elf_segments(rewritten)
-            self.assertTrue(valid, f"test_4k.so rewritten failed validation: {err}")
-            self.assertGreaterEqual(align, 16384)
+            self.assertEqual(rewritten, data)
 
     def test_rewrite_apk_elfs(self):
         elf_4k = make_synthetic_64bit_elf(p_offset=0x1D30, p_vaddr=0x2D30, p_align=4096)
@@ -85,13 +139,12 @@ class TestElfSurgeon(unittest.TestCase):
                 zf.writestr("assets/note.txt", b"Hello")
 
             modified = rewrite_apk_elfs_16kb(in_apk, out_apk)
-            self.assertTrue(modified)
+            # 4KB-linked libraries are left untouched (not modified)
+            self.assertFalse(modified)
 
             with zipfile.ZipFile(out_apk, "r") as zf_out:
-                rewritten_so = zf_out.read("lib/arm64-v8a/libfoo.so")
-                valid, align, err = validate_elf_segments(rewritten_so)
-                self.assertTrue(valid)
-                self.assertGreaterEqual(align, 16384)
+                out_so = zf_out.read("lib/arm64-v8a/libfoo.so")
+                self.assertEqual(out_so, elf_4k)
                 self.assertEqual(zf_out.read("assets/note.txt"), b"Hello")
 
 
