@@ -24,4 +24,9 @@ sealed interface ReviveJobState {
         val humanExplanation: String,
         val remediation: String
     ) : ReviveJobState
+    object Cancelled : ReviveJobState
+    data class AwaitingInstaller(
+        val reason: String,
+        val resumeStep: String
+    ) : ReviveJobState
 }

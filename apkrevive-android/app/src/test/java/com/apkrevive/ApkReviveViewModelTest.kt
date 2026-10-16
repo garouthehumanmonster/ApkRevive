@@ -204,4 +204,24 @@ class ApkReviveViewModelTest {
         assertTrue(failed.humanExplanation.contains("Failed to uninstall conflicting package"))
         assertTrue(failed.remediation.contains("manually"))
     }
+
+    @Test
+    fun testCancelJobTransitionsToCancelled() {
+        val viewModel = ApkReviveViewModel(testDispatcher)
+        viewModel.cancelJob()
+        assertEquals(ReviveJobState.Cancelled, viewModel.reviveJobState.value)
+        assertEquals("Operation cancelled by user.", viewModel.uiState.value.installStatusMessage)
+        assertFalse(viewModel.uiState.value.isInstalling)
+    }
+
+    @Test
+    fun testAwaitInstallerTransitionsToAwaitingInstaller() {
+        val viewModel = ApkReviveViewModel(testDispatcher)
+        viewModel.awaitInstaller(reason = "User confirmation required", resumeStep = "CONFIRM_PERMISSIONS")
+        val state = viewModel.reviveJobState.value
+        assertTrue(state is ReviveJobState.AwaitingInstaller)
+        val awaiting = state as ReviveJobState.AwaitingInstaller
+        assertEquals("User confirmation required", awaiting.reason)
+        assertEquals("CONFIRM_PERMISSIONS", awaiting.resumeStep)
+    }
 }

@@ -96,6 +96,24 @@ class ReviveJobStateTest {
     }
 
     @Test
+    fun testCancelledState() {
+        val state: ReviveJobState = ReviveJobState.Cancelled
+        assertTrue(state is ReviveJobState.Cancelled)
+    }
+
+    @Test
+    fun testAwaitingInstallerState() {
+        val state: ReviveJobState = ReviveJobState.AwaitingInstaller(
+            reason = "Awaiting package installer session confirmation",
+            resumeStep = "COMMIT_SESSION"
+        )
+        assertTrue(state is ReviveJobState.AwaitingInstaller)
+        val awaiting = state as ReviveJobState.AwaitingInstaller
+        assertEquals("Awaiting package installer session confirmation", awaiting.reason)
+        assertEquals("COMMIT_SESSION", awaiting.resumeStep)
+    }
+
+    @Test
     fun testExhaustivePatternMatching() {
         val states: List<ReviveJobState> = listOf(
             ReviveJobState.Idle,
@@ -106,7 +124,9 @@ class ReviveJobStateTest {
             ),
             ReviveJobState.ExecutingPipeline("Writing APK", 1, 4, 0.5f),
             ReviveJobState.InstallSuccess("com.example"),
-            ReviveJobState.InstallFailed(-7, "Conflict", "Retry")
+            ReviveJobState.InstallFailed(-7, "Conflict", "Retry"),
+            ReviveJobState.Cancelled,
+            ReviveJobState.AwaitingInstaller("Confirmation required", "COMMIT")
         )
 
         val tags = states.map {
@@ -117,11 +137,13 @@ class ReviveJobStateTest {
                 is ReviveJobState.ExecutingPipeline -> "PIPELINE"
                 is ReviveJobState.InstallSuccess -> "SUCCESS"
                 is ReviveJobState.InstallFailed -> "FAILED"
+                is ReviveJobState.Cancelled -> "CANCELLED"
+                is ReviveJobState.AwaitingInstaller -> "AWAITING"
             }
         }
 
         assertEquals(
-            listOf("IDLE", "INSPECTING", "READY", "PIPELINE", "SUCCESS", "FAILED"),
+            listOf("IDLE", "INSPECTING", "READY", "PIPELINE", "SUCCESS", "FAILED", "CANCELLED", "AWAITING"),
             tags
         )
     }

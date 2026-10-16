@@ -375,4 +375,18 @@ class ApkReviveViewModel(
             )
         }
     }
+
+    fun cancelJob() {
+        _reviveJobState.value = ReviveJobState.Cancelled
+        _uiState.update {
+            it.copy(
+                isInstalling = false,
+                installStatusMessage = "Operation cancelled by user."
+            )
+        }
+    }
+
+    fun awaitInstaller(reason: String, resumeStep: String) {
+        _reviveJobState.value = ReviveJobState.AwaitingInstaller(reason, resumeStep)
+    }
 }
