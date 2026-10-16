@@ -6,20 +6,86 @@
 (function () {
   'use strict';
 
+  const Elf16kStatus = {
+    ALIGNED: "ALIGNED",
+    COMPAT_ONLY: "COMPAT_ONLY",
+    UNSAFE: "UNSAFE"
+  };
+
+  function checkElf16k(segments) {
+    if (!segments || segments.length === 0) {
+      return { status: Elf16kStatus.UNSAFE, reasons: ["No PT_LOAD segments found"] };
+    }
+
+    const PAGE_16KB = 16384;
+    const minAlign = Math.min(...segments.map(s => s.p_align));
+    const reasons = [];
+
+    // Check 1: Internal congruence
+    for (const seg of segments) {
+      if (seg.p_align > 1 && (seg.p_vaddr % seg.p_align) !== (seg.p_offset % seg.p_align)) {
+        reasons.push(
+          `Segment layout incongruent with p_align: segment ${seg.index ?? 0} ` +
+          `(vaddr 0x${seg.p_vaddr.toString(16).toUpperCase()} % 0x${seg.p_align.toString(16).toUpperCase()} != ` +
+          `offset 0x${seg.p_offset.toString(16).toUpperCase()} % 0x${seg.p_align.toString(16).toUpperCase()})`
+        );
+      }
+    }
+
+    if (reasons.length > 0) {
+      return { status: Elf16kStatus.UNSAFE, minAlign, reasons };
+    }
+
+    const is16kbAligned = minAlign >= PAGE_16KB;
+    const congruent16k = segments.every(s => (s.p_vaddr % PAGE_16KB) === (s.p_offset % PAGE_16KB));
+
+    // Check 2: 16KB vaddr page collisions
+    const sorted = [...segments].sort((a, b) => a.p_vaddr - b.p_vaddr);
+    let hasCollision = false;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const s1 = sorted[i];
+      const s2 = sorted[i + 1];
+      const s1PageEnd = Math.floor((s1.p_vaddr + s1.p_memsz + PAGE_16KB - 1) / PAGE_16KB);
+      const s2PageStart = Math.floor(s2.p_vaddr / PAGE_16KB);
+      if (s2PageStart < s1PageEnd) {
+        hasCollision = true;
+        reasons.push(
+          `PT_LOAD segments ${s1.index ?? i} and ${s2.index ?? (i + 1)} collide inside the same 16KB page boundary`
+        );
+      }
+    }
+
+    if (is16kbAligned && congruent16k && !hasCollision) {
+      return { status: Elf16kStatus.ALIGNED, minAlign, reasons: [] };
+    }
+
+    if (hasCollision && is16kbAligned) {
+      return { status: Elf16kStatus.UNSAFE, minAlign, reasons };
+    }
+
+    return {
+      status: Elf16kStatus.COMPAT_ONLY,
+      minAlign,
+      reasons: ["ELF is 4KB-linked; requires Android 15/16 pageSizeCompat backcompat mode"]
+    };
+  }
+
+  const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
+
   // DOM Elements
-  const dropzone = document.getElementById('dropzone');
-  const fileInput = document.getElementById('fileInput');
-  const verdictBanner = document.getElementById('verdictBanner');
-  const workbench = document.getElementById('workbench');
-  const segmentMap = document.getElementById('segmentMap');
-  const elfBadge = document.getElementById('elfBadge');
-  const congruenceFormula = document.getElementById('congruenceFormula');
-  const surgeryExplanation = document.getElementById('surgeryExplanation');
-  const manifestBefore = document.getElementById('manifestBefore');
-  const manifestAfter = document.getElementById('manifestAfter');
-  const cliLadderOutput = document.getElementById('cliLadderOutput');
-  const btnDownloadJson = document.getElementById('btnDownloadJson');
-  const btnDownloadSarif = document.getElementById('btnDownloadSarif');
+  const dropzone = isBrowser ? document.getElementById('dropzone') : null;
+  const fileInput = isBrowser ? document.getElementById('fileInput') : null;
+  const verdictBanner = isBrowser ? document.getElementById('verdictBanner') : null;
+  const workbench = isBrowser ? document.getElementById('workbench') : null;
+  const segmentMap = isBrowser ? document.getElementById('segmentMap') : null;
+  const elfBadge = isBrowser ? document.getElementById('elfBadge') : null;
+  const congruenceFormula = isBrowser ? document.getElementById('congruenceFormula') : null;
+  const surgeryExplanation = isBrowser ? document.getElementById('surgeryExplanation') : null;
+  const manifestBefore = isBrowser ? document.getElementById('manifestBefore') : null;
+  const manifestAfter = isBrowser ? document.getElementById('manifestAfter') : null;
+  const cliLadderOutput = isBrowser ? document.getElementById('cliLadderOutput') : null;
+  const btnDownloadJson = isBrowser ? document.getElementById('btnDownloadJson') : null;
+  const btnDownloadSarif = isBrowser ? document.getElementById('btnDownloadSarif') : null;
 
   let currentAnalysis = null;
 
@@ -72,55 +138,59 @@
     }
   };
 
-  // Tab switching
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-      btn.classList.add('active');
-      const targetId = btn.getAttribute('data-tab');
-      document.getElementById(targetId)?.classList.remove('hidden');
+  if (isBrowser) {
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        btn.classList.add('active');
+        const targetId = btn.getAttribute('data-tab');
+        document.getElementById(targetId)?.classList.remove('hidden');
+      });
     });
-  });
 
-  // Preset buttons
-  document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.getAttribute('data-preset');
-      if (PRESETS[key]) {
-        analyzeModel(PRESETS[key]);
-      }
+    // Preset buttons
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-preset');
+        if (PRESETS[key]) {
+          analyzeModel(PRESETS[key]);
+        }
+      });
     });
-  });
 
-  // Dropzone drag-and-drop
-  dropzone.addEventListener('click', () => fileInput.click());
-  ['dragenter', 'dragover'].forEach(name => {
-    dropzone.addEventListener(name, (e) => {
-      e.preventDefault();
-      dropzone.classList.add('drag-active');
-    });
-  });
-  ['dragleave', 'drop'].forEach(name => {
-    dropzone.addEventListener(name, (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('drag-active');
-    });
-  });
+    // Dropzone drag-and-drop
+    if (dropzone && fileInput) {
+      dropzone.addEventListener('click', () => fileInput.click());
+      ['dragenter', 'dragover'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          dropzone.classList.add('drag-active');
+        });
+      });
+      ['dragleave', 'drop'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('drag-active');
+        });
+      });
 
-  dropzone.addEventListener('drop', (e) => {
-    const files = e.dataTransfer?.files;
-    if (files && files.length > 0) {
-      processApkFile(files[0]);
+      dropzone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) {
+          processApkFile(files[0]);
+        }
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+          processApkFile(files[0]);
+        }
+      });
     }
-  });
-
-  fileInput.addEventListener('change', (e) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      processApkFile(files[0]);
-    }
-  });
+  }
 
   // Client-Side In-Memory APK Inspection
   function processApkFile(file) {
@@ -202,63 +272,67 @@
   // Core Triage & Rendering
   function analyzeModel(model) {
     currentAnalysis = model;
-    workbench.classList.remove('hidden');
+    if (workbench) workbench.classList.remove('hidden');
 
-    // 1. Triage Verdict Evaluation
-    const pageAlignFaults = model.elfSegments.filter(s => s.p_align < 16384);
-    const congruenceFaults = model.elfSegments.filter(s => (s.p_vaddr % 16384) !== (s.p_offset % 16384));
+    // 1. Triage Verdict Evaluation via elf16k 3-state logic
+    const elfReport = checkElf16k(model.elfSegments);
     const targetSdkFault = model.targetSdk < 24;
 
     let verdict = "GREEN";
     let reason = "RUNNABLE_UNMODIFIED";
-    let badgeClass = "badge-emerald";
     let transforms = [];
 
-    if (pageAlignFaults.length > 0 || congruenceFaults.length > 0) {
+    if (elfReport.status === Elf16kStatus.UNSAFE) {
+      verdict = "RED";
+      reason = "FATAL_16KB_INCOMPATIBILITY";
+      transforms.push("RECOMPILE_ELF_NATIVE_16KB");
+    } else if (elfReport.status === Elf16kStatus.COMPAT_ONLY) {
       verdict = "YELLOW";
       reason = "MODIFICATION_REQUIRED";
-      transforms.push("PAGE_SIZE_COMPAT");
-      transforms.push("REWRITE_ELF_16KB");
+      transforms.push("INJECT_PAGE_SIZE_COMPAT");
     }
+
     if (targetSdkFault) {
-      if (verdict === "GREEN") verdict = "GREEN"; // bypass flag
+      if (verdict === "GREEN") verdict = "GREEN";
       transforms.push("BYPASS_LOW_TARGET_SDK_BLOCK");
     }
     if (!model.hasCode) {
-      verdict = "YELLOW";
+      if (verdict !== "RED") verdict = "YELLOW";
       transforms.push("SET_HAS_CODE_TRUE");
     }
     if (model.usesApacheHttp) {
-      verdict = "YELLOW";
+      if (verdict !== "RED") verdict = "YELLOW";
       transforms.push("INJECT_USES_LIBRARY_APACHE_HTTP");
     }
 
     // Render Verdict Banner
-    verdictBanner.className = `rounded-xl border p-5 transition-all ${
-      verdict === "GREEN" ? "bg-emerald-950/40 border-emerald-500/50" :
-      verdict === "YELLOW" ? "bg-amber-950/40 border-amber-500/50" : "bg-crimson-950/40 border-crimson-500/50"
-    }`;
-    verdictBanner.classList.remove('hidden');
+    if (verdictBanner) {
+      verdictBanner.className = `rounded-xl border p-5 transition-all ${
+        verdict === "GREEN" ? "bg-emerald-950/40 border-emerald-500/50" :
+        verdict === "YELLOW" ? "bg-amber-950/40 border-amber-500/50" : "bg-crimson-950/40 border-crimson-500/50"
+      }`;
+      verdictBanner.classList.remove('hidden');
 
-    verdictBanner.innerHTML = `
-      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div class="space-y-1">
-          <div class="flex items-center space-x-2">
-            <span class="font-mono text-xs px-2 py-0.5 rounded font-bold ${
-              verdict === "GREEN" ? "badge-emerald" : verdict === "YELLOW" ? "badge-amber" : "badge-crimson"
-            }">VERDICT: ${verdict}</span>
-            <span class="text-xs font-mono text-slate-400">• ${reason}</span>
+      verdictBanner.innerHTML = `
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="font-mono text-xs px-2 py-0.5 rounded font-bold ${
+                verdict === "GREEN" ? "badge-emerald" : verdict === "YELLOW" ? "badge-amber" : "badge-crimson"
+              }">VERDICT: ${verdict}</span>
+              <span class="text-xs font-mono text-slate-400">• ${reason}</span>
+            </div>
+            <h3 class="text-lg font-bold text-white">${model.name} (${model.packageName})</h3>
+            <p class="text-xs font-mono text-slate-300">
+              TargetSDK: <span class="text-cyan-400">${model.targetSdk}</span> • MinSDK: <span class="text-slate-200">${model.minSdk}</span> • Native 64-bit: <span class="text-emerald-400">${model.elfSegments.length} Segments</span> • 16KB Status: <span class="${elfReport.status === Elf16kStatus.ALIGNED ? 'text-emerald-400 font-bold' : elfReport.status === Elf16kStatus.COMPAT_ONLY ? 'text-amber-400 font-bold' : 'text-crimson-400 font-bold'}">${elfReport.status}</span>
+            </p>
           </div>
-          <h3 class="text-lg font-bold text-white">${model.name} (${model.packageName})</h3>
-          <p class="text-xs font-mono text-slate-300">
-            TargetSDK: <span class="text-cyan-400">${model.targetSdk}</span> • MinSDK: <span class="text-slate-200">${model.minSdk}</span> • Native 64-bit: <span class="text-emerald-400">${model.elfSegments.length} Segments</span>
-          </p>
+          <div class="flex flex-wrap gap-1.5 sm:max-w-md justify-start sm:justify-end">
+            ${transforms.map(t => `<span class="badge-cyan text-xs font-mono px-2 py-0.5 rounded">${t}</span>`).join('')}
+          </div>
         </div>
-        <div class="flex flex-wrap gap-1.5 sm:max-w-md justify-start sm:justify-end">
-          ${transforms.map(t => `<span class="badge-cyan text-xs font-mono px-2 py-0.5 rounded">${t}</span>`).join('')}
-        </div>
-      </div>
-    `;
+      `;
+    }
 
     // 2. Render Tab 1: 16KB ELF Visualizer
     renderElfVisualizer(model.elfSegments);
@@ -271,8 +345,9 @@
   }
 
   function renderElfVisualizer(segments) {
+    if (!segmentMap) return;
     segmentMap.innerHTML = "";
-    let allValid = true;
+    const elfReport = checkElf16k(segments);
 
     segments.forEach((seg, idx) => {
       const isAlign16k = seg.p_align >= 16384;
@@ -280,10 +355,6 @@
       const offsetMod = seg.p_offset % 16384;
       const isCongruent = vaddrMod === offsetMod;
       const valid = isAlign16k && isCongruent;
-      if (!valid) allValid = false;
-
-      const delta = (seg.p_vaddr - seg.p_offset) % 16384;
-      const positiveDelta = (delta + 16384) % 16384;
 
       const segCard = document.createElement('div');
       segCard.className = `p-4 rounded-lg border font-mono text-xs space-y-3 ${
@@ -292,14 +363,14 @@
 
       segCard.innerHTML = `
         <div class="flex items-center justify-between border-b border-obsidian-700 pb-2">
-          <span class="font-bold text-slate-200">${seg.name}</span>
+          <span class="font-bold text-slate-200">${seg.name || `PT_LOAD ${idx}`}</span>
           <span class="px-2 py-0.5 rounded ${valid ? "badge-emerald" : "badge-crimson"}">${valid ? "16KB PASS" : "ALIGN FAULT"}</span>
         </div>
 
         <div class="grid grid-cols-2 gap-2 text-slate-400">
           <div>p_offset: <span class="text-white">0x${seg.p_offset.toString(16).toUpperCase()}</span></div>
           <div>p_vaddr: <span class="text-cyan-400">0x${seg.p_vaddr.toString(16).toUpperCase()}</span></div>
-          <div>p_align: <span class="${isAlign16k ? "text-emerald-400" : "text-crimson-400 font-bold"}">0x${seg.p_align.toString(16)} (${seg.p_align}B)</span></div>
+          <div>p_align: <span class="${isAlign16k ? "text-emerald-400" : "text-amber-400 font-bold"}">0x${seg.p_align.toString(16)} (${seg.p_align}B)</span></div>
           <div>Modulo: <span class="${isCongruent ? "text-emerald-400" : "text-crimson-400 font-bold"}">0x${vaddrMod.toString(16)} vs 0x${offsetMod.toString(16)}</span></div>
         </div>
 
@@ -307,10 +378,10 @@
         <div class="space-y-1 pt-1">
           <div class="flex justify-between text-[10px] text-slate-500">
             <span>Alignment Boundary</span>
-            <span>${valid ? "16KB Aligned" : `Needs +0x${positiveDelta.toString(16).toUpperCase()} Zero-Padding`}</span>
+            <span>${valid ? "16KB Aligned" : isAlign16k ? "Modulo / Page Collision" : "4KB-linked (pageSizeCompat)"}</span>
           </div>
           <div class="w-full bg-obsidian-700 h-2 rounded overflow-hidden">
-            <div class="h-full ${valid ? "bg-emerald-500" : "bg-crimson-500"}" style="width: ${valid ? "100%" : "35%"}"></div>
+            <div class="h-full ${valid ? "bg-emerald-500" : isAlign16k ? "bg-crimson-500" : "bg-amber-500"}" style="width: ${valid ? "100%" : isAlign16k ? "25%" : "50%"}"></div>
           </div>
         </div>
       `;
@@ -318,13 +389,32 @@
       segmentMap.appendChild(segCard);
     });
 
-    elfBadge.className = allValid ? "badge-emerald" : "badge-amber";
-    elfBadge.textContent = allValid ? "ALL SEGMENTS CONGRUENT" : "ELF SURGERY REQUIRED";
+    if (elfBadge) {
+      if (elfReport.status === Elf16kStatus.ALIGNED) {
+        elfBadge.className = "badge-emerald";
+        elfBadge.textContent = "16KB ALIGNED";
+      } else if (elfReport.status === Elf16kStatus.COMPAT_ONLY) {
+        elfBadge.className = "badge-amber";
+        elfBadge.textContent = "COMPAT_ONLY (PAGE_SIZE_COMPAT)";
+      } else {
+        elfBadge.className = "badge-crimson";
+        elfBadge.textContent = "UNSAFE 16KB LAYOUT";
+      }
+    }
 
-    congruenceFormula.textContent = `Formula: (p_vaddr % 0x4000 == p_offset % 0x4000)`;
-    surgeryExplanation.innerHTML = allValid 
-      ? `Native shared objects satisfy Android 15/16 16KB requirements. No zero-padding offset shift required.`
-      : `Detected 4KB alignment or modulo mismatch. ApkRevive's <span class="text-cyan-400">elf_surgeon.py</span> will inject zero-padding before PT_LOAD payloads, updating <span class="text-emerald-400">Ehdr.e_phoff</span>, <span class="text-emerald-400">Ehdr.e_shoff</span>, and <span class="text-emerald-400">Shdr.sh_offset</span> to preserve all internal relative virtual addresses intact.`;
+    if (congruenceFormula) {
+      congruenceFormula.textContent = `Formula: (p_vaddr % 0x4000 == p_offset % 0x4000)`;
+    }
+
+    if (surgeryExplanation) {
+      if (elfReport.status === Elf16kStatus.ALIGNED) {
+        surgeryExplanation.innerHTML = `Native shared objects satisfy Android 15/16 16KB requirements. All PT_LOAD segments are 16KB-aligned, congruent, and reside on isolated 16KB virtual address pages.`;
+      } else if (elfReport.status === Elf16kStatus.COMPAT_ONLY) {
+        surgeryExplanation.innerHTML = `ELF is 4KB-linked. PT_LOAD virtual addresses share 16KB pages and cannot be shifted without binary relinking. ApkRevive preserves the library byte-identical and enables Android 15/16 pageSizeCompat mode (<span class="text-cyan-400">android:pageSizeCompat="enabled"</span>).`;
+      } else {
+        surgeryExplanation.innerHTML = `PT_LOAD segments exhibit offset-modulo incongruence or fake header padding with collided virtual address pages. Cannot safely execute on 16KB kernel without rebuilding from source.`;
+      }
+    }
   }
 
   function renderManifestDiff(model, transforms) {
@@ -390,36 +480,41 @@
   }
 
   // Export handlers
-  btnDownloadJson.addEventListener('click', () => {
-    if (!currentAnalysis) return;
-    const jsonStr = JSON.stringify(currentAnalysis, null, 2);
-    downloadFile(jsonStr, `apkrevive_triage_${currentAnalysis.packageName}.json`, "application/json");
-  });
+  if (isBrowser) {
+    btnDownloadJson?.addEventListener('click', () => {
+      if (!currentAnalysis) return;
+      const jsonStr = JSON.stringify(currentAnalysis, null, 2);
+      downloadFile(jsonStr, `apkrevive_triage_${currentAnalysis.packageName}.json`, "application/json");
+    });
 
-  btnDownloadSarif.addEventListener('click', () => {
-    if (!currentAnalysis) return;
-    const sarif = {
-      $schema: "https://json.schemastore.org/sarif-2.1.0.json",
-      version: "2.1.0",
-      runs: [{
-        tool: {
-          driver: {
-            name: "ApkRevive",
-            version: "0.3.3",
-            informationUri: "https://github.com/apkrevive/apkrevive"
-          }
-        },
-        results: [
-          {
-            ruleId: "PAGE_SIZE_16KB_INCOMPATIBLE",
-            level: "error",
-            message: { text: "Shared object has PT_LOAD segment alignment < 16KB." }
-          }
-        ]
-      }]
-    };
-    downloadFile(JSON.stringify(sarif, null, 2), `apkrevive_telemetry_${currentAnalysis.packageName}.sarif`, "application/json");
-  });
+    btnDownloadSarif?.addEventListener('click', () => {
+      if (!currentAnalysis) return;
+      const sarif = {
+        $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+        version: "2.1.0",
+        runs: [{
+          tool: {
+            driver: {
+              name: "ApkRevive",
+              version: "0.3.3",
+              informationUri: "https://github.com/apkrevive/apkrevive"
+            }
+          },
+          results: [
+            {
+              ruleId: "PAGE_SIZE_16KB_INCOMPATIBLE",
+              level: "error",
+              message: { text: "Shared object has PT_LOAD segment alignment < 16KB." }
+            }
+          ]
+        }]
+      };
+      downloadFile(JSON.stringify(sarif, null, 2), `apkrevive_telemetry_${currentAnalysis.packageName}.sarif`, "application/json");
+    });
+
+    // Load default preset on startup
+    analyzeModel(PRESETS.arcade4k);
+  }
 
   function downloadFile(content, fileName, contentType) {
     const a = document.createElement("a");
@@ -430,7 +525,8 @@
     URL.revokeObjectURL(a.href);
   }
 
-  // Load default preset on startup
-  analyzeModel(PRESETS.arcade4k);
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { checkElf16k, Elf16kStatus, PRESETS };
+  }
 
 })();
