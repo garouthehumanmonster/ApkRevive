@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "apkrevive"
-version = "0.3.3"
+version = "0.4.0"
 description = "Legacy Android APK modernizer pipeline targeting API 3-28 (Alpha)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -51,3 +51,6 @@ branch = true
 [tool.coverage.report]
 fail_under = 80
 show_missing = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

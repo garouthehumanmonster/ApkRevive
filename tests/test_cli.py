@@ -76,12 +76,13 @@ class TestCli(unittest.TestCase):
             self.assertIn("classes2.dex", names)
 
     def test_cli_version(self):
+        import apkrevive
         with patch("sys.argv", ["apkrevive", "--version"]):
             with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
                 with self.assertRaises(SystemExit) as cm:
                     main()
                 self.assertEqual(cm.exception.code, 0)
-                self.assertIn("apkrevive 0.3.3", mock_stdout.getvalue())
+                self.assertIn(f"apkrevive {apkrevive.__version__}", mock_stdout.getvalue())
 
 
 if __name__ == "__main__":
