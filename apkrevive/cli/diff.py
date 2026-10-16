@@ -16,73 +16,93 @@ from apkrevive.core.elf import parse_elf_load_align
 
 
 def _parse_manifest_ast(manifest_bytes: bytes) -> Dict[str, Any]:
-    res = {
-        "package": "",
-        "target_sdk": None,
-        "min_sdk": None,
-        "has_code": True,
-        "resizeable_activity": None,
-        "page_size_compat": None,
-        "uses_libraries": [],
-        "providers": [],
-        "meta_data": {},
-    }
+    pkg: str = ""
+    target_sdk: Optional[int] = None
+    min_sdk: Optional[int] = None
+    has_code: bool = True
+    resizeable_activity: Optional[bool] = None
+    page_size_compat: Optional[str] = None
+    uses_libraries: List[str] = []
+    providers: List[str] = []
+    meta_data: Dict[str, Any] = {}
+
     if not manifest_bytes:
-        return res
+        return {
+            "package": pkg,
+            "target_sdk": target_sdk,
+            "min_sdk": min_sdk,
+            "has_code": has_code,
+            "resizeable_activity": resizeable_activity,
+            "page_size_compat": page_size_compat,
+            "uses_libraries": uses_libraries,
+            "providers": providers,
+            "meta_data": meta_data,
+        }
     try:
         root = AxmlSurgeon.parse(manifest_bytes)
         pkg_attr = root.get_attr("package")
         if pkg_attr:
-            res["package"] = str(pkg_attr.get_value() or pkg_attr.raw_value or "")
+            pkg = str(pkg_attr.get_value() or pkg_attr.raw_value or "")
 
         uses_sdk = root.find_child("uses-sdk")
         if uses_sdk:
             target_attr = uses_sdk.get_attr("targetSdkVersion")
             if target_attr:
-                res["target_sdk"] = target_attr.get_value()
+                target_sdk = target_attr.get_value()
             min_attr = uses_sdk.get_attr("minSdkVersion")
             if min_attr:
-                res["min_sdk"] = min_attr.get_value()
+                min_sdk = min_attr.get_value()
 
         app = root.find_child("application")
         if app:
             has_code_attr = app.get_attr("hasCode")
             if has_code_attr is not None:
                 val = has_code_attr.get_value()
-                res["has_code"] = bool(val)
+                has_code = bool(val)
 
             resiz_attr = app.get_attr("resizeableActivity")
             if resiz_attr is not None:
-                res["resizeable_activity"] = bool(resiz_attr.get_value())
+                resizeable_activity = bool(resiz_attr.get_value())
 
             psc_attr = app.get_attr("pageSizeCompat")
             if psc_attr is not None:
-                val = psc_attr.get_value()
-                res["page_size_compat"] = val if val is not None else psc_attr.raw_value
+                val_psc = psc_attr.get_value()
+                page_size_compat = str(val_psc) if val_psc is not None else str(psc_attr.raw_value or "")
 
             for ch in app.children:
                 if ch.tag == "uses-library":
                     name_attr = ch.get_attr("name") or ch.get_attr("android:name")
                     if name_attr:
                         v = name_attr.get_value() or name_attr.raw_value
-                        if v and str(v) not in res["uses_libraries"]:
-                            res["uses_libraries"].append(str(v))
+                        if v and str(v) not in uses_libraries:
+                            uses_libraries.append(str(v))
                 elif ch.tag == "provider":
                     name_attr = ch.get_attr("name") or ch.get_attr("android:name")
                     if name_attr:
                         v = name_attr.get_value() or name_attr.raw_value
-                        if v and str(v) not in res["providers"]:
-                            res["providers"].append(str(v))
+                        if v and str(v) not in providers:
+                            providers.append(str(v))
                 elif ch.tag == "meta-data":
                     name_attr = ch.get_attr("name") or ch.get_attr("android:name")
                     val_attr = ch.get_attr("value") or ch.get_attr("android:value")
                     if name_attr:
                         k = str(name_attr.get_value() or name_attr.raw_value)
-                        v = val_attr.get_value() if val_attr else True
-                        res["meta_data"][k] = v
+                        v_meta = val_attr.get_value() if val_attr else True
+                        meta_data[k] = v_meta
     except Exception:
         pass
-    return res
+
+    return {
+        "package": pkg,
+        "target_sdk": target_sdk,
+        "min_sdk": min_sdk,
+        "has_code": has_code,
+        "resizeable_activity": resizeable_activity,
+        "page_size_compat": page_size_compat,
+        "uses_libraries": uses_libraries,
+        "providers": providers,
+        "meta_data": meta_data,
+    }
 
 
 def _inspect_zip_offsets(apk_path: str) -> Dict[str, Dict[str, Any]]:

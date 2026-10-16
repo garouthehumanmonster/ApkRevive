@@ -11,9 +11,8 @@ import unittest
 import zipfile
 from unittest.mock import patch
 
-from apkrevive.cli import main, diff_cmd, triage_cmd, revive_cmd
+from apkrevive.cli import main
 from apkrevive.cli.diff import compute_apk_diff, render_apk_diff
-from apkrevive.cli.sarif import triage_to_sarif, diff_to_sarif
 from apkrevive.cli.tui import (
     render_verdict_banner,
     render_triage_table,

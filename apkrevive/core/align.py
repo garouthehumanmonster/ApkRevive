@@ -3,7 +3,6 @@ align.py - 4KB and 16KB ZIP boundary aligner for uncompressed entries (.so, reso
 """
 
 import mmap
-import os
 import struct
 from typing import Dict, Any
 

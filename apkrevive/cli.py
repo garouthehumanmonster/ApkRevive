@@ -32,7 +32,6 @@ from apkrevive.cli.tui import (
     _is_interactive,
     render_verdict_banner,
     render_triage_table,
-    render_alignment_ladder,
 )
 from apkrevive.cli.sarif import triage_to_sarif, diff_to_sarif
 from apkrevive.cli.diff import compute_apk_diff, render_apk_diff

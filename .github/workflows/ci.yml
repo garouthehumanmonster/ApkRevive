@@ -52,7 +52,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "zulu"
           java-version: "17"
@@ -105,9 +105,9 @@ jobs:
       - name: Generate SARIF Telemetry Reports
         run: |
           mkdir -p sarif-reports
-          apkrevive triage canaries/build/canary_install_floor_failing.apk --sarif > sarif-reports/canary_install_floor.sarif
-          apkrevive triage canaries/build/canary_page_size_failing.apk --device-api 35 --page-size 16384 --sarif > sarif-reports/canary_page_size_16k.sarif
-          apkrevive diff canaries/build/canary_page_size_failing.apk canaries/build/canary_page_size_control.apk --sarif > sarif-reports/diff_page_size.sarif
+          apkrevive triage canaries/build/canary_install_floor_failing.apk --sarif > sarif-reports/canary_install_floor.sarif || true
+          apkrevive triage canaries/build/canary_page_size_failing.apk --device-api 35 --page-size 16384 --sarif > sarif-reports/canary_page_size_16k.sarif || true
+          apkrevive diff canaries/build/canary_page_size_failing.apk canaries/build/canary_page_size_control.apk --sarif > sarif-reports/diff_page_size.sarif || true
 
       - name: Upload SARIF Artifacts
         uses: actions/upload-artifact@v4

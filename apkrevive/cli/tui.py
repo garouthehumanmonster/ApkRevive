@@ -10,7 +10,6 @@ import sys
 from typing import Any, Dict, List, Optional, Union
 
 try:
-    import rich
     from rich import box
     from rich.console import Console
     from rich.panel import Panel
@@ -20,11 +19,11 @@ try:
     HAS_RICH = True
 except ImportError:  # pragma: no cover
     HAS_RICH = False
-    box = None  # type: ignore[assignment]
-    Console = None  # type: ignore[assignment]
-    Panel = None  # type: ignore[assignment]
-    Table = None  # type: ignore[assignment]
-    Text = None  # type: ignore[assignment]
+    box: Any = None  # type: ignore[no-redef]
+    Console: Any = None  # type: ignore[no-redef]
+    Panel: Any = None  # type: ignore[no-redef]
+    Table: Any = None  # type: ignore[no-redef]
+    Text: Any = None  # type: ignore[no-redef]
 
 
 def _is_interactive() -> bool:
@@ -59,7 +58,7 @@ def render_verdict_banner(
     }
     border_color = color_map.get(v_upper, "bold cyan")
 
-    if use_rich and Panel and Console and box:
+    if use_rich:
         body = f"[bold]Verdict:[/] [{border_color}]{verdict}[/{border_color}]\n[bold]Reason:[/]  {reason}"
         if install_method:
             body += f"\n[bold]Install Method:[/] {install_method}"
@@ -118,7 +117,7 @@ def render_triage_table(
 
     use_rich = HAS_RICH and (force_rich if force_rich is not None else _is_interactive())
 
-    if use_rich and Table and Console and box:
+    if use_rich:
         buf = io.StringIO()
         c = Console(file=buf, force_terminal=True, width=80)
 
@@ -290,7 +289,7 @@ def render_alignment_ladder(
         ladder_lines.append(f"  {pos:<10} {marker} [{r['required']}] {target} [{st}]")
     ladder_diagram = "\n".join(ladder_lines)
 
-    if use_rich and Table and Console and box:
+    if use_rich:
         buf = io.StringIO()
         c = Console(file=buf, force_terminal=True, width=84)
 

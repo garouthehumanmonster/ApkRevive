@@ -6,7 +6,6 @@ import struct
 import unittest
 
 from apkrevive.core.dex_trampoline import (
-    validate_dex_header,
     patch_primary_dex_trampoline,
     verify_dex_checksums,
     recalculate_dex_checksums,

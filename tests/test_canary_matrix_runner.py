@@ -10,28 +10,23 @@ Covers:
 
 from __future__ import annotations
 
-import argparse
 from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from apkrevive.core.models import DeviceProfile, Verdict
+from apkrevive.core.models import DeviceProfile
 from apkrevive.adb.bridge import AdbBridge
 from scripts.generate_matrix import validate_result_schema, SCHEMA_FIELD_TYPES
 
 from scripts.verify_canary_matrix import (
     TIERS,
-    AVDTier,
-    CANARY_NAMES,
     tier_from_device_profile,
     detect_device_tier,
     run_tier_verification,
     build_receipt_dict,
-    write_receipt,
     verify_canary_install_floor,
     verify_canary_apache_http,
     verify_canary_page_size,

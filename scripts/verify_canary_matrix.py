@@ -17,12 +17,10 @@ import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
-import os
 from pathlib import Path
-import re
 import subprocess
 import sys
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Optional
 import zipfile
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -32,11 +30,10 @@ if str(PROJECT_ROOT) not in sys.path:
 from apkrevive.core.models import ApkMetadata, DeviceProfile, Verdict, TriageSignal
 from apkrevive.core.triage import evaluate_triage
 from apkrevive.core.axml import AxmlSurgeon
-from apkrevive.core.elf import parse_elf_load_align, inspect_apk_elf_align
+from apkrevive.core.elf import inspect_apk_elf_align
 from apkrevive.core.obb import validate_obb_delivery
 from apkrevive.core.extractor import inspect_apk, get_elf_needed
 from apkrevive.adb.bridge import AdbBridge
-from apkrevive import __version__
 
 from scripts.generate_matrix import (
     validate_result_schema,
@@ -45,7 +42,6 @@ from scripts.generate_matrix import (
     load_results,
     DEFAULT_RESULTS_DIR,
     DEFAULT_DOC_PATH,
-    SCHEMA_FIELD_TYPES,
 )
 
 try:
@@ -518,7 +514,6 @@ def verify_canary_has_code(
     canaries_dir: Path, profile: DeviceProfile, bridge: Optional[AdbBridge] = None
 ) -> CanaryAssertionResult:
     failing_apk = canaries_dir / "canary_has_code_failing.apk"
-    meta_fail = inspect_apk(str(failing_apk)) if failing_apk.exists() else ApkMetadata(has_code=False, has_fixed_physics=True)
 
     with zipfile.ZipFile(failing_apk, "r") as zf:
         root_before = AxmlSurgeon.parse(zf.read("AndroidManifest.xml"))

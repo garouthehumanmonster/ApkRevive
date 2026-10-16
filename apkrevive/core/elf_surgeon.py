@@ -4,7 +4,6 @@ Operates strictly on 64-bit ELF shared objects (EM_AARCH64=183, EM_X86_64=62).
 Preserves 32-bit binaries (ELFCLASS32) untouched.
 """
 
-import os
 import struct
 import zipfile
 from typing import Dict, Any, List
