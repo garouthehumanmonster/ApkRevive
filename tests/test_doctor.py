@@ -92,14 +92,16 @@ class TestDoctor(unittest.TestCase):
 
     def test_check_build_tools_partial_warn(self):
         with patch("shutil.which", side_effect=lambda x: f"/bin/{x}" if x == "zipalign" else None), \
-             patch.dict("os.environ", {}, clear=True):
+             patch.dict("os.environ", {}, clear=True), \
+             patch("os.path.exists", return_value=False):
             res = check_build_tools()
             self.assertEqual(res["status"], "WARN")
             self.assertIn("missing", res["details"])
 
     def test_check_build_tools_none_warn(self):
         with patch("shutil.which", return_value=None), \
-             patch.dict("os.environ", {}, clear=True):
+             patch.dict("os.environ", {}, clear=True), \
+             patch("os.path.exists", return_value=False):
             res = check_build_tools()
             self.assertEqual(res["status"], "WARN")
             self.assertIn("None of", res["details"])
