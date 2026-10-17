@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json.schemastore.org/design-tokens.json",
+  "name": "ApkRevive Cyber-Preservation Design Tokens",
+  "version": "1.0.0",
+  "primitive": {
+    "color": {
+      "obsidian": {
+        "950": { "value": "#06090E", "type": "color" },
+        "900": { "value": "#0A0E14", "type": "color", "description": "Canvas base background" },
+        "800": { "value": "#121822", "type": "color", "description": "Elevated card surface" },
+        "700": { "value": "#1B2432", "type": "color", "description": "Interactive surface / hover" },
+        "600": { "value": "#263245", "type": "color", "description": "Subtle boundary / border" },
+        "500": { "value": "#3E4C5E", "type": "color" },
+        "400": { "value": "#64748B", "type": "color" }
+      },
+      "emerald": {
+        "600": { "value": "#00B380", "type": "color" },
+        "500": { "value": "#00E5A3", "type": "color", "description": "Revival Emerald / verdictGreen" },
+        "400": { "value": "#33EBBA", "type": "color" },
+        "300": { "value": "#66F1D1", "type": "color" }
+      },
+      "cyan": {
+        "600": { "value": "#0284C7", "type": "color" },
+        "500": { "value": "#0EA5E9", "type": "color" },
+        "400": { "value": "#38BDF8", "type": "color", "description": "Surgical Cyan / patch telemetry" },
+        "300": { "value": "#7DD3FC", "type": "color" }
+      },
+      "amber": {
+        "600": { "value": "#D97706", "type": "color" },
+        "500": { "value": "#F5A623", "type": "color", "description": "Warning Amber / verdictYellow" },
+        "400": { "value": "#FBBF24", "type": "color" }
+      },
+      "crimson": {
+        "600": { "value": "#E11D48", "type": "color" },
+        "500": { "value": "#FF4D6A", "type": "color", "description": "Critical Crimson / verdictRed" },
+        "400": { "value": "#FB7185", "type": "color" }
+      },
+      "slate": {
+        "50": { "value": "#F8FAFC", "type": "color" },
+        "100": { "value": "#F1F5F9", "type": "color" },
+        "200": { "value": "#E2E8F0", "type": "color" },
+        "300": { "value": "#CBD5E1", "type": "color" },
+        "400": { "value": "#94A3B8", "type": "color" },
+        "500": { "value": "#64748B", "type": "color" }
+      }
+    },
+    "typography": {
+      "fontFamily": {
+        "display": { "value": "Space Grotesk, system-ui, -apple-system, sans-serif", "type": "fontFamily" },
+        "sans": { "value": "Inter, system-ui, -apple-system, sans-serif", "type": "fontFamily" },
+        "mono": { "value": "JetBrains Mono, SF Mono, Menlo, Consolas, monospace", "type": "fontFamily" }
+      },
+      "fontSize": {
+        "xs": { "value": "11px", "type": "dimension" },
+        "sm": { "value": "13px", "type": "dimension" },
+        "base": { "value": "15px", "type": "dimension" },
+        "lg": { "value": "18px", "type": "dimension" },
+        "xl": { "value": "22px", "type": "dimension" },
+        "2xl": { "value": "28px", "type": "dimension" },
+        "3xl": { "value": "36px", "type": "dimension" }
+      },
+      "fontWeight": {
+        "regular": { "value": "400", "type": "fontWeight" },
+        "medium": { "value": "500", "type": "fontWeight" },
+        "semibold": { "value": "600", "type": "fontWeight" },
+        "bold": { "value": "700", "type": "fontWeight" }
+      },
+      "lineHeight": {
+        "tight": { "value": "1.2", "type": "dimension" },
+        "normal": { "value": "1.5", "type": "dimension" },
+        "relaxed": { "value": "1.65", "type": "dimension" }
+      }
+    },
+    "spacing": {
+      "0": { "value": "0px", "type": "dimension" },
+      "1": { "value": "4px", "type": "dimension" },
+      "2": { "value": "8px", "type": "dimension" },
+      "3": { "value": "12px", "type": "dimension" },
+      "4": { "value": "16px", "type": "dimension" },
+      "6": { "value": "24px", "type": "dimension" },
+      "8": { "value": "32px", "type": "dimension" },
+      "12": { "value": "48px", "type": "dimension" },
+      "16": { "value": "64px", "type": "dimension" }
+    },
+    "radius": {
+      "none": { "value": "0px", "type": "dimension" },
+      "sm": { "value": "4px", "type": "dimension" },
+      "md": { "value": "8px", "type": "dimension" },
+      "lg": { "value": "12px", "type": "dimension" },
+      "full": { "value": "9999px", "type": "dimension" }
+    }
+  },
+  "semantic": {
+    "color": {
+      "canvas": {
+        "base": { "value": "{primitive.color.obsidian.900}", "type": "color" },
+        "surface": { "value": "{primitive.color.obsidian.800}", "type": "color" },
+        "interactive": { "value": "{primitive.color.obsidian.700}", "type": "color" },
+        "border": { "value": "{primitive.color.obsidian.600}", "type": "color" },
+        "borderSubtle": { "value": "{primitive.color.obsidian.700}", "type": "color" }
+      },
+      "text": {
+        "primary": { "value": "{primitive.color.slate.50}", "type": "color" },
+        "secondary": { "value": "{primitive.color.slate.300}", "type": "color" },
+        "muted": { "value": "{primitive.color.slate.500}", "type": "color" },
+        "accent": { "value": "{primitive.color.emerald.500}", "type": "color" },
+        "cyan": { "value": "{primitive.color.cyan.400}", "type": "color" }
+      },
+      "status": {
+        "verdictGreen": { "value": "{primitive.color.emerald.500}", "type": "color" },
+        "surgicalPatch": { "value": "{primitive.color.cyan.400}", "type": "color" },
+        "verdictYellow": { "value": "{primitive.color.amber.500}", "type": "color" },
+        "verdictRed": { "value": "{primitive.color.crimson.500}", "type": "color" }
+      }
+    }
+  },
+  "component": {
+    "oscilloscope": {
+      "background": { "value": "{semantic.color.canvas.base}", "type": "color" },
+      "gridLine": { "value": "rgba(38, 50, 69, 0.4)", "type": "color" },
+      "traceColor": { "value": "{semantic.color.status.verdictGreen}", "type": "color" },
+      "patchMarker": { "value": "{semantic.color.status.surgicalPatch}", "type": "color" }
+    },
+    "badge": {
+      "paddingY": { "value": "{primitive.spacing.1}", "type": "dimension" },
+      "paddingX": { "value": "{primitive.spacing.2}", "type": "dimension" },
+      "radius": { "value": "{primitive.radius.sm}", "type": "dimension" },
+      "fontFamily": { "value": "{primitive.typography.fontFamily.mono}", "type": "fontFamily" },
+      "fontSize": { "value": "{primitive.typography.fontSize.xs}", "type": "dimension" }
+    },
+    "card": {
+      "background": { "value": "{semantic.color.canvas.surface}", "type": "color" },
+      "border": { "value": "{semantic.color.canvas.border}", "type": "color" },
+      "radius": { "value": "{primitive.radius.md}", "type": "dimension" },
+      "padding": { "value": "{primitive.spacing.6}", "type": "dimension" }
+    },
+    "alignmentLadder": {
+      "fontFamily": { "value": "{primitive.typography.fontFamily.mono}", "type": "fontFamily" },
+      "pass": { "value": "{semantic.color.status.verdictGreen}", "type": "color" },
+      "fail": { "value": "{semantic.color.status.verdictRed}", "type": "color" },
+      "fixed": { "value": "{semantic.color.status.surgicalPatch}", "type": "color" }
+    }
+  }
+}
