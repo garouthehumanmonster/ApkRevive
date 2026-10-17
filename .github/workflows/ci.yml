@@ -68,14 +68,18 @@ jobs:
           cd apkrevive-android
           ./gradlew test lintDebug assembleDebug assembleRelease --no-daemon
 
+      - name: Stage Companion APKs
+        run: |
+          mkdir -p dist-companion
+          cp apkrevive-android/app/build/outputs/apk/release/app-release.apk dist-companion/ApkRevive-Companion-v0.4.0.apk
+          cp apkrevive-android/app/build/outputs/apk/debug/app-debug.apk dist-companion/ApkRevive-Companion-v0.4.0-debug.apk
+
       - name: Upload Companion APK Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: apkrevive-android-companion
-          path: |
-            apkrevive-android/app/build/outputs/apk/debug/app-debug.apk
-            apkrevive-android/app/build/outputs/apk/release/app-release-unsigned.apk
-          if-no-files-found: ignore
+          path: dist-companion/*.apk
+          if-no-files-found: error
 
   canary-matrix-and-sarif:
     name: Multi-Tier Canary Matrix & SARIF Telemetry
@@ -167,6 +171,6 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
-            dist/companion/*
+            dist/companion/*.apk
             dist/sarif/*
           generate_release_notes: true
