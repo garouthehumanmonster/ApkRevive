@@ -9,7 +9,7 @@ import os
 import re
 import tempfile
 import zipfile
-from typing import List, Set, Tuple
+from typing import List, Set, Tuple, Optional
 
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import align_apk
@@ -45,40 +45,15 @@ def _resolve_split_sources(sources: List[str], extract_dir: str) -> List[str]:
 
 
 def _strip_split_locks_from_manifest(manifest_bytes: bytes) -> bytes:
-    root = AxmlSurgeon.parse(manifest_bytes)
-
-    # 1. Remove 'split' and 'configForSplit' attributes from <manifest>
-    root.attributes = [
-        a for a in root.attributes
-        if a.name not in ("split", "configForSplit", "android:split", "android:configForSplit")
-    ]
-
-    # 2. Inspect <application>
+    stripped_bytes = AxmlSurgeon.strip_split_locks(manifest_bytes)
+    root = AxmlSurgeon.parse(stripped_bytes)
     app_node = root.find_child("application")
     if app_node:
-        # Strip android:isSplitRequired
-        app_node.attributes = [
-            a for a in app_node.attributes
-            if a.name not in ("isSplitRequired", "android:isSplitRequired")
-        ]
-
-        # Strip com.android.vending.splits.required from <meta-data>
-        app_node.children = [
-            ch for ch in app_node.children
-            if not (
-                ch.tag == "meta-data"
-                and any(
-                    (a.name in ("name", "android:name") and a.raw_value == "com.android.vending.splits.required")
-                    or (a.name in ("name", "android:name") and a.get_value() == "com.android.vending.splits.required")
-                    for a in ch.attributes
-                )
-            )
-        ]
-
+        app_node.set_attr("extractNativeLibs", False)
     return AxmlSurgeon.serialize(root)
 
 
-def merge_split_apks(split_sources: List[str], output_apk: str) -> str:
+def merge_split_apks(split_sources: List[str], output_apk: str, warnings: Optional[List[str]] = None) -> str:
     """
     Ingests split APK sources (directories, .apks, .xapk, or list of .apk files).
     Unifies all splits into a single standalone APK:
@@ -107,6 +82,21 @@ def merge_split_apks(split_sources: List[str], output_apk: str) -> str:
                 split_apks.append(apk)
 
         ordered_apks = [base_apk] + split_apks
+
+        # Detect when any non-base split contains resources.arsc
+        detected_splits: List[str] = []
+        for apk in split_apks:
+            with zipfile.ZipFile(apk, "r") as zin:
+                if "resources.arsc" in zin.namelist():
+                    detected_splits.append(os.path.basename(apk))
+
+        if detected_splits:
+            warn_msg = (
+                f"WARN_SPLIT_RESOURCE_TABLE_MERGE: Split APK contains separate resources.arsc "
+                f"({', '.join(detected_splits)}); non-colliding res/ files merged without deep table unification."
+            )
+            if warnings is not None:
+                warnings.append(warn_msg)
 
         # Collect DEX files in order: base first, then splits
         dex_files_ordered: List[Tuple[str, bytes]] = []
@@ -150,7 +140,12 @@ def merge_split_apks(split_sources: List[str], output_apk: str) -> str:
                         if fname.startswith("lib/"):
                             if fname not in lib_entries:
                                 lib_entries.add(fname)
-                                zout.writestr(item, zin.read(fname))
+                                if fname.endswith(".so"):
+                                    zinfo = zipfile.ZipInfo(fname)
+                                    zinfo.compress_type = zipfile.ZIP_STORED
+                                    zout.writestr(zinfo, zin.read(fname))
+                                else:
+                                    zout.writestr(item, zin.read(fname))
                             continue
 
                         # Assets, resources, and others: avoid duplicate path collisions
@@ -168,6 +163,6 @@ def merge_split_apks(split_sources: List[str], output_apk: str) -> str:
         if out_dir:
             os.makedirs(out_dir, exist_ok=True)
 
-        align_apk(temp_merged_path, output_apk)
+        align_apk(temp_merged_path, output_apk, page_align_64bit=16384)
 
     return output_apk

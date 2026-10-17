@@ -6,6 +6,7 @@ import getpass
 import os
 import secrets
 import shutil
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -169,3 +170,64 @@ def verify_apk(apk_path: str, verbose: bool = False) -> Dict[str, Any]:
         return {"verified": res.returncode == 0, "output": res.stdout + res.stderr}
     except Exception as e:
         return {"verified": False, "output": str(e)}
+
+
+def verify_signing_block_padding(apk_path: str) -> Dict[str, Any]:
+    """
+    Verifies APK Signing Block presence, Android Verity Padding Block (0x42726577),
+    and Central Directory 4KB alignment.
+    """
+    with open(apk_path, "rb") as f:
+        in_buf = f.read()
+
+    buf_len = len(in_buf)
+    eocd_pos = in_buf.rfind(b"PK\x05\x06")
+    if eocd_pos == -1 or eocd_pos + 22 > buf_len:
+        return {
+            "has_signing_block": False,
+            "cd_offset": 0,
+            "cd_aligned_4k": False,
+            "has_verity_padding": False,
+            "block_ids": [],
+            "signing_block_size": 0,
+            "valid": False,
+        }
+
+    cd_entries_total, cd_size, cd_offset = struct.unpack_from("<HII", in_buf, eocd_pos + 10)
+
+    if cd_offset >= 32 and in_buf[cd_offset - 16 : cd_offset] == b"APK Sig Block 42":
+        block_size = struct.unpack_from("<Q", in_buf, cd_offset - 24)[0]
+        start_offset = cd_offset - block_size - 8
+        if start_offset >= 0:
+            block_size_start = struct.unpack_from("<Q", in_buf, start_offset)[0]
+            if block_size_start == block_size:
+                block_ids = []
+                pos = cd_offset - block_size
+                end_pos = cd_offset - 24
+                while pos + 12 <= end_pos:
+                    pair_size = struct.unpack_from("<Q", in_buf, pos)[0]
+                    if pair_size < 4 or pos + 8 + pair_size > end_pos:
+                        break
+                    pair_id = struct.unpack_from("<I", in_buf, pos + 8)[0]
+                    block_ids.append(pair_id)
+                    pos += 8 + pair_size
+                return {
+                    "has_signing_block": True,
+                    "cd_offset": cd_offset,
+                    "cd_aligned_4k": (cd_offset % 4096 == 0),
+                    "has_verity_padding": (0x42726577 in block_ids),
+                    "block_ids": block_ids,
+                    "signing_block_size": block_size,
+                    "valid": (cd_offset % 4096 == 0),
+                }
+
+    return {
+        "has_signing_block": False,
+        "cd_offset": cd_offset,
+        "cd_aligned_4k": (cd_offset % 4096 == 0),
+        "has_verity_padding": False,
+        "block_ids": [],
+        "signing_block_size": 0,
+        "valid": False,
+    }
+

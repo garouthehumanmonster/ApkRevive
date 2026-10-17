@@ -24,10 +24,41 @@ DEPRECATED_PERMISSIONS = {
 }
 
 
+DANGEROUS_PERMISSIONS = {
+    "android.permission.READ_EXTERNAL_STORAGE",
+    "android.permission.WRITE_EXTERNAL_STORAGE",
+    "android.permission.CAMERA",
+    "android.permission.RECORD_AUDIO",
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.READ_CONTACTS",
+    "android.permission.WRITE_CONTACTS",
+    "android.permission.GET_ACCOUNTS",
+    "android.permission.READ_CALENDAR",
+    "android.permission.WRITE_CALENDAR",
+    "android.permission.READ_PHONE_STATE",
+    "android.permission.CALL_PHONE",
+    "android.permission.READ_CALL_LOG",
+    "android.permission.WRITE_CALL_LOG",
+    "android.permission.ADD_VOICEMAIL",
+    "android.permission.USE_SIP",
+    "android.permission.PROCESS_OUTGOING_CALLS",
+    "android.permission.BODY_SENSORS",
+    "android.permission.SEND_SMS",
+    "android.permission.RECEIVE_SMS",
+    "android.permission.READ_SMS",
+    "android.permission.RECEIVE_WAP_PUSH",
+    "android.permission.RECEIVE_MMS",
+    "android.permission.ACTIVITY_RECOGNITION",
+    "android.permission.ACCESS_MEDIA_LOCATION",
+}
+
+
 def evaluate_triage(
     apk_meta: ApkMetadata,
     device_profile: DeviceProfile,
     results_dir: Optional[Union[str, Path]] = None,
+    bump_target_sdk: Optional[int] = None,
 ) -> Dict[str, Any]:
     if isinstance(apk_meta, dict):
         apk_meta = ApkMetadata.from_dict(apk_meta)
@@ -212,6 +243,31 @@ def evaluate_triage(
     if apk.get("static_removed_apis"):
         warnings.append(f"STATIC_REMOVED_APIS_REFERENCED: {apk.get('static_removed_apis')}")
 
+    effective_target_sdk = bump_target_sdk if bump_target_sdk is not None else target_sdk
+
+    if bump_target_sdk is not None and bump_target_sdk >= 23:
+        dangerous_matches = sorted(list(set(
+            p for p in permissions
+            if p in DANGEROUS_PERMISSIONS or f"android.permission.{p}" in DANGEROUS_PERMISSIONS
+        )))
+        if dangerous_matches:
+            warnings.append(
+                f"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to {bump_target_sdk} (>= 23). "
+                f"The APK requests dangerous permissions ({dangerous_matches}) which become runtime permissions. "
+                f"Functionality requiring these permissions may fail unless granted at runtime or via settings/adb."
+            )
+
+    if bump_target_sdk is not None and bump_target_sdk != target_sdk:
+        required_transforms.append("BUMP_TARGET_SDK")
+        reasons.append(TriageSignal.MODIFICATION_REQUIRED.value)
+
+    is_blocked_by_floor = (
+        "TARGET_SDK_INSTALL_FLOOR_API34" in applicable_ids
+        or "TARGET_SDK_INSTALL_FLOOR_API35" in applicable_ids
+        or effective_target_sdk < device_floor
+    )
+    install_method = "BYPASS_LOW_TARGET_SDK_BLOCK" if is_blocked_by_floor else "DIRECT_INSTALL"
+
     # 5. Evaluate Verdict Class
     if required_transforms:
         res: Dict[str, Any]
@@ -219,6 +275,7 @@ def evaluate_triage(
             res = {
                 "verdict": Verdict.RED.value,
                 "reason": TriageSignal.EXCEEDS_2GB_LIMIT_FOR_REPACKING.value,
+                "install_method": install_method,
                 "details": f"Archive size {apk_size} exceeds 2GB container repacker limit",
                 "warnings": warnings,
                 "required_transforms": required_transforms,
@@ -228,6 +285,7 @@ def evaluate_triage(
             res = {
                 "verdict": Verdict.NEEDS_USER_INPUT.value,
                 "reason": TriageSignal.SIGNATURE_VERIFICATION_DETECTED.value,
+                "install_method": install_method,
                 "details": "APK contains self-signature checks; re-signing will alter signature fingerprint",
                 "warnings": warnings,
                 "required_transforms": required_transforms,
@@ -237,6 +295,7 @@ def evaluate_triage(
             res = {
                 "verdict": Verdict.YELLOW.value,
                 "reason": TriageSignal.MODIFICATION_REQUIRED.value,
+                "install_method": install_method,
                 "details": f"Requires transforms: {required_transforms}",
                 "warnings": warnings,
                 "required_transforms": required_transforms,
@@ -260,14 +319,14 @@ def evaluate_triage(
     is_blocked_by_floor = (
         "TARGET_SDK_INSTALL_FLOOR_API34" in applicable_ids
         or "TARGET_SDK_INSTALL_FLOOR_API35" in applicable_ids
-        or target_sdk < device_floor
+        or effective_target_sdk < device_floor
     )
     install_method = "BYPASS_LOW_TARGET_SDK_BLOCK" if is_blocked_by_floor else "DIRECT_INSTALL"
     return {
         "verdict": Verdict.GREEN.value,
         "reason": TriageSignal.RUNNABLE_UNMODIFIED.value,
         "install_method": install_method,
-        "details": f"No transforms needed. Install method: {install_method} (targetSdk={target_sdk}, floor={device_floor})",
+        "details": f"No transforms needed. Install method: {install_method} (targetSdk={effective_target_sdk}, floor={device_floor})",
         "warnings": warnings,
         "required_transforms": [],
         "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},

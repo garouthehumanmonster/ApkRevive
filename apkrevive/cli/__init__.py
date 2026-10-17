@@ -167,7 +167,11 @@ def triage_cmd(args):
     if getattr(args, "enable_cutout", False):
         dev.is_widescreen = True
 
-    res = evaluate_triage(apk, dev)
+    bump_target_sdk = getattr(args, "bump_target_sdk", None)
+    standalone_install = getattr(args, "standalone_install", False)
+    if standalone_install and bump_target_sdk is None:
+        bump_target_sdk = 24
+    res = evaluate_triage(apk, dev, bump_target_sdk=bump_target_sdk)
 
     if getattr(args, "sarif", False):
         sarif_data = triage_to_sarif(res, getattr(args, "apk", "unknown.apk"))
@@ -204,7 +208,11 @@ def revive_cmd(args):
         os_api_level=getattr(args, "device_api", 35),
         page_size_bytes=getattr(args, "page_size", 16384),
     ) if (hasattr(args, "device_api") or hasattr(args, "page_size")) else DeviceProfile()
-    triage = evaluate_triage(meta, dev)
+    bump_target_sdk = getattr(args, "bump_target_sdk", None)
+    standalone_install = getattr(args, "standalone_install", False)
+    if standalone_install and bump_target_sdk is None:
+        bump_target_sdk = 24
+    triage = evaluate_triage(meta, dev, bump_target_sdk=bump_target_sdk)
 
     transforms = list(triage.get("required_transforms", []))
     if getattr(args, "enable_60hz", False) and "LOCK_60HZ_DISPLAY_MODE" not in transforms:
@@ -263,10 +271,16 @@ def revive_cmd(args):
 
     enable_60hz = getattr(args, "enable_60hz", False) or ("LOCK_60HZ_DISPLAY_MODE" in active_transforms)
     enable_cutout = getattr(args, "enable_cutout", False) or ("CUTOUT_SHORT_EDGES" in active_transforms)
+    inject_shim = enable_60hz or enable_cutout or standalone_install
     patched_axml = AxmlSurgeon.patch_manifest(
         manifest_data,
         active_transforms,
-        options={"enable_60hz": enable_60hz, "enable_cutout": enable_cutout}
+        options={
+            "enable_60hz": enable_60hz,
+            "enable_cutout": enable_cutout,
+            "standalone_install": standalone_install,
+            "bump_target_sdk": bump_target_sdk,
+        }
     )
 
     dex_indices = []
@@ -296,7 +310,7 @@ def revive_cmd(args):
             else:
                 zout.writestr(item, data)
 
-        if (enable_60hz or enable_cutout) and not has_shim_provider:
+        if inject_shim and not has_shim_provider:
             shim_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "shim", "shim.dex")
             if os.path.exists(shim_path):
                 next_idx = max(dex_indices) + 1 if dex_indices else 1
@@ -423,8 +437,10 @@ def main():
     p_triage.add_argument("--target-sdk", type=int, default=None)
     p_triage.add_argument("--apk-abis", default=None)
     p_triage.add_argument("--uses-apache-http", action="store_true", default=None)
-    p_triage.add_argument("--enable-60hz", action="store_true", help="Include 60Hz display lock shim transform")
-    p_triage.add_argument("--enable-cutout", action="store_true", help="Include display cutout layout transform")
+    p_triage.add_argument("--enable-60hz", action="store_true", help="Evaluate fixed physics display lock")
+    p_triage.add_argument("--enable-cutout", action="store_true", help="Evaluate display cutout short edges layout")
+    p_triage.add_argument("--bump-target-sdk", type=int, default=None, help="Simulate bumping targetSdkVersion")
+    p_triage.add_argument("--standalone-install", action="store_true", help="Simulate standalone installation mode (defaults targetSdk to 24)")
     p_triage.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     p_triage.add_argument("--sarif", action="store_true", help="Output SARIF v2.1.0 telemetry")
 
@@ -432,6 +448,8 @@ def main():
     p_revive.add_argument("apk", help="Path to APK file")
     p_revive.add_argument("--output", help="Output path")
     p_revive.add_argument("--dry-run", action="store_true", help="Perform triage and plan transforms without writing files or signing")
+    p_revive.add_argument("--bump-target-sdk", type=int, default=None, help="Bump targetSdkVersion in AndroidManifest.xml")
+    p_revive.add_argument("--standalone-install", action="store_true", help="Prepare APK for standalone install (defaults targetSdk to 24 and injects runtime shim)")
     p_revive.add_argument("--enable-60hz", action="store_true")
     p_revive.add_argument("--enable-cutout", action="store_true")
     p_revive.add_argument("--enable-resizable", action="store_true", help="Opt-in: inject resizeableActivity=true (Caution: may distort 2D canvas/HUD scaling)")

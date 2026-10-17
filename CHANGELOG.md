@@ -5,9 +5,15 @@ All notable changes to ApkRevive will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2026-10-16
+## [0.4.0] - 2026-10-17
 
 ### Added
+- In-memory AXML Surgeon Hardening (`axml.py`): Enforced ascending attribute resource-ID sorting invariant for `libandroidfw` binary search compliance; safe string pool style table appending (`stylesStart` shift and 4-byte padding preservation); split-lock stripping.
+- Bytecode Shim & Standalone Install: Dynamic `<provider>` authority (`${packageName}.apkrevive.init`), `initOrder=2147483647`, and ART runtime compatibility hooks (reflection `StrictMode.disableDeathOnFileUriExposure()`, `ThreadPolicy.permitAll()`, and `ApkReviveShim` uncaught exception handler).
+- Standalone Install Pipeline: `--bump-target-sdk <int>` and `--standalone-install` flags with dangerous permissions triage warning (`WARN_RUNTIME_PERMISSIONS_ON_BUMP`).
+- Split APK Merger (`split_merger.py`): Native libraries synchronized as `ZIP_STORED` with `extractNativeLibs="false"` and 16KB ZipAlign; secondary `resources.arsc` split detection emitting `WARN_SPLIT_RESOURCE_TABLE_MERGE`.
+- APK Signing Block 4KB Verity Padding: Added `verify_signing_block_padding()` verifying block `0x42726577` and Central Directory 4096-byte alignment.
+- Audits and documentation organized into `docs/audits/AUDIT_01.md`, `AUDIT_02.md`, and `AUDIT_03.md`.
 - `apkrevive/core/elf16k.py`: Truthful 3-state 16KB ELF page-size verification (`ALIGNED`, `COMPAT_ONLY`, `UNSAFE`).
 - `apkrevive/security/zip_guard.py`: Zero-trust Zip Slip prevention, null byte rejection, symlink blocking, and decompression bomb guard.
 - `apkrevive/cli/`: Modularized CLI architecture with `diff`, `tui`, and SARIF v2.1.0 telemetry serializers.
@@ -18,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Replaced unsafe in-place ELF segment header rewrites with truthful compatibility mode injection (`android:pageSizeCompat="enabled"`).
 - Aligned documentation, README verified capabilities matrix, and AVD status records with real hardware receipts.
-- Expanded test suite to 218 passing tests with 100% pass rate across Linux, macOS, and Windows.
+- Expanded test suite to 226 passing tests with 100% pass rate.
 
 ### Removed
 - Purged fake Dalvik multi-dex trampoline (`dex_trampoline.py`).
@@ -28,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Repository hygiene infrastructure: `LICENSE` (Apache-2.0), `SECURITY.md`, `CONTRIBUTING.md`, and `CHANGELOG.md`.
 - Dynamic single version source linking `pyproject.toml` and `apkrevive --version`.
-- Comprehensive read-only audit report in `AUDIT.md`.
+- Comprehensive read-only audit reports in `docs/audits/`.
 - Known Limitations and Legal Disclaimer sections in `README.md`.
 
 ### Changed

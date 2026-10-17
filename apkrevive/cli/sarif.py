@@ -140,6 +140,18 @@ BASE_RULES = [
         "shortDescription": {"text": "No differences detected between original and revived APK."},
         "defaultConfiguration": {"level": "note"},
     },
+    {
+        "id": "WARN_RUNTIME_PERMISSIONS_ON_BUMP",
+        "name": "WarnRuntimePermissionsOnBump",
+        "shortDescription": {"text": "Target SDK bumped to >= 23 activates runtime permissions for requested dangerous permissions."},
+        "defaultConfiguration": {"level": "warning"},
+    },
+    {
+        "id": "WARN_SPLIT_RESOURCE_TABLE_MERGE",
+        "name": "WarnSplitResourceTableMerge",
+        "shortDescription": {"text": "Split APK contains separate resources.arsc; non-colliding res/ files merged without deep table unification."},
+        "defaultConfiguration": {"level": "warning"},
+    },
 ]
 
 

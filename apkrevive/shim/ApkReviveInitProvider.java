@@ -16,7 +16,7 @@ import android.view.WindowManager;
 
 /**
  * ApkReviveInitProvider - Auto-initializing lifecycle shim for legacy APK modernization.
- * Injected into AndroidManifest.xml with android:initOrder="9999".
+ * Injected into AndroidManifest.xml with android:initOrder="2147483647".
  * 
  * CRITICAL MANIFEST INVARIANT:
  * If an APK specifies android:hasCode="false", the Android runtime will completely ignore classes.dex,
@@ -30,6 +30,31 @@ public class ApkReviveInitProvider extends ContentProvider {
 
     @Override
     public boolean onCreate() {
+        // 1. Reflection call to StrictMode.disableDeathOnFileUriExposure() (guards API 24+ FileUriExposedException)
+        try {
+            java.lang.reflect.Method m = android.os.StrictMode.class.getMethod("disableDeathOnFileUriExposure");
+            m.invoke(null);
+        } catch (Throwable ignored) {}
+
+        // 2. Relax StrictMode.ThreadPolicy (permitAll for legacy apps doing synchronous I/O on main thread)
+        try {
+            android.os.StrictMode.setThreadPolicy(new android.os.StrictMode.ThreadPolicy.Builder().permitAll().build());
+        } catch (Throwable ignored) {}
+
+        // 3. Install fallback UncaughtExceptionHandler with ApkReviveShim diagnostic tag
+        try {
+            final Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
+            Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                @Override
+                public void uncaughtException(Thread t, Throwable e) {
+                    android.util.Log.e("ApkReviveShim", "CRITICAL EARLY STARTUP EXCEPTION in " + t.getName() + ": " + e.getMessage(), e);
+                    if (defaultHandler != null) {
+                        defaultHandler.uncaughtException(t, e);
+                    }
+                }
+            });
+        } catch (Throwable ignored) {}
+
         Context context = getContext();
         if (context == null) return false;
 
@@ -59,8 +84,7 @@ public class ApkReviveInitProvider extends ContentProvider {
 
         app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
             @Override
-            public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
-            }
+            public void onActivityCreated(Activity activity, Bundle savedInstanceState) {}
 
             @Override
             public void onActivityStarted(Activity activity) {
@@ -72,14 +96,10 @@ public class ApkReviveInitProvider extends ContentProvider {
                 applyWindowAttributes(activity, final60Hz, finalCutout);
             }
 
-            @Override
-            public void onActivityPaused(Activity activity) {}
-            @Override
-            public void onActivityStopped(Activity activity) {}
-            @Override
-            public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
-            @Override
-            public void onActivityDestroyed(Activity activity) {}
+            @Override public void onActivityPaused(Activity activity) {}
+            @Override public void onActivityStopped(Activity activity) {}
+            @Override public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
+            @Override public void onActivityDestroyed(Activity activity) {}
         });
 
         return true;
@@ -108,7 +128,6 @@ public class ApkReviveInitProvider extends ContentProvider {
                     Display.Mode[] supportedModes = display.getSupportedModes();
                     if (currentMode != null && supportedModes != null) {
                         for (Display.Mode mode : supportedModes) {
-                            // Strictly preserve current display resolution while locking refresh rate to 60Hz
                             if (mode.getPhysicalWidth() == currentMode.getPhysicalWidth() &&
                                 mode.getPhysicalHeight() == currentMode.getPhysicalHeight() &&
                                 Math.abs(mode.getRefreshRate() - 60.0f) < 1.0f) {
@@ -134,28 +153,9 @@ public class ApkReviveInitProvider extends ContentProvider {
         }
     }
 
-    @Override
-    public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
-        return null;
-    }
-
-    @Override
-    public String getType(Uri uri) {
-        return null;
-    }
-
-    @Override
-    public Uri insert(Uri uri, ContentValues values) {
-        return null;
-    }
-
-    @Override
-    public int delete(Uri uri, String selection, String[] selectionArgs) {
-        return 0;
-    }
-
-    @Override
-    public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
-        return 0;
-    }
+    @Override public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) { return null; }
+    @Override public String getType(Uri uri) { return null; }
+    @Override public Uri insert(Uri uri, ContentValues values) { return null; }
+    @Override public int delete(Uri uri, String selection, String[] selectionArgs) { return 0; }
+    @Override public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) { return 0; }
 }
