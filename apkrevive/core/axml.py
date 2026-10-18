@@ -5,7 +5,7 @@ Guarantees AXML(N) == AXML(N+1).
 
 import struct
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 
 
 CHUNK_XML = 0x0003
@@ -66,6 +66,16 @@ class AxmlNode:
     ns: str = ""
     attributes: List[AxmlAttribute] = field(default_factory=list)
     children: List["AxmlNode"] = field(default_factory=list)
+    _raw_source_bytes: Optional[bytes] = field(default=None, repr=False, compare=False)
+    _ast_signature: Optional[Tuple[Any, ...]] = field(default=None, repr=False, compare=False)
+
+    def tree_signature(self) -> Tuple[Any, ...]:
+        return (
+            self.tag,
+            self.ns,
+            tuple((a.ns, a.name, a.raw_value, a.data_type, a.data) for a in self.attributes),
+            tuple(c.tree_signature() for c in self.children),
+        )
 
     def find_child(self, tag: str, attr_name: Optional[str] = None, attr_val: Optional[str] = None) -> Optional["AxmlNode"]:
         for child in self.children:
@@ -235,7 +245,10 @@ class AxmlSurgeon:
 
         if not root_nodes:
             raise ValueError("No root element found in AXML")
-        return root_nodes[0]
+        root = root_nodes[0]
+        root._raw_source_bytes = data
+        root._ast_signature = root.tree_signature()
+        return root
 
     @classmethod
     def append_string_to_pool(cls, sp_chunk: bytes, new_strings: List[str]) -> bytes:
@@ -381,6 +394,12 @@ class AxmlSurgeon:
 
     @staticmethod
     def serialize(root: AxmlNode) -> bytes:
+        if (
+            getattr(root, "_raw_source_bytes", None) is not None
+            and getattr(root, "_ast_signature", None) == root.tree_signature()
+        ):
+            return root._raw_source_bytes  # type: ignore[return-value]
+
         string_list: List[str] = []
         string_map: Dict[str, int] = {}
 

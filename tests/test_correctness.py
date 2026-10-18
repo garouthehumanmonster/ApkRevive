@@ -14,6 +14,7 @@ import tempfile
 import unittest
 import zipfile
 from unittest.mock import patch
+from typing import Optional
 
 from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.axml import AxmlSurgeon, AxmlNode
@@ -32,7 +33,7 @@ def make_synthetic_elf(p_offset: int, p_vaddr: int, p_align: int) -> bytes:
     return bytes(hdr + ph)
 
 
-def make_minimal_manifest(pkg: str = "com.apkrevive.test", split: str = None) -> bytes:
+def make_minimal_manifest(pkg: str = "com.apkrevive.test", split: Optional[str] = None) -> bytes:
     """Constructs a serialized AndroidManifest.xml."""
     manifest = AxmlNode(tag="manifest")
     manifest.set_attr("package", pkg, ns="")
@@ -85,12 +86,26 @@ class TestCorrectness(unittest.TestCase):
         self.assertEqual(res_35["reason"], TriageSignal.INCOMPATIBLE_PAGE_SIZE.value)
         self.assertIn("64-bit ELF has invalid or <16KB segment alignment", res_35["details"])
 
-        # On API 36 (Android 16): Must be YELLOW with PAGE_SIZE_COMPAT
+        # On API 36 (Android 16): Must fail-closed as RED (pageSizeCompat cannot fix colliding memory mappings)
         dev_36 = DeviceProfile(os_api_level=36, page_size_bytes=16384)
         res_36 = evaluate_triage(apk, dev_36)
-        self.assertEqual(res_36["verdict"], Verdict.YELLOW.value)
-        self.assertEqual(res_36["reason"], TriageSignal.MODIFICATION_REQUIRED.value)
-        self.assertIn("PAGE_SIZE_COMPAT", res_36["required_transforms"])
+        self.assertEqual(res_36["verdict"], Verdict.RED.value)
+        self.assertEqual(res_36["reason"], TriageSignal.INCOMPATIBLE_PAGE_SIZE.value)
+        self.assertIn("colliding 16KB pages", res_36["details"])
+
+        # Standard 4KB-linked ELF (clean layout, no collisions) can use PAGE_SIZE_COMPAT on API 36
+        apk_clean_4k = ApkMetadata(
+            package_name="com.test.clean4k",
+            target_sdk=28,
+            abis=["arm64-v8a"],
+            elf_load_align_64bit=4096,
+            elf_16kb_status="COMPAT_ONLY",
+            has_invalid_elf_layout=False,
+            size_bytes=5_000_000,
+        )
+        res_clean_36 = evaluate_triage(apk_clean_4k, dev_36)
+        self.assertEqual(res_clean_36["verdict"], Verdict.YELLOW.value)
+        self.assertIn("PAGE_SIZE_COMPAT", res_clean_36["required_transforms"])
 
     # 3. Idempotent revive: running revive twice produces same dex count and identical manifest
     def test_idempotent_revive(self):
@@ -110,7 +125,7 @@ class TestCorrectness(unittest.TestCase):
             ks_alias=None,
             key_pass=None,
         )
-        with patch("apkrevive.cli.sign_apk", return_value=True):
+        with patch("apkrevive.cli.sign_apk", return_value=True), patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK")):
             code1 = revive_cmd(args1)
         self.assertEqual(code1, 0)
 
@@ -126,7 +141,7 @@ class TestCorrectness(unittest.TestCase):
             ks_alias=None,
             key_pass=None,
         )
-        with patch("apkrevive.cli.sign_apk", return_value=True):
+        with patch("apkrevive.cli.sign_apk", return_value=True), patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK")):
             code2 = revive_cmd(args2)
         self.assertEqual(code2, 0)
 
@@ -204,7 +219,7 @@ class TestCorrectness(unittest.TestCase):
             ks_alias=None,
             key_pass=None,
         )
-        with patch("apkrevive.cli.sign_apk", return_value=True):
+        with patch("apkrevive.cli.sign_apk", return_value=True), patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK")):
             code1 = revive_cmd(args1)
         self.assertEqual(code1, 0)
 
@@ -227,7 +242,7 @@ class TestCorrectness(unittest.TestCase):
             ks_alias=None,
             key_pass=None,
         )
-        with patch("apkrevive.cli.sign_apk", return_value=True):
+        with patch("apkrevive.cli.sign_apk", return_value=True), patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK")):
             code2 = revive_cmd(args2)
         self.assertEqual(code2, 0)
 
