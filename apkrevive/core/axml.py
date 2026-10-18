@@ -43,6 +43,15 @@ KNOWN_RESOURCE_IDS = {
     "requestLegacyExternalStorage": 0x01010603,
     "resource": 0x01010025,
     "installLocation": 0x010102B7,
+    "glEsVersion": 0x01010281,
+    "maxSdkVersion": 0x01010271,
+    "icon": 0x01010002,
+    "label": 0x01010001,
+    "theme": 0x01010000,
+    "screenOrientation": 0x0101001E,
+    "configChanges": 0x0101001F,
+    "allowBackup": 0x01010280,
+    "anyDensity": 0x0101026C,
 }
 
 
@@ -53,6 +62,7 @@ class AxmlAttribute:
     raw_value: Optional[str]
     data_type: int
     data: int
+    resource_id: int = 0
 
     def get_value(self) -> Any:
         if self.data_type == 0x03:
@@ -70,12 +80,13 @@ class AxmlNode:
     children: List["AxmlNode"] = field(default_factory=list)
     _raw_source_bytes: Optional[bytes] = field(default=None, repr=False, compare=False)
     _ast_signature: Optional[Tuple[Any, ...]] = field(default=None, repr=False, compare=False)
+    _orig_resource_map: Dict[str, int] = field(default_factory=dict, repr=False, compare=False)
 
     def tree_signature(self) -> Tuple[Any, ...]:
         return (
             self.tag,
             self.ns,
-            tuple((a.ns, a.name, a.raw_value, a.data_type, a.data) for a in self.attributes),
+            tuple((a.ns, a.name, a.raw_value, a.data_type, a.data, a.resource_id) for a in self.attributes),
             tuple(c.tree_signature() for c in self.children),
         )
 
@@ -96,7 +107,7 @@ class AxmlNode:
                 return a
         return None
 
-    def set_attr(self, name: str, value: Any, ns: str = ANDROID_NS):
+    def set_attr(self, name: str, value: Any, ns: Optional[str] = None):
         existing = self.get_attr(name)
         if isinstance(value, bool):
             data_type = 0x12
@@ -111,12 +122,30 @@ class AxmlNode:
             data = 0
             raw_val = str(value)
 
+        base_name = name.split(":")[-1]
+        if ns is None:
+            if base_name in ("package", "split", "configForSplit", "featureSplit") or name.startswith("custom_"):
+                ns = ""
+            else:
+                ns = ANDROID_NS
+
+        res_id = KNOWN_RESOURCE_IDS.get(name, KNOWN_RESOURCE_IDS.get(base_name, 0)) if ns else 0
+
         if existing:
             existing.data_type = data_type
             existing.data = data
             existing.raw_value = raw_val
+            if res_id:
+                existing.resource_id = res_id
         else:
-            self.attributes.append(AxmlAttribute(ns=ns, name=name, raw_value=raw_val, data_type=data_type, data=data))
+            self.attributes.append(AxmlAttribute(
+                ns=ns,
+                name=name,
+                raw_value=raw_val,
+                data_type=data_type,
+                data=data,
+                resource_id=res_id
+            ))
 
 
 class AxmlSurgeon:
@@ -230,7 +259,15 @@ class AxmlSurgeon:
                     ans_str = strings[a_ns] if 0 <= a_ns < len(strings) else ""
                     aname_str = strings[a_name] if 0 <= a_name < len(strings) else ""
                     araw_str = strings[a_raw] if 0 <= a_raw < len(strings) else None
-                    node.attributes.append(AxmlAttribute(ns=ans_str, name=aname_str, raw_value=araw_str, data_type=a_type, data=a_data))
+                    a_res_id = _resource_map[a_name] if 0 <= a_name < len(_resource_map) else 0
+                    node.attributes.append(AxmlAttribute(
+                        ns=ans_str,
+                        name=aname_str,
+                        raw_value=araw_str,
+                        data_type=a_type,
+                        data=a_data,
+                        resource_id=a_res_id
+                    ))
                     attr_offset += attr_size if attr_size >= 20 else 20
 
                 if element_stack:
@@ -250,6 +287,11 @@ class AxmlSurgeon:
         root = root_nodes[0]
         root._raw_source_bytes = data
         root._ast_signature = root.tree_signature()
+        root._orig_resource_map = {
+            strings[i]: _resource_map[i]
+            for i in range(len(_resource_map))
+            if i < len(strings) and _resource_map[i] != 0
+        }
         return root
 
     @classmethod
@@ -405,6 +447,41 @@ class AxmlSurgeon:
         string_list: List[str] = []
         string_map: Dict[str, int] = {}
 
+        # Collect and validate resource map from original manifest + known platform attributes
+        res_map: Dict[str, int] = dict(getattr(root, "_orig_resource_map", {}))
+        for k, v in KNOWN_RESOURCE_IDS.items():
+            if k not in res_map:
+                res_map[k] = v
+
+        def validate_node_attributes(node: AxmlNode):
+            for a in node.attributes:
+                attr_base_name = a.name.split(":")[-1]
+                if attr_base_name in ("package", "split", "configForSplit", "featureSplit") or a.name.startswith("custom_"):
+                    a.ns = ""
+                    a.resource_id = 0
+                    continue
+                if a.resource_id != 0:
+                    res_map[a.name] = a.resource_id
+                    res_map[attr_base_name] = a.resource_id
+                else:
+                    if attr_base_name in res_map:
+                        a.resource_id = res_map[attr_base_name]
+                    elif a.name in res_map:
+                        a.resource_id = res_map[a.name]
+                    elif attr_base_name in KNOWN_RESOURCE_IDS:
+                        a.resource_id = KNOWN_RESOURCE_IDS[attr_base_name]
+                        res_map[attr_base_name] = a.resource_id
+                        res_map[a.name] = a.resource_id
+                    elif a.ns == ANDROID_NS or a.name.startswith("android:"):
+                        raise ValueError(
+                            f"Unknown Android manifest attribute '{a.name}' (namespace '{a.ns}'): "
+                            f"no resource ID found in original manifest resource map or known platform definitions."
+                        )
+            for ch in node.children:
+                validate_node_attributes(ch)
+
+        validate_node_attributes(root)
+
         def add_str(s: Optional[str]) -> int:
             if s is None:
                 return 0xFFFFFFFF
@@ -416,12 +493,12 @@ class AxmlSurgeon:
         add_str(ANDROID_NS)
         add_str("android")
 
-        for k in KNOWN_RESOURCE_IDS:
+        for k in res_map:
             add_str(k)
 
         def attr_sort_key(attr: AxmlAttribute):
             attr_base_name = attr.name.split(":")[-1]
-            res_id = KNOWN_RESOURCE_IDS.get(attr.name, KNOWN_RESOURCE_IDS.get(attr_base_name, 0))
+            res_id = attr.resource_id or res_map.get(attr.name, res_map.get(attr_base_name, 0))
             if res_id > 0:
                 return (0, res_id)
             return (1, 0)
@@ -464,7 +541,7 @@ class AxmlSurgeon:
 
         res_ids = []
         for s in string_list:
-            res_ids.append(KNOWN_RESOURCE_IDS.get(s, 0))
+            res_ids.append(res_map.get(s, 0))
         rm_size = 8 + (len(res_ids) * 4)
         rm_chunk = struct.pack("<HHI", CHUNK_RESOURCE_MAP, 8, rm_size) + struct.pack(f"<{len(res_ids)}I", *res_ids)
 
