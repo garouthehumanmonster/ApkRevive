@@ -52,6 +52,8 @@ KNOWN_RESOURCE_IDS = {
     "configChanges": 0x0101001F,
     "allowBackup": 0x01010280,
     "anyDensity": 0x0101026C,
+    "compileSdkVersion": 0x01010572,
+    "compileSdkVersionCodename": 0x01010573,
 }
 
 
@@ -562,7 +564,7 @@ class AxmlSurgeon:
             # Attributes with no resource ID (res_id == 0) placed after in stable order.
             def attr_sort_key(attr: AxmlAttribute):
                 attr_base_name = attr.name.split(":")[-1]
-                res_id = KNOWN_RESOURCE_IDS.get(attr.name, KNOWN_RESOURCE_IDS.get(attr_base_name, 0))
+                res_id = attr.resource_id or res_map.get(attr.name, res_map.get(attr_base_name, 0))
                 if res_id > 0:
                     return (0, res_id)
                 return (1, 0)

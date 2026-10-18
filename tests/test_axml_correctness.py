@@ -221,3 +221,84 @@ def test_corpus_manifest_aapt2_dump_xmltree_diff():
             target_sdk_attr = [v for k, v in uses_sdk2[0]["attrs"].items() if "targetSdkVersion" in k]
             assert any("24" in v for v in target_sdk_attr), f"targetSdkVersion not bumped to 24 in {apk_path.name}"
 
+
+def test_strictly_ascending_resource_ids_all_corpus_and_canaries_and_resource_only():
+    """
+    Assert that for every corpus APK and every canary, after patching,
+    every element's resource-ID attributes are strictly ascending.
+    Includes a resource-only (hasCode=false) case that must still work after the fix.
+    """
+    def check_node_ascending(node: AxmlNode, context: str):
+        valid_rids = [a.resource_id for a in node.attributes if a.resource_id > 0]
+        assert valid_rids == sorted(valid_rids), (
+            f"Resource IDs not strictly ascending in {context} elem <{node.tag}>:\n"
+            f"Observed: {[hex(r) for r in valid_rids]}\n"
+            f"Expected: {[hex(r) for r in sorted(valid_rids)]}"
+        )
+        assert len(valid_rids) == len(set(valid_rids)), (
+            f"Duplicate resource IDs in {context} elem <{node.tag}>: {[hex(r) for r in valid_rids]}"
+        )
+        for child in node.children:
+            check_node_ascending(child, context)
+
+    # 1. Corpus APKs
+    corpus_dir = Path(__file__).resolve().parent / "corpus" / "apks"
+    corpus_apks = list(corpus_dir.glob("*.apk"))
+    assert len(corpus_apks) >= 6, f"Expected at least 6 corpus APKs, found {len(corpus_apks)}"
+    for apk_path in corpus_apks:
+        with zipfile.ZipFile(apk_path, "r") as zf:
+            orig = zf.read("AndroidManifest.xml")
+        patched = AxmlSurgeon.patch_manifest(
+            orig,
+            transforms=["SET_HAS_CODE_TRUE", "PAGE_SIZE_COMPAT"],
+            options={"bump_target_sdk": 24, "enable_60hz": True, "enable_cutout": True},
+        )
+        root = AxmlSurgeon.parse(patched)
+        check_node_ascending(root, f"Corpus {apk_path.name}")
+
+    # 2. Canary APKs
+    canary_dir = Path(__file__).resolve().parent.parent / "canaries" / "build"
+    canary_apks = list(canary_dir.glob("*.apk"))
+    assert len(canary_apks) >= 16, f"Expected at least 16 canary APKs, found {len(canary_apks)}"
+    for apk_path in canary_apks:
+        with zipfile.ZipFile(apk_path, "r") as zf:
+            orig = zf.read("AndroidManifest.xml")
+        patched = AxmlSurgeon.patch_manifest(
+            orig,
+            transforms=["INJECT_USES_LIBRARY_APACHE_HTTP", "PAGE_SIZE_COMPAT"],
+            options={"bump_target_sdk": 24},
+        )
+        root = AxmlSurgeon.parse(patched)
+        check_node_ascending(root, f"Canary {apk_path.name}")
+
+    # 3. Resource-only (hasCode=false) case
+    res_manifest = AxmlNode(tag="manifest")
+    res_manifest.set_attr("package", "com.resource.only.theme")
+    app_node = AxmlNode(tag="application")
+    app_node.set_attr("hasCode", False)
+    app_node.set_attr("theme", "@0x7f0b0001")
+    app_node.set_attr("label", "Resource Only")
+    app_node.set_attr("icon", "@0x7f020000")
+    res_manifest.children.append(app_node)
+
+    raw_bytes = AxmlSurgeon.serialize(res_manifest)
+    patched_res = AxmlSurgeon.patch_manifest(
+        raw_bytes,
+        transforms=["PAGE_SIZE_COMPAT"],
+        options={"bump_target_sdk": 24},
+    )
+    parsed_res = AxmlSurgeon.parse(patched_res)
+    check_node_ascending(parsed_res, "ResourceOnly")
+    parsed_app = parsed_res.find_child("application")
+    assert parsed_app is not None
+    assert parsed_app.get_attr("hasCode").get_value() is False
+    assert parsed_app.get_attr("theme") is not None
+    theme_rid = parsed_app.get_attr("theme").resource_id
+    has_code_rid = parsed_app.get_attr("hasCode").resource_id
+    assert theme_rid == 0x01010000
+    assert has_code_rid == 0x0101000C
+    # theme (0x01010000) must precede hasCode (0x0101000C)
+    app_rids = [a.resource_id for a in parsed_app.attributes if a.resource_id > 0]
+    assert app_rids.index(0x01010000) < app_rids.index(0x0101000C)
+
+
