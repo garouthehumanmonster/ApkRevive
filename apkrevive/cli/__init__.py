@@ -213,6 +213,19 @@ def revive_cmd(args):
     if bump_target_sdk == -1 or (standalone_install and bump_target_sdk is None):
         bump_target_sdk = dev.install_floor
     triage = evaluate_triage(meta, dev, bump_target_sdk=bump_target_sdk)
+    if not getattr(args, "dry_run", False):
+        if triage.get("verdict") == "RED" and not getattr(args, "force", False):
+            sys.stderr.write(
+                f"ERROR: Cannot revive APK: triage verdict is RED ({triage.get('reason', 'BLOCKED')}). "
+                f"Required transforms cannot make this APK safe/compatible without manual intervention. "
+                f"Use --force to override and attempt revive anyway.\n"
+            )
+            return VERDICT_EXIT_CODES["RED"]
+        if triage.get("verdict") == "RED" and getattr(args, "force", False):
+            sys.stderr.write(
+                f"WARNING: Forcing revive on RED triage verdict ({triage.get('reason')}). "
+                f"Output APK may crash or fail to load on target device.\n"
+            )
 
     transforms = list(triage.get("required_transforms", []))
     if getattr(args, "enable_60hz", False) and "LOCK_60HZ_DISPLAY_MODE" not in transforms:
@@ -454,6 +467,7 @@ def main():
     p_revive = sub.add_parser("revive", help="Modernize, patch, align and sign APK")
     p_revive.add_argument("apk", help="Path to APK file")
     p_revive.add_argument("--output", help="Output path")
+    p_revive.add_argument("--force", action="store_true", help="Force revive even when triage verdict is RED")
     p_revive.add_argument("--dry-run", action="store_true", help="Perform triage and plan transforms without writing files or signing")
     p_revive.add_argument("--bump-target-sdk", nargs="?", const=-1, type=int, default=None, help="Bump targetSdkVersion in AndroidManifest.xml (defaults to device install floor)")
     p_revive.add_argument("--standalone-install", action="store_true", help="Prepare APK for standalone install (defaults targetSdk to device install floor and injects runtime shim)")

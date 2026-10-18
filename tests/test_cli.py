@@ -110,6 +110,70 @@ class TestCli(unittest.TestCase):
         self.assertIn("BUMP_TARGET_SDK", res["required_transforms"])
         self.assertEqual(res["install_method"], "DIRECT_INSTALL")
 
+    def test_revive_fail_closed_on_red_without_force(self):
+        apk_path = os.path.join(os.path.dirname(__file__), "corpus", "apks", "atm.starun.game_121.apk")
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            out_apk = f_out.name
+        try:
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            args = argparse.Namespace(
+                apk=apk_path,
+                output=out_apk,
+                device_api=35,
+                page_size=16384,
+                force=False,
+                dry_run=False,
+                bump_target_sdk=None,
+                standalone_install=False,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+            )
+            with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
+                code = revive_cmd(args)
+            self.assertEqual(code, 1)
+            self.assertFalse(os.path.exists(out_apk))
+            self.assertIn("triage verdict is RED", mock_stderr.getvalue())
+        finally:
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+
+    def test_revive_succeeds_on_red_with_force(self):
+        apk_path = os.path.join(os.path.dirname(__file__), "corpus", "apks", "atm.starun.game_121.apk")
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            out_apk = f_out.name
+        try:
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            args = argparse.Namespace(
+                apk=apk_path,
+                output=out_apk,
+                device_api=35,
+                page_size=16384,
+                force=True,
+                dry_run=False,
+                bump_target_sdk=None,
+                standalone_install=False,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+            )
+            with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr, patch("sys.stdout", new_callable=io.StringIO):
+                code = revive_cmd(args)
+            self.assertEqual(code, 1)
+            self.assertTrue(os.path.exists(out_apk))
+            self.assertIn("Forcing revive on RED triage verdict", mock_stderr.getvalue())
+        finally:
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+
 
 if __name__ == "__main__":
     unittest.main()
