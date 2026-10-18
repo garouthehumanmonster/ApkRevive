@@ -99,6 +99,7 @@ def run_corpus_on_device(
     device_serial: Optional[str] = None,
     bump_target_sdk: Optional[int] = 24,
     use_bypass: bool = False,
+    grant_permissions: bool = False,
     extra_flags: Optional[List[str]] = None,
     filter_pkg: Optional[str] = None,
     manifest_path: Optional[Path] = None,
@@ -166,6 +167,10 @@ def run_corpus_on_device(
         ]
         if bump_target_sdk is not None:
             revive_cmd.extend(["--bump-target-sdk", str(bump_target_sdk)])
+        revive_cmd.extend([
+            "--device-api", str(dev_info["sdk"]),
+            "--page-size", str(dev_info["page_size"]),
+        ])
         if extra_flags:
             revive_cmd.extend(extra_flags)
 
@@ -197,6 +202,9 @@ def run_corpus_on_device(
                 "install_status": "SKIPPED",
                 "launch_status": "SKIPPED",
                 "liveness_status": "SKIPPED",
+                "second_pass_status": None,
+                "second_pass_pid": None,
+                "second_pass_top_activity": None,
             })
             continue
         print(f"    Revived successfully -> {revived_apk.name} (verdict {triage_verdict}, exit {rev_res['exit_code']})")
@@ -207,6 +215,8 @@ def run_corpus_on_device(
 
         # Step 3: Install
         install_args = adb_prefix + ["install", "-r"]
+        if grant_permissions:
+            install_args.append("-g")
         if use_bypass:
             install_args.append("--bypass-low-target-sdk-block")
         install_args.append(str(revived_apk))
@@ -238,6 +248,9 @@ def run_corpus_on_device(
                 "install_stderr": inst_res["stderr"],
                 "launch_status": "SKIPPED",
                 "liveness_status": "SKIPPED",
+                "second_pass_status": None,
+                "second_pass_pid": None,
+                "second_pass_top_activity": None,
             })
             continue
 
@@ -278,6 +291,47 @@ def run_corpus_on_device(
         is_top = bool(resumed_match and pkg in resumed_match)
         print(f"    Liveness pid: '{pid}' (alive={is_alive}) | Top Activity: '{resumed_match}' (is_top={is_top})")
 
+        liveness_status = "PASS" if is_alive else "DEAD"
+        second_pass_status: Optional[str] = None
+        second_pass_pid: Optional[str] = None
+        second_pass_top_activity: Optional[str] = None
+
+        perm_dialog_indicators = ("GrantPermissionsActivity", "ReviewPermissionsActivity", "permissioncontroller")
+        if any(ind in resumed_match for ind in perm_dialog_indicators):
+            liveness_status = "BLOCKED_ON_PERMISSION_DIALOG"
+            print(f"    Detected permission dialog: '{resumed_match}'. Running second pass with -g...")
+
+            second_install_args = adb_prefix + ["install", "-r", "-g"]
+            if use_bypass:
+                second_install_args.append("--bypass-low-target-sdk-block")
+            second_install_args.append(str(revived_apk))
+            second_inst_res = run_command(second_install_args, timeout=90)
+            second_inst_success = (second_inst_res["exit_code"] == 0) and ("Success" in second_inst_res["stdout"])
+            print(f"    Second pass install exit {second_inst_res['exit_code']} | Result: {'PASS' if second_inst_success else 'FAIL'}")
+
+            second_launch_res = run_command(launch_cmd, timeout=30)
+            second_launch_ok = (second_launch_res["exit_code"] == 0) and ("Events injected: 1" in second_launch_res["stdout"])
+            print(f"    Second pass launch exit {second_launch_res['exit_code']} | Result: {'PASS' if second_launch_ok else 'WARN/FAIL'}")
+
+            print("    Second pass liveness check: sleeping 8s...")
+            time.sleep(8)
+
+            second_pid_res = run_command(adb_prefix + ["shell", "pidof", pkg], timeout=10)
+            second_pass_pid = second_pid_res["stdout"].strip()
+            second_alive = bool(second_pass_pid)
+
+            second_dumpsys_res = run_command(adb_prefix + ["shell", "dumpsys", "activity", "activities"], timeout=15)
+            second_resumed = ""
+            for line in second_dumpsys_res["stdout"].splitlines():
+                stripped = line.strip()
+                if any(k in stripped for k in ("topResumedActivity=", "mResumedActivity:", "ResumedActivity:")):
+                    second_resumed = stripped
+                    break
+            second_pass_top_activity = second_resumed
+            second_pass_status = "PASS" if second_alive else "DEAD"
+            if second_resumed and pkg in second_resumed:
+                is_top = True
+
         # Capture screenshot to docs/device_runs/<pkg>.png
         screenshots_dir = REPO_ROOT / "docs" / "device_runs"
         screenshots_dir.mkdir(parents=True, exist_ok=True)
@@ -292,9 +346,24 @@ def run_corpus_on_device(
         # Step 6: Crash check
         crash_res = run_command(adb_prefix + ["logcat", "-d", "-b", "crash"], timeout=10)
         crash_log = crash_res["stdout"].strip()
-        has_crash = bool(crash_log)
-        if has_crash:
-            print(f"    CRASH DETECTED:\n{crash_log}")
+        has_crash = False
+        if crash_log:
+            pkg_match = pkg in crash_log
+            pid_candidates = [p for p in (pid, second_pass_pid) if p]
+            pid_match = any(
+                (f"pid {p}" in crash_log)
+                or (f"{p}:" in crash_log)
+                or (f"PID: {p}" in crash_log)
+                or (f"pid: {p}" in crash_log)
+                for p in pid_candidates
+            )
+            if pkg_match or pid_match:
+                has_crash = True
+                print(f"    CRASH DETECTED:\n{crash_log}")
+            else:
+                has_crash = False
+                print(f"    Crash buffer non-empty, but crash log is from an unrelated system process (neither '{pkg}' nor PID matched). Ignoring.")
+                crash_log = ""
         else:
             print("    No crashes recorded in crash buffer.")
 
@@ -315,10 +384,13 @@ def run_corpus_on_device(
             "launch_cmd": launch_cmd_str,
             "launch_status": "PASS" if launch_ok else "FAIL",
             "launch_stdout": launch_res["stdout"],
-            "liveness_status": "PASS" if is_alive else "DEAD",
+            "liveness_status": liveness_status,
             "pid": pid,
             "resumed_activity": resumed_match,
             "top_activity": is_top,
+            "second_pass_status": second_pass_status,
+            "second_pass_pid": second_pass_pid,
+            "second_pass_top_activity": second_pass_top_activity,
             "crash_detected": has_crash,
             "crash_log": crash_log,
         })
@@ -345,6 +417,12 @@ def main() -> int:
     parser.add_argument("--device", "-s", help="Specific device serial.")
     parser.add_argument("--bump-target-sdk", type=int, default=24, help="Target SDK to bump to (default: 24). Set -1 for none.")
     parser.add_argument("--bypass", action="store_true", help="Pass --bypass-low-target-sdk-block to adb install.")
+    parser.add_argument(
+        "--grant-permissions",
+        "-g",
+        action="store_true",
+        help="Pass -g to adb install on first pass to automatically grant runtime permissions.",
+    )
     parser.add_argument("--flags", default="", help="Extra flags string to pass to apkrevive revive (e.g. '--enable-60hz --enable-cutout').")
     parser.add_argument("--package", help="Only run for a specific package.")
     parser.add_argument("--manifest", type=Path, help="Custom corpus manifest JSON path.")
@@ -360,6 +438,7 @@ def main() -> int:
             device_serial=args.device,
             bump_target_sdk=bump_sdk,
             use_bypass=args.bypass,
+            grant_permissions=args.grant_permissions,
             extra_flags=extra_flags,
             filter_pkg=args.package,
             manifest_path=args.manifest,

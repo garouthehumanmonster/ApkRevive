@@ -207,6 +207,8 @@ def detect_device_tier(bridge: AdbBridge) -> tuple[str, DeviceProfile, dict[str,
         page_size = int(ps_str)
     elif "16k" in flavor or "ps16k" in flavor:
         page_size = 16384
+    elif hasattr(bridge, "get_page_size"):
+        page_size = bridge.get_page_size()
     else:
         page_size = 4096
 
@@ -651,6 +653,9 @@ def write_receipt(receipt: dict[str, Any], results_dir: Path, env_slug: str) -> 
 def render_results_table(all_results: list[tuple[AVDTier, list[CanaryAssertionResult]]]) -> None:
     total_passed = sum(1 for _, res_list in all_results for r in res_list if r.pass_fail == "PASS")
     total_tests = sum(len(res_list) for _, res_list in all_results)
+    on_device_count = sum(1 for _, res_list in all_results for r in res_list if r.mode == "ON_DEVICE")
+    static_count = sum(1 for _, res_list in all_results for r in res_list if r.mode == "STATIC")
+    summary_mode = f" ({on_device_count} ON_DEVICE / {static_count} STATIC)" if on_device_count or static_count else ""
 
     if HAS_RICH:
         console = Console()
@@ -658,10 +663,11 @@ def render_results_table(all_results: list[tuple[AVDTier, list[CanaryAssertionRe
         console.print(
             Panel.fit(
                 "[bold cyan]ApkRevive Canary Matrix Runner & Verification Engine[/bold cyan]\n"
-                f"[dim]Total Assertions: {total_tests} | Verified: {total_passed}/{total_tests}[/dim]",
+                f"[dim]Total Assertions: {total_tests} | Verified: {total_passed}/{total_tests}{summary_mode}[/dim]",
                 box=box.DOUBLE,
             )
         )
+
 
         for tier, records in all_results:
             table = Table(
@@ -691,7 +697,7 @@ def render_results_table(all_results: list[tuple[AVDTier, list[CanaryAssertionRe
     else:
         print("\n" + "=" * 105)
         print("  ApkRevive Canary Matrix Runner & Verification Engine")
-        print(f"  Total Assertions: {total_tests} | Verified: {total_passed}/{total_tests}")
+        print(f"  Total Assertions: {total_tests} | Verified: {total_passed}/{total_tests}{summary_mode}")
         print("=" * 105)
 
         for tier, records in all_results:

@@ -56,16 +56,33 @@ class AdbBridge:
         code, out, _ = self._cmd(["shell", "getprop", prop])
         return out.strip() if code == 0 else ""
 
+    def get_page_size(self) -> int:
+        code, out, _ = self._cmd(["shell", "getconf", "PAGE_SIZE"])
+        if code == 0 and out.strip().isdigit():
+            return int(out.strip())
+        return 4096
+
+    def get_sdk(self) -> int:
+        val = self.get_prop("ro.build.version.sdk")
+        return int(val) if val.isdigit() else 35
+
     def uninstall(self, package: str) -> bool:
         if not PACKAGE_NAME_REGEX.match(package):
             raise ValueError(f"Invalid Android package name: {package}")
         code, out, _ = self._cmd(["uninstall", package])
         return code == 0 and "Success" in out
 
-    def install(self, apk_path: str, bypass_low_target_sdk: bool = False) -> Tuple[bool, str]:
+    def install(
+        self,
+        apk_path: str,
+        bypass_low_target_sdk: bool = False,
+        grant_permissions: bool = False,
+    ) -> Tuple[bool, str]:
         args = ["install"]
         if bypass_low_target_sdk:
             args.append("--bypass-low-target-sdk-block")
+        if grant_permissions:
+            args.append("-g")
         args.append(apk_path)
         code, out, err = self._cmd(args)
         success = (code == 0 and "Success" in out)

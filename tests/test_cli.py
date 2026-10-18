@@ -167,7 +167,7 @@ class TestCli(unittest.TestCase):
             )
             with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr, patch("sys.stdout", new_callable=io.StringIO):
                 code = revive_cmd(args)
-            self.assertEqual(code, 1)
+            self.assertEqual(code, 4)
             self.assertTrue(os.path.exists(out_apk))
             self.assertIn("Forcing revive on RED triage verdict", mock_stderr.getvalue())
         finally:

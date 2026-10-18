@@ -12,10 +12,14 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
+    "pytest>=8.0.0",
+    "hypothesis>=6.100.0",
+    "rich>=13.0.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "coverage>=7.0.0",
 ]
+
 
 [project.scripts]
 apkrevive = "apkrevive.cli:main"

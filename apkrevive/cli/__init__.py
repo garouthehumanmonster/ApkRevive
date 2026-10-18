@@ -38,6 +38,7 @@ VERDICT_EXIT_CODES = {
     "RED": 1,
     "YELLOW": 2,
     "NEEDS_USER_INPUT": 3,
+    "RED_FORCED": 4,
 }
 
 
@@ -390,6 +391,8 @@ def revive_cmd(args):
         print(table)
     else:
         print(format_patch_report(report))
+    if triage.get("verdict") == "RED" and getattr(args, "force", False):
+        return VERDICT_EXIT_CODES["RED_FORCED"]
     return VERDICT_EXIT_CODES.get(triage.get("verdict", "YELLOW"), 0)
 
 
