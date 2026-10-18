@@ -41,6 +41,8 @@ KNOWN_RESOURCE_IDS = {
     "usesCleartextTraffic": 0x010104EC,
     "networkSecurityConfig": 0x01010527,
     "requestLegacyExternalStorage": 0x01010603,
+    "resource": 0x01010025,
+    "installLocation": 0x010102B7,
 }
 
 
