@@ -191,7 +191,11 @@ jobs:
       - name: Set up Android SDK and 16KB System Image
         uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
         with:
-          packages: "platform-tools emulator system-images;android-35;google_apis_ps16k;x86_64"
+          packages: "platform-tools emulator build-tools;35.0.0 system-images;android-35;google_apis_ps16k;x86_64"
+
+      - name: Build Canaries
+        run: |
+          python canaries/build_canaries.py
 
       - name: Boot Android 15 16KB Emulator & Verify Page Size
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
@@ -223,14 +227,14 @@ jobs:
           if-no-files-found: ignore
 
   release:
-    name: Publish Release & PyPI Distribution
+    name: Publish GitHub Release
     needs: [python-ci, android-ci, canary-matrix-and-sarif]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    environment: pypi
     permissions:
       contents: write
-      id-token: write
+    outputs:
+      is_prerelease: ${{ steps.tag_check.outputs.is_prerelease }}
     steps:
       - uses: actions/checkout@v4
 
@@ -270,12 +274,11 @@ jobs:
           name: sarif-diagnostics
           path: dist/sarif/
 
-      - name: Publish to PyPI (OIDC Trusted Publishing)
-        if: steps.tag_check.outputs.is_prerelease != 'true'
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1 (v1.14.2)
+      - name: Upload Wheels for PyPI
+        uses: actions/upload-artifact@v4
         with:
-          packages-dir: dist/
-          skip-existing: true
+          name: python-dist-packages
+          path: dist/*
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
@@ -287,3 +290,24 @@ jobs:
             dist/sarif/*
           generate_release_notes: true
           prerelease: ${{ steps.tag_check.outputs.is_prerelease == 'true' }}
+
+  pypi-publish:
+    name: Publish PyPI Distribution
+    needs: [release]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.release.outputs.is_prerelease != 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download Built Wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist-packages
+          path: dist/
+
+      - name: Publish to PyPI (OIDC Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1 (v1.14.2)
+        with:
+          packages-dir: dist/
+          skip-existing: true

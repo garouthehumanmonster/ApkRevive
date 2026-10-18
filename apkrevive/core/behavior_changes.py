@@ -289,13 +289,16 @@ def get_applicable_behavior_changes(
     return applicable
 
 
-def is_page_size_compat_verified(results_dir: Optional[Union[str, Path]] = None) -> bool:
+def is_page_size_compat_verified(
+    results_dir: Optional[Union[str, Path]] = None,
+    target_api: Optional[int] = None,
+) -> bool:
     """
     Scans results/*.json (defaulting to the repository's results/ directory or Path.cwd() / "results").
     Looks for any result dictionary with:
       - pass_fail == "PASS"
       - kernel_page_size == 16384
-      - Android 16 / API 36 environment (e.g. 36 in android_build or device_model or environment, or os_api_level == 36).
+      - Matching target_api environment (defaulting to API 37 if target_api is None or 37).
     Returns True if such a PASS result exists, False otherwise.
     """
     if results_dir is not None:
@@ -309,6 +312,9 @@ def is_page_size_compat_verified(results_dir: Optional[Union[str, Path]] = None)
 
     if not target_dir.is_dir():
         return False
+
+    expected_api = 37 if (target_api is None or target_api == 37) else target_api
+    expected_api_str = str(expected_api)
 
     for json_file in sorted(target_dir.glob("*.json")):
         try:
@@ -341,13 +347,13 @@ def is_page_size_compat_verified(results_dir: Optional[Union[str, Path]] = None)
                     except (ValueError, TypeError):
                         pass
 
-            is_api_36 = (
-                api_level == 36
-                or "36" in str(entry.get("android_build", ""))
-                or "36" in str(entry.get("device_model", ""))
-                or "36" in str(entry.get("environment", ""))
+            matches_api = (
+                api_level == expected_api
+                or expected_api_str in str(entry.get("android_build", ""))
+                or expected_api_str in str(entry.get("device_model", ""))
+                or expected_api_str in str(entry.get("environment", ""))
             )
-            if is_api_36:
+            if matches_api:
                 return True
 
     return False

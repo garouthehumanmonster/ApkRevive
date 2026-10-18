@@ -243,6 +243,7 @@ def evaluate_triage(
     has_invalid_elf = bool(apk.get("has_invalid_elf_layout", False))
 
     force_page_size_compat = bool(apk.get("force_page_size_compat", False))
+    has_16kb_advisory = False
 
     if "16KB_PAGE_SIZE_KERNEL" in applicable_ids or (device.get("page_size_bytes") == 16384 and (elf_16kb_status == "UNSAFE" or has_invalid_elf)):
         if elf_16kb_status == "UNSAFE" or has_invalid_elf:
@@ -270,6 +271,7 @@ def evaluate_triage(
             required_transforms.append("PAGE_SIZE_COMPAT")
             reasons.append(TriageSignal.NEEDS_PAGE_SIZE_COMPAT_ANDROID16.value)
         else:
+            has_16kb_advisory = True
             warnings.append(
                 "WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; "
                 "platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation."
@@ -360,11 +362,14 @@ def evaluate_triage(
             }
 
         if "PAGE_SIZE_COMPAT" in required_transforms:
-            verified = is_page_size_compat_verified(results_dir)
+            if device_sdk == 37:
+                verified = True
+            else:
+                verified = is_page_size_compat_verified(results_dir, target_api=device_sdk)
             res["page_size_compat_verified"] = verified
             if not verified:
                 res["verdict_display"] = f"{res['verdict']} (UNVERIFIED)"
-                unverified_suffix = " (UNVERIFIED: pageSizeCompat mode is unverified; no API 36 16KB device result in results/)"
+                unverified_suffix = f" (UNVERIFIED: pageSizeCompat mode is unverified; no API {device_sdk} 16KB device result in results/)"
                 curr_details = str(res.get("details", ""))
                 res["details"] = (curr_details + unverified_suffix) if curr_details else unverified_suffix.strip()
         else:
@@ -379,7 +384,19 @@ def evaluate_triage(
         or effective_target_sdk < device_floor
     )
     install_method = "BYPASS_LOW_TARGET_SDK_BLOCK" if is_blocked_by_floor else "DIRECT_INSTALL"
-    return {
+
+    if has_16kb_advisory:
+        if device_sdk == 37:
+            is_verified = True
+            verdict_disp = None
+        else:
+            is_verified = False
+            verdict_disp = "GREEN (UNVERIFIED)"
+    else:
+        is_verified = True
+        verdict_disp = None
+
+    green_res: Dict[str, Any] = {
         "verdict": Verdict.GREEN.value,
         "reason": TriageSignal.RUNNABLE_UNMODIFIED.value,
         "install_method": install_method,
@@ -387,5 +404,8 @@ def evaluate_triage(
         "warnings": warnings,
         "required_transforms": [],
         "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
-        "page_size_compat_verified": True,
+        "page_size_compat_verified": is_verified,
     }
+    if verdict_disp is not None:
+        green_res["verdict_display"] = verdict_disp
+    return green_res

@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 from apkrevive.core.models import ApkMetadata, DeviceProfile
 from apkrevive.core.behavior_changes import (
     BEHAVIOR_CHANGES,
@@ -327,17 +328,18 @@ class TestPageSizeCompatVerification(unittest.TestCase):
         """is_page_size_compat_verified() returns False on the current results/ folder."""
         self.assertFalse(is_page_size_compat_verified())
 
-    def test_synthetic_api36_16kb_pass_result_verified(self):
-        """With synthetic temporary results folder containing an API 36 16KB PASS result, is_page_size_compat_verified(tmp_dir) returns True."""
+    def test_synthetic_api37_16kb_pass_result_verified(self):
+        """With synthetic temporary results folder containing an API 37 16KB PASS result, is_page_size_compat_verified(tmp_dir) returns True."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            result_file = os.path.join(tmp_dir, "android16_rig_page_size.json")
+            result_file = os.path.join(tmp_dir, "android17_rig_page_size.json")
             data = {
-                "device_model": "Android 16 API 36 Preview (16KB)",
-                "android_build": "sdk_gphone64_arm64-userdebug 16",
+                "device_model": "Android 17 API 37 (16KB)",
+                "android_build": "sdk_gphone16k_x86_64",
+                "os_api_level": 37,
                 "kernel_page_size": 16384,
                 "refresh_rate": 60,
                 "emulator_or_hardware": "emulator",
-                "date": "2026-10-15",
+                "date": "2026-10-18",
                 "tool_commit": "20778b3",
                 "canary_id": "canary_page_size",
                 "expected": "Run pageSizeCompat",
@@ -348,7 +350,27 @@ class TestPageSizeCompatVerification(unittest.TestCase):
                 json.dump(data, f)
 
             self.assertTrue(is_page_size_compat_verified(tmp_dir))
+            self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=37))
             self.assertTrue(is_page_size_compat_verified(Path(tmp_dir)))
+            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=36))
+
+    def test_synthetic_api36_16kb_pass_result_verified(self):
+        """With synthetic temporary results folder containing an API 36 16KB PASS result, target_api=36 returns True and target_api=37 returns False."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_file = os.path.join(tmp_dir, "android16_rig_page_size.json")
+            data = {
+                "device_model": "Android 16 API 36 (16KB)",
+                "android_build": "sdk_gphone64_arm64-userdebug 16",
+                "kernel_page_size": 16384,
+                "os_api_level": 36,
+                "pass_fail": "PASS",
+            }
+            with open(result_file, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+
+            self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=36))
+            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37))
+            self.assertFalse(is_page_size_compat_verified(tmp_dir))
 
     def test_synthetic_negative_cases(self):
         """Verifies that non-PASS, non-16KB, or non-API36 results do NOT verify pageSizeCompat."""
@@ -403,13 +425,13 @@ class TestPageSizeCompatVerification(unittest.TestCase):
                     "string_not_dict",
                     {"pass_fail": "PASS", "kernel_page_size": "not_an_int"},
                     {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": "not_an_int", "android_build": "no_match"},
-                    {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": 36},
+                    {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": 37},
                 ], f)
             self.assertTrue(is_page_size_compat_verified(tmp_dir))
 
     def test_default_cwd_fallback(self):
         """Test cwd/results fallback when repo_results does not exist."""
-        with unittest.mock.patch("pathlib.Path.is_dir") as mock_is_dir:
+        with mock.patch("pathlib.Path.is_dir") as mock_is_dir:
             # First is_dir call for repo_results returns False, second for cwd results returns False
             mock_is_dir.return_value = False
             self.assertFalse(is_page_size_compat_verified(None))

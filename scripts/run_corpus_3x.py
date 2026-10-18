@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Execute run_emulator_corpus.py across 3 sequential runs to benchmark repeatability
-and ensure zero flakiness in pass-1 detection.
+and ensure zero flakiness in pass-1 and pass-2 detection.
 """
 
 import json
@@ -33,37 +33,48 @@ def main():
 
     # Build comparison table
     packages = [r["package"] for r in runs_results[0]]
-    print("\n\n=========================================================================================")
-    print("EMULATOR CORPUS 3-RUN PASS-1 REPEATABILITY BENCHMARK (API 37 16KB)")
-    print("=========================================================================================")
+    print("\n\n=====================================================================================================================================")
+    print("EMULATOR CORPUS 3-RUN PASS-1 & PASS-2 REPEATABILITY BENCHMARK (API 37 16KB)")
+    print("=====================================================================================================================================")
 
-    header = f"| {'Package':<40} | {'Run 1 Pass-1':<34} | {'Run 2 Pass-1':<34} | {'Run 3 Pass-1':<34} | {'Repeatability':<13} |"
-    sep = "|" + "-"*42 + "+" + "-"*36 + "+" + "-"*36 + "+" + "-"*36 + "+" + "-"*15 + "|"
+    header = (
+        f"| {'Package':<38} "
+        f"| {'Run 1 Pass-1':<12} | {'Run 1 Pass-2':<12} "
+        f"| {'Run 2 Pass-1':<12} | {'Run 2 Pass-2':<12} "
+        f"| {'Run 3 Pass-1':<12} | {'Run 3 Pass-2':<12} "
+        f"| {'Repeatability':<15} |"
+    )
+    sep = (
+        "|" + "-"*40 + "+"
+        + "-"*14 + "+" + "-"*14 + "+"
+        + "-"*14 + "+" + "-"*14 + "+"
+        + "-"*14 + "+" + "-"*14 + "+"
+        + "-"*17 + "|"
+    )
     print(sep)
     print(header)
     print(sep)
 
     for i, pkg in enumerate(packages):
-        p1_r1 = runs_results[0][i].get("liveness_status") or "SKIPPED"
-        if runs_results[0][i].get("pid"):
-            p1_r1 += f" (pid {runs_results[0][i]['pid']})"
+        p1_1 = runs_results[0][i].get("liveness_status") or "SKIPPED"
+        p2_1 = runs_results[0][i].get("second_pass_status") or "SKIPPED"
 
-        p1_r2 = runs_results[1][i].get("liveness_status") or "SKIPPED"
-        if runs_results[1][i].get("pid"):
-            p1_r2 += f" (pid {runs_results[1][i]['pid']})"
+        p1_2 = runs_results[1][i].get("liveness_status") or "SKIPPED"
+        p2_2 = runs_results[1][i].get("second_pass_status") or "SKIPPED"
 
-        p1_r3 = runs_results[2][i].get("liveness_status") or "SKIPPED"
-        if runs_results[2][i].get("pid"):
-            p1_r3 += f" (pid {runs_results[2][i]['pid']})"
+        p1_3 = runs_results[2][i].get("liveness_status") or "SKIPPED"
+        p2_3 = runs_results[2][i].get("second_pass_status") or "SKIPPED"
 
-        status1 = runs_results[0][i].get("liveness_status")
-        status2 = runs_results[1][i].get("liveness_status")
-        status3 = runs_results[2][i].get("liveness_status")
-
-        identical = (status1 == status2 == status3)
+        identical = (p1_1 == p1_2 == p1_3 and p2_1 == p2_2 == p2_3)
         rep = "100% IDENTICAL" if identical else "MISMATCH"
 
-        print(f"| {pkg:<40} | {p1_r1:<34} | {p1_r2:<34} | {p1_r3:<34} | {rep:<13} |")
+        print(
+            f"| {pkg:<38} "
+            f"| {p1_1:<12} | {p2_1:<12} "
+            f"| {p1_2:<12} | {p2_2:<12} "
+            f"| {p1_3:<12} | {p2_3:<12} "
+            f"| {rep:<15} |"
+        )
     print(sep)
 
 

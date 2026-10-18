@@ -163,7 +163,7 @@ In accordance with strict verification discipline, capabilities are classified a
 > - **Verified Evidence**: Validated strictly on Android 17 (API 37) `x86_64` emulator with a 16KB kernel (`sdk_gphone16k_x86_64`, `PAGE_SIZE=16384`). On API 37 x86_64, both original (unrevived) and revived APKs executed with identical platform logcat (`NativeLibraryHelper: Setting page size compat mode PAGE_SIZE_APP_COMPAT_FLAG_LOAD_NOT_ALIGNED`), demonstrating that modern Android runtimes engage OS-level backcompat automatically for 4KB-aligned ELFs.
 > - **Unverified (No Evidence Available)**:
 >   - **Android 15 (API 35)** 16KB: UNVERIFIED (no local API 35 16KB system image; `sdkmanager` unavailable).
->   - **Android 16 (API 36)**: UNVERIFIED (no image tested).
+>   - **Android 16 (API 36)**: UNVERIFIED (no image tested; triage emits GREEN (UNVERIFIED) with page_size_compat_verified=false on API 36 with 16KB kernel).
 >   - **Physical `arm64-v8a` hardware execution on 16KB**: UNVERIFIED (tested APKs executed `x86_64` native slices on emulator).
 
 ---

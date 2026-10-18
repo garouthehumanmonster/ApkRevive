@@ -13,6 +13,11 @@ fi
 echo "==> Running apkrevive doctor --device..."
 apkrevive doctor --device
 
+echo "==> Ensuring Canaries are Built..."
+if [ ! -d "canaries/build" ] || [ -z "$(ls -A canaries/build 2>/dev/null)" ]; then
+  python canaries/build_canaries.py
+fi
+
 echo "==> Running Multi-Tier Canary Matrix on live device (Tier 35)..."
 python scripts/verify_canary_matrix.py --device --tier 35 --write-results
 

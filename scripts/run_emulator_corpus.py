@@ -281,6 +281,7 @@ def run_corpus_on_device(
                 "install_status": "SKIPPED",
                 "launch_status": "SKIPPED",
                 "liveness_status": "SKIPPED",
+                "notes": None,
                 "second_pass_status": None,
                 "second_pass_pid": None,
                 "second_pass_top_activity": None,
@@ -327,6 +328,7 @@ def run_corpus_on_device(
                 "install_stderr": inst_res["stderr"],
                 "launch_status": "SKIPPED",
                 "liveness_status": "SKIPPED",
+                "notes": None,
                 "second_pass_status": None,
                 "second_pass_pid": None,
                 "second_pass_top_activity": None,
@@ -356,40 +358,6 @@ def run_corpus_on_device(
         )
         print(f"    Liveness pid: '{pid}' (alive={is_alive}) | Top Activity: '{resumed_match}' (is_top={is_top})")
 
-        liveness_status = "PASS" if is_alive else "DEAD"
-        second_pass_status: Optional[str] = None
-        second_pass_pid: Optional[str] = None
-        second_pass_top_activity: Optional[str] = None
-
-        if is_perm_blocked:
-            liveness_status = "BLOCKED_ON_PERMISSION_DIALOG"
-            print(f"    Detected permission dialog: '{resumed_match}'. Running second pass with -g...")
-
-            # Clean uninstall before pass 2
-            run_command(adb_prefix + ["uninstall", pkg])
-
-            second_install_args = adb_prefix + ["install", "-r", "-g"]
-            if use_bypass:
-                second_install_args.append("--bypass-low-target-sdk-block")
-            second_install_args.append(str(revived_apk))
-            second_inst_res = run_command(second_install_args, timeout=90)
-            second_inst_success = (second_inst_res["exit_code"] == 0) and ("Success" in second_inst_res["stdout"])
-            print(f"    Second pass install exit {second_inst_res['exit_code']} | Result: {'PASS' if second_inst_success else 'FAIL'}")
-
-            second_launch_res = run_command(launch_cmd, timeout=30)
-            second_launch_ok = (second_launch_res["exit_code"] == 0) and ("Events injected: 1" in second_launch_res["stdout"])
-            print(f"    Second pass launch exit {second_launch_res['exit_code']} | Result: {'PASS' if second_launch_ok else 'WARN/FAIL'}")
-
-            print("    Second pass liveness check: polling up to 8s...")
-            s_alive, s_pid, s_resumed, s_is_top, _ = poll_liveness_and_activity(
-                adb_prefix, pkg, max_wait_seconds=8.0, interval=1.0
-            )
-            second_pass_pid = s_pid
-            second_pass_top_activity = s_resumed
-            second_pass_status = "PASS" if s_alive else "DEAD"
-            if s_is_top:
-                is_top = True
-
         # Capture screenshot to docs/device_runs/<pkg>.png
         screenshots_dir = REPO_ROOT / "docs" / "device_runs"
         screenshots_dir.mkdir(parents=True, exist_ok=True)
@@ -401,29 +369,65 @@ def run_corpus_on_device(
         except Exception as e:
             print(f"    Screenshot capture failed: {e}")
 
-        # Step 6: Crash check
+        # Step 6: Crash check for Pass 1
         crash_res = run_command(adb_prefix + ["logcat", "-d", "-b", "crash"], timeout=10)
         crash_log = crash_res["stdout"].strip()
         has_crash = False
         if crash_log:
             pkg_match = pkg in crash_log
-            pid_candidates = [p for p in (pid, second_pass_pid) if p]
-            pid_match = any(
-                (f"pid {p}" in crash_log)
-                or (f"{p}:" in crash_log)
-                or (f"PID: {p}" in crash_log)
-                or (f"pid: {p}" in crash_log)
-                for p in pid_candidates
-            )
+            pid_match = bool(pid and ((f"pid {pid}" in crash_log) or (f"{pid}:" in crash_log) or (f"PID: {pid}" in crash_log)))
             if pkg_match or pid_match:
                 has_crash = True
                 print(f"    CRASH DETECTED:\n{crash_log}")
             else:
-                has_crash = False
                 print(f"    Crash buffer non-empty, but crash log is from an unrelated system process (neither '{pkg}' nor PID matched). Ignoring.")
                 crash_log = ""
         else:
             print("    No crashes recorded in crash buffer.")
+
+        if is_alive and not has_crash:
+            liveness_status = "ALIVE"
+        elif has_crash:
+            liveness_status = "CRASH"
+        else:
+            liveness_status = "DEAD"
+
+        notes = {
+            "top_window": resumed_match,
+            "is_top": is_top,
+            "is_perm_blocked": is_perm_blocked,
+            "screenshot": f"docs/device_runs/{pkg}.png",
+        }
+
+        # Step 7: Pass 2 (-g)
+        # Always execute pass-2 with -g when install succeeded
+        print("    Executing Pass 2 (-g: auto-grant runtime permissions)...")
+        run_command(adb_prefix + ["uninstall", pkg])
+
+        second_install_args = adb_prefix + ["install", "-r", "-g"]
+        if use_bypass:
+            second_install_args.append("--bypass-low-target-sdk-block")
+        second_install_args.append(str(revived_apk))
+        second_inst_res = run_command(second_install_args, timeout=90)
+        second_inst_success = (second_inst_res["exit_code"] == 0) and ("Success" in second_inst_res["stdout"])
+        print(f"    Second pass install exit {second_inst_res['exit_code']} | Result: {'PASS' if second_inst_success else 'FAIL'}")
+
+        if second_inst_success:
+            second_launch_res = run_command(launch_cmd, timeout=30)
+            second_launch_ok = (second_launch_res["exit_code"] == 0) and ("Events injected: 1" in second_launch_res["stdout"])
+            print(f"    Second pass launch exit {second_launch_res['exit_code']} | Result: {'PASS' if second_launch_ok else 'WARN/FAIL'}")
+
+            s_alive, s_pid, s_resumed, s_is_top, _ = poll_liveness_and_activity(
+                adb_prefix, pkg, max_wait_seconds=8.0, interval=1.0
+            )
+            second_pass_status = "PASS" if (s_alive and s_is_top) else ("ALIVE" if s_alive else "DEAD")
+            second_pass_pid = s_pid
+            second_pass_top_activity = s_resumed
+            print(f"    Second pass finished with status '{second_pass_status}' (pid: '{s_pid}', top: '{s_resumed}', is_top={s_is_top})")
+        else:
+            second_pass_status = "INSTALL_FAIL"
+            second_pass_pid = None
+            second_pass_top_activity = None
 
         results.append({
             "package": pkg,
@@ -446,6 +450,7 @@ def run_corpus_on_device(
             "pid": pid,
             "resumed_activity": resumed_match,
             "top_activity": is_top,
+            "notes": notes,
             "second_pass_status": second_pass_status,
             "second_pass_pid": second_pass_pid,
             "second_pass_top_activity": second_pass_top_activity,

@@ -225,6 +225,6 @@ Both the original (unrevived) and revived APKs successfully installed, launched,
 **Empirical Conclusion & Exact 16KB Boundaries**:
 - **VERIFIED**: Android 17 (API 37) `x86_64` 16KB emulator (`sdk_gphone16k_x86_64`, `PAGE_SIZE=16384`). Revived and original APKs yielded identical `NativeLibraryHelper` logcat outputs with zero crashes. `PAGE_SIZE_COMPAT` showed **no measured benefit on API 37**.
 - **UNVERIFIED**: Android 15 (API 35) on 16KB hardware or emulator (no local API 35 16KB system image; `sdkmanager` unavailable).
-- **UNVERIFIED**: Android 16 (API 36) on 16KB hardware or emulator (untested).
+- **UNVERIFIED**: Android 16 (API 36) on 16KB hardware or emulator (untested; triage emits `GREEN (UNVERIFIED)` with `page_size_compat_verified: false`).
 - **UNVERIFIED**: Execution of `arm64-v8a` native slices on a 16KB kernel (tested APKs executed `x86_64` native slices). No claims are made beyond these tested boundaries.
 
