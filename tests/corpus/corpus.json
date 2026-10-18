@@ -97,6 +97,41 @@
         "pure-java",
         "targetSdk=4"
       ]
+    },
+    {
+      "id": "atm.rocketguardian_1",
+      "package_name": "atm.rocketguardian",
+      "version": "1",
+      "version_code": 1,
+      "target_sdk": 25,
+      "license": "GPL-3.0",
+      "apk_name": "atm.rocketguardian_1.apk",
+      "url": "https://f-droid.org/archive/atm.rocketguardian_1.apk",
+      "sha256": "12d9eefca28a181a44cc6a760c12d838415e6fc8d0fd79c8325cdfbf3315041f",
+      "size_bytes": 4921673,
+      "features": [
+        "64-bit-native",
+        "abis=arm64-v8a,armeabi,armeabi-v7a,x86,x86_64",
+        "elf_16kb=COMPAT_ONLY"
+      ]
+    },
+    {
+      "id": "atm.starun.game_121",
+      "package_name": "atm.starun.game",
+      "version": "121",
+      "version_code": 121,
+      "target_sdk": 20,
+      "license": "GPL-3.0",
+      "apk_name": "atm.starun.game_121.apk",
+      "url": "https://f-droid.org/archive/atm.starun.game_121.apk",
+      "sha256": "01e0621f5931bef6606236800fc13bb7900855abc8693d818a122b8683f258ba",
+      "size_bytes": 10567625,
+      "features": [
+        "64-bit-native",
+        "abis=arm64-v8a,armeabi,armeabi-v7a,x86,x86_64",
+        "elf_16kb=COMPAT_ONLY",
+        "targetSdk=20"
+      ]
     }
   ],
   "apks": [
@@ -194,6 +229,41 @@
       "features": [
         "pure-java",
         "targetSdk=4"
+      ]
+    },
+    {
+      "id": "atm.rocketguardian_1",
+      "package_name": "atm.rocketguardian",
+      "version": "1",
+      "version_code": 1,
+      "target_sdk": 25,
+      "license": "GPL-3.0",
+      "apk_name": "atm.rocketguardian_1.apk",
+      "url": "https://f-droid.org/archive/atm.rocketguardian_1.apk",
+      "sha256": "12d9eefca28a181a44cc6a760c12d838415e6fc8d0fd79c8325cdfbf3315041f",
+      "size_bytes": 4921673,
+      "features": [
+        "64-bit-native",
+        "abis=arm64-v8a,armeabi,armeabi-v7a,x86,x86_64",
+        "elf_16kb=COMPAT_ONLY"
+      ]
+    },
+    {
+      "id": "atm.starun.game_121",
+      "package_name": "atm.starun.game",
+      "version": "121",
+      "version_code": 121,
+      "target_sdk": 20,
+      "license": "GPL-3.0",
+      "apk_name": "atm.starun.game_121.apk",
+      "url": "https://f-droid.org/archive/atm.starun.game_121.apk",
+      "sha256": "01e0621f5931bef6606236800fc13bb7900855abc8693d818a122b8683f258ba",
+      "size_bytes": 10567625,
+      "features": [
+        "64-bit-native",
+        "abis=arm64-v8a,armeabi,armeabi-v7a,x86,x86_64",
+        "elf_16kb=COMPAT_ONLY",
+        "targetSdk=20"
       ]
     }
   ]

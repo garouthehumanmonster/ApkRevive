@@ -83,8 +83,32 @@ class TestCli(unittest.TestCase):
                 with self.assertRaises(SystemExit) as cm:
                     main()
                 self.assertEqual(cm.exception.code, 0)
-                self.assertEqual(apkrevive.__version__, "0.4.0a1")
-                self.assertIn("0.4.0a1", mock_stdout.getvalue())
+                self.assertEqual(apkrevive.__version__, "0.5.0a1")
+                self.assertIn("0.5.0a1", mock_stdout.getvalue())
+
+    def test_cli_triage_bump_target_sdk_default_floor(self):
+        args = argparse.Namespace(
+            apk="test.apk",
+            device_api=35,
+            device_abis="arm64-v8a",
+            page_size=16384,
+            target_sdk=22,
+            apk_abis="",
+            uses_apache_http=False,
+            bump_target_sdk=-1,
+            standalone_install=False,
+            device_floor=24,
+            json=True,
+            sarif=False,
+        )
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
+            code = triage_cmd(args)
+        self.assertEqual(code, 2)
+        import json
+        res = json.loads(mock_stdout.getvalue())
+        self.assertEqual(res["verdict"], "YELLOW")
+        self.assertIn("BUMP_TARGET_SDK", res["required_transforms"])
+        self.assertEqual(res["install_method"], "DIRECT_INSTALL")
 
 
 if __name__ == "__main__":

@@ -157,7 +157,12 @@ class TestHermeticCorpusTriage(unittest.TestCase):
                 res_35 = evaluate_triage(meta, self.device_api35)
                 self.assertEqual(res_35["verdict"], Verdict.GREEN.value)
                 self.assertEqual(res_35["reason"], "RUNNABLE_UNMODIFIED")
-                self.assertEqual(res_35["install_method"], "BYPASS_LOW_TARGET_SDK_BLOCK")
+                expected_install_35 = (
+                    "BYPASS_LOW_TARGET_SDK_BLOCK"
+                    if pkg["target_sdk"] < self.device_api35.install_floor
+                    else "DIRECT_INSTALL"
+                )
+                self.assertEqual(res_35["install_method"], expected_install_35)
                 self.assertEqual(res_35["required_transforms"], [])
 
                 res_33 = evaluate_triage(meta, self.device_api33)
@@ -191,6 +196,19 @@ class TestHermeticCorpusTriage(unittest.TestCase):
                 res = evaluate_triage(meta, self.device_api35)
                 if meta.abis and not any(a in self.device_api35.supported_abis for a in meta.abis):
                     self.assertEqual(res["verdict"], Verdict.RED.value)
+                elif meta.elf_16kb_status == "COMPAT_ONLY" and self.device_api35.page_size_bytes == 16384:
+                    # On API 35 with 16KB kernel, 4KB ELF cannot run (requires API 36+ for PAGE_SIZE_COMPAT)
+                    self.assertEqual(res["verdict"], Verdict.RED.value)
+                    self.assertEqual(res["reason"], "INCOMPATIBLE_PAGE_SIZE")
+                    # Verify on API 36 16KB it becomes YELLOW with PAGE_SIZE_COMPAT transform
+                    dev_36_16k = DeviceProfile(os_api_level=36, page_size_bytes=16384, supported_abis=["arm64-v8a", "x86_64"])
+                    res_36 = evaluate_triage(meta, dev_36_16k)
+                    self.assertEqual(res_36["verdict"], Verdict.YELLOW.value)
+                    self.assertIn("PAGE_SIZE_COMPAT", res_36["required_transforms"])
+                    # Verify on API 35 with 4KB kernel it is runnable unmodified
+                    dev_35_4k = DeviceProfile(os_api_level=35, page_size_bytes=4096, supported_abis=["arm64-v8a", "x86_64"])
+                    res_4k = evaluate_triage(meta, dev_35_4k)
+                    self.assertEqual(res_4k["verdict"], Verdict.GREEN.value)
                 else:
                     self.assertIn(res["verdict"], [Verdict.GREEN.value, Verdict.YELLOW.value])
 
