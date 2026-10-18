@@ -13,7 +13,7 @@ PUBLIC_SYSTEM_LIBRARIES: Set[str] = {
     "libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so",
     "libandroid.so", "libjnigraphics.so", "libEGL.so", "libGLESv1_CM.so",
     "libGLESv2.so", "libGLESv3.so", "libOpenSLES.so", "libOpenMAXAL.so",
-    "libvulkan.so", "libmediandk.so", "libaaudio.so"
+    "libvulkan.so", "libmediandk.so", "libaaudio.so", "libstdc++.so"
 }
 
 BIONIC_GREYLIST: Set[str] = {
