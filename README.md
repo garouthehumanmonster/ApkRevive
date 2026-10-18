@@ -1,9 +1,9 @@
-# ApkRevive v0.4.0a1 (Alpha)
+# ApkRevive v0.5.0a1 (Alpha)
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
 [![Android Target](https://img.shields.io/badge/Android%20API-3%20to%2035+-brightgreen.svg)](https://developer.android.com)
 [![Page Alignment](https://img.shields.io/badge/16KB%20Page%20Size-Compat%20Only%20Triage-orange.svg)](https://developer.android.com/guide/practices/page-sizes)
-[![Status](https://img.shields.io/badge/Status-Alpha%20(0.4.0a1)-yellow.svg)](#)
+[![Status](https://img.shields.io/badge/Status-Alpha%20(0.5.0a1)-yellow.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey.svg)](LICENSE)
 
 > [!WARNING]
@@ -279,6 +279,23 @@ Warnings (2):
   - WARN_CLEARTEXT: Cleartext HTTP traffic is blocked by default on API 28+.
 Details: Patched AXML manifest, injected ApkReviveInitProvider, aligned container to 16KB, signed with user keystore.
 ```
+
+### Target SDK Strategy: Bypass vs. Bump Trade-Off
+
+Android 14+ (API 34+) blocks direct installation of apps targeting SDK < 23, and Android 15+ (API 35+) blocks apps targeting SDK < 24 with `INSTALL_FAILED_DEPRECATED_SDK_VERSION`. ApkRevive provides two distinct strategies:
+
+1. **Privileged Bypass (`BYPASS_LOW_TARGET_SDK_BLOCK`) — Preferred:**
+   - **How it works:** When installing via ADB CLI (`--bypass-low-target-sdk-block`) or the Shizuku companion app (`PackageInstaller` session flag `INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK` = `0x01000000`), the platform restriction is bypassed without altering the APK's manifest `targetSdkVersion`.
+   - **Advantages:** Preserves original cryptographic signature, avoids re-signing, and keeps all permissions as install-time permissions.
+   - **Recommended:** Always prefer bypass when Shizuku or ADB is available.
+
+2. **Target SDK Bump (`BUMP_TARGET_SDK`) — Standalone Alternative:**
+   - **How it works:** When using `--bump-target-sdk` or `--standalone-install`, ApkRevive bumps `targetSdkVersion` in `AndroidManifest.xml` ONLY to the minimum install floor for the device profile (`dev.install_floor`, e.g., 24 for Android 15), never 35 by default.
+   - **Trade-Off & Breaking Changes:**
+     - **Signature Invalidation:** Modifying the manifest requires re-signing the APK, which breaks original signature fingerprints.
+     - **Runtime Permissions Transition:** On Android >= 23, permissions classified as dangerous (e.g., `CAMERA`, `READ_EXTERNAL_STORAGE`, `ACCESS_FINE_LOCATION`) become **runtime permissions**. Legacy apps targetSdk < 23 expect permissions to be granted at install time and do not call `requestPermissions()`. Operations requiring these permissions will silently fail or crash unless granted manually by the user via App Info / Settings or `adb shell pm grant`.
+     - **Warning Code:** Triage automatically emits `WARN_RUNTIME_PERMISSIONS_ON_BUMP` whenever targetSdk is bumped to >= 23 on an APK declaring dangerous permissions.
+
 
 ### 5. Probe Connected Device (`apkrevive probe`)
 Detect the connected device's OS version, CPU architectures, page size, and enforce install floor via ADB:
