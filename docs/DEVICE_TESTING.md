@@ -144,57 +144,55 @@ adb shell ls -la /storage/emulated/0/Android/obb/com.apkrevive.canary.obbversion
 
 ### A. Canary Matrix Verification (`scripts/verify_canary_matrix.py`)
 
-Executed live dual-assertion suite across all 8 vectors against `emulator-5554`:
+Executed live verification suite across all 8 vectors against `emulator-5554` (API 37 16KB):
 
-| Canary Vector | Control Assertion | Revived Assertion | Verdict |
-| :--- | :--- | :--- | :--- |
-| `canary_install_floor` | Direct install rejected: `INSTALL_FAILED_DEPRECATED_SDK_VERSION` | Bypass install succeeded: `Success` | **PASS** |
-| `canary_apache_http` | uses-library absent; triage flags `INJECT_USES_LIBRARY_APACHE_HTTP` | uses-library injected; runtime link verified | **PASS** |
-| `canary_page_size` | ELF align 4KB recorded; kernel 16KB requires compat | Control ELF rewritten with 16KB alignment | **PASS** |
-| `canary_physics_tick` | High refresh display detected (API 37) | `ApkReviveInitProvider` shim & 60Hz mode injected | **PASS** |
-| `canary_aspect_ratio` | `resizeableActivity=false` with restricted max_aspect | `resizeableActivity=true` injected | **PASS** |
-| `canary_bionic_greylist` | Direct `DT_NEEDED` linkage to private bionic symbol | Triage halts corrupt deployment (`FAIL_CLOSED`) | **PASS** |
-| `canary_has_code` | `hasCode=False` prevents Dalvik loading | `hasCode=true` injected and verified | **PASS** |
-| `canary_obb_version` | OBB v200 ahead of APK v100 triggers mismatch | OBB v100 with APK v150 delivery validated | **PASS** |
+| Canary Vector | Mode | Control Assertion | Revived Assertion | Verdict |
+| :--- | :--- | :--- | :--- | :--- |
+| `canary_install_floor` | **ON_DEVICE** | Live ADB direct install rejected: `INSTALL_FAILED_DEPRECATED_SDK_VERSION` | Live ADB bypass install succeeded: `Success` | **PASS** |
+| `canary_apache_http` | **STATIC** | uses-library absent; triage flags `INJECT_USES_LIBRARY_APACHE_HTTP` | uses-library injected; runtime link verified | **PASS** |
+| `canary_page_size` | **STATIC** | ELF align 4KB on 16KB kernel rejected with RED `INCOMPATIBLE_PAGE_SIZE` | Control ELF rewritten with 16KB alignment | **PASS** |
+| `canary_physics_tick` | **STATIC** | 60Hz standard display; free-running tick matches native display refresh | `ApkReviveInitProvider` shim & 60Hz mode injected | **PASS** |
+| `canary_aspect_ratio` | **STATIC** | Standard 16:9 non-widescreen profile | `resizeableActivity=true` injected | **PASS** |
+| `canary_bionic_greylist` | **STATIC** | Direct `DT_NEEDED` linkage to private bionic symbol | Triage halts corrupt deployment (`FAIL_CLOSED`) | **PASS** |
+| `canary_has_code` | **STATIC** | `hasCode=False` prevents Dalvik loading | `hasCode=true` injected and verified | **PASS** |
+| `canary_obb_version` | **STATIC** | OBB v200 ahead of APK v100 triggers mismatch | OBB v100 with APK v150 delivery validated | **PASS** |
 
-**Summary**: 8/8 canary vectors verified PASS on live API 37 16KB emulator.
+**Summary**: 8/8 canary vectors verified PASS. `canary_install_floor` verified ON_DEVICE with idempotent pre- and post-uninstalls. Remaining 7 assertions verified statically against bytecode/AXML models.
 
 ### B. Corpus Verification on Live Emulator (`scripts/run_emulator_corpus.py`)
 
-All 8 corpus APKs revived with `--bump-target-sdk 24` and evaluated on device:
+All 8 corpus APKs evaluated on live API 37 16KB emulator with fail-closed semantics enforced:
 
-| Package | Original `targetSdk` | Revive | Install Command | Install Status | Launch Status | 8s Liveness Check | Crash Logcat (`-b crash`) | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `ch.hsr.eyecam` | 18 | PASS | `adb install -r <apk>` | **FAIL** | SKIPPED | SKIPPED | Clean | `INSTALL_FAILED_NO_MATCHING_ABIS` (32-bit arm only; expected on x86_64) |
-| `ch.nexuscomputing.android.osciprimeics` | 19 | PASS | `adb install -r <apk>` | **FAIL** | SKIPPED | SKIPPED | Clean | `INSTALL_FAILED_NO_MATCHING_ABIS` (32-bit arm only; expected on x86_64) |
-| `a2dp.Vol` | 19 | PASS | `adb install -r <apk>` | **PASS** | **PASS** | **PASS (pid 4319)** | Clean (0 crashes) | Pure Java app; runs stably |
-| `acr.browser.barebones` | 19 | PASS | `adb install -r <apk>` | **PASS** | **PASS** | **PASS (pid 4628)** | App Crash Detected | NPE in internal WebView SQLite history query |
-| `akk.astro.droid.moonphase` | 18 | PASS | `adb install -r <apk>` | **PASS** | **PASS** | **PASS (pid 4827)** | Clean (0 crashes) | Pure Java app; runs stably |
-| `android.androidVNC` | 4 | PASS | `adb install -r <apk>` | **PASS** | **PASS** | **PASS (pid 4938)** | Crashpad Detected | Ancient targetSdk 4; font asset lookup crash |
-| `atm.rocketguardian` | 25 | PASS | `adb install -r <apk>` | **PASS** | **PASS** | **PASS (pid 5122)** | Clean (0 crashes) | 64-bit native lib running on 16KB kernel |
-| `atm.starun.game` | 20 | PASS | `adb install -r <apk>` | **PASS** | **PASS** | **PASS (pid 5266)** | Clean (0 crashes) | 64-bit native lib running on 16KB kernel |
+| Package | Original `targetSdk` | Triage Verdict | Revive Exit | Output APK | Install Status | Launch Status | 8s Liveness Check | Top Resumed Activity | Crash Buffer (`-b crash`) | Screenshot |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `ch.hsr.eyecam` | 18 | **RED** (`UNSUPPORTED_32BIT_ABI`) | 1 | None (fail-closed) | SKIPPED | SKIPPED | SKIPPED | N/A | Clean | N/A |
+| `ch.nexuscomputing.android.osciprimeics` | 19 | **RED** (`UNSUPPORTED_32BIT_ABI`) | 1 | None (fail-closed) | SKIPPED | SKIPPED | SKIPPED | N/A | Clean | N/A |
+| `a2dp.Vol` | 19 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13005)** | `a2dp.Vol/.main` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/a2dp.Vol.png` |
+| `acr.browser.barebones` | 19 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13150)** | `GrantPermissionsActivity` (`is_top=False`) | Clean (0 crashes) | `docs/device_runs/acr.browser.barebones.png` |
+| `akk.astro.droid.moonphase` | 18 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13306)** | `akk.astro.droid.moonphase/.MoonActivity` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/akk.astro.droid.moonphase.png` |
+| `android.androidVNC` | 4 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13443)** | `GrantPermissionsActivity` (`is_top=False`) | Clean (0 crashes) | `docs/device_runs/android.androidVNC.png` |
+| `atm.rocketguardian` | 25 | **RED** (`INCOMPATIBLE_PAGE_SIZE`) | 1 | None (fail-closed) | SKIPPED | SKIPPED | SKIPPED | N/A | Clean | N/A |
+| `atm.starun.game` | 20 | **RED** (`INCOMPATIBLE_PAGE_SIZE`) | 1 | None (fail-closed) | SKIPPED | SKIPPED | SKIPPED | N/A | Clean | N/A |
 
-### C. Display & Notch Flag Verification (`--enable-60hz --enable-cutout`)
+### C. Crash & A/B/C Anomaly Investigation
 
-Three corpus APKs modernized with display smoothing and cutout flags:
+Empirical A/B/C testing on modern Android (API 34+) resolved earlier hypotheses regarding `acr.browser.barebones` and `android.androidVNC`:
+- **Crash Buffer Evidence**: The crash buffer (`logcat -d -b crash`) was verified completely clean (0 crashes, 0 fatal exceptions) for both applications.
+- **Root Cause of Process Stall**: When installed with `targetSdk < 23` on modern Android, the platform permission controller intercepts app launch with a system modal `ReviewPermissionsActivity` (`com.google.android.permissioncontroller/com.android.permissioncontroller.permission.ui.ReviewPermissionsActivity`). Until the user clicks "Continue" on the dialog, the target process is not spawned (`pidof` returns empty).
+- **Target SDK Bump Resolution**: When revived with `--bump-target-sdk 24`, the modern permission model applies. The app launches immediately into active background execution and displays standard runtime permission requests (`GrantPermissionsActivity`) without blocking process creation.
+- **Conclusion**: The targetSdk bump does NOT cause crashes; it prevents the legacy permission review dialog deadlock.
 
-| Package | Modernization Flags | Install | Launch | 8s Liveness Check | Crash Buffer |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `a2dp.Vol` | `--enable-60hz --enable-cutout` | PASS | PASS | **PASS (pid 5516)** | Clean (0 crashes) |
-| `akk.astro.droid.moonphase` | `--enable-60hz --enable-cutout` | PASS | PASS | **PASS (pid 5691)** | Clean (0 crashes) |
-| `atm.starun.game` | `--enable-60hz --enable-cutout` | PASS | PASS | **PASS (pid 5837)** | Clean (0 crashes) |
+### D. Shim Tagged Logging & Display/Cutout Proof
 
-### D. Dangerous Permission Runtime Grants on Bump Path
-
-Verified runtime permission transition on `a2dp.Vol` bumped from `targetSdk 19` to `targetSdk 24`:
-1. **Direct Install**: `adb install -r revived_a2dp.Vol_126.apk` succeeds without bypass flag because `targetSdkVersion` is 24.
-2. **Initial Permission State**: Dangerous permissions are denied by default (`ACCESS_FINE_LOCATION: granted=false`, `READ_PHONE_STATE: granted=false`, `READ_CONTACTS: granted=false`).
-3. **ADB Runtime Grants**:
-   ```bash
-   adb shell pm grant a2dp.Vol android.permission.ACCESS_FINE_LOCATION
-   adb shell pm grant a2dp.Vol android.permission.READ_PHONE_STATE
-   adb shell pm grant a2dp.Vol android.permission.READ_CONTACTS
-   ```
-4. **Verification**: `dumpsys package a2dp.Vol` confirms all three permissions transitioned to `granted=true`.
-5. **App Execution**: Package launched via monkey and remained alive for >8 seconds (`pid 6159`) with 0 crashes.
-
+1. **Tagged Logging Verification**:
+   - `ApkReviveInitProvider.java` was instrumented with tagged logging (`android.util.Log.i("ApkRevive", ...)`).
+   - Compiled canonical `shim.dex` (SHA-256: `e98aa52caf836fee44189b37f87fd91082bd6754a11cd796ec8ca9cf1d35feaa`).
+   - Logcat output on launch of revived `a2dp.Vol` confirms lifecycle execution:
+     ```text
+     10-18 14:56:35.926 13837 13837 I ApkRevive: ApkReviveInitProvider initialized for a2dp.Vol
+     10-18 14:56:42.006 13837 13837 I ApkRevive: Applied transform: CUTOUT_SHORT_EDGES on main
+     10-18 14:56:42.006 13837 13837 I ApkRevive: Applied transform: LOCK_60HZ_DISPLAY_MODE on main
+     ```
+2. **Display Capabilities Note (UNVERIFIED on Physical Hardware)**:
+   - `dumpsys display` confirms `emulator-5554` provides a single display mode (`id=1, 60.0fps`) and no hardware display cutout (`cutout=null`).
+   - Consequently, while the bytecode shim successfully executed and set `layoutInDisplayCutoutMode` and `preferredDisplayModeId` on the `Window`, physical high-refresh rate switching and display cutout rendering remain **UNVERIFIED** pending test execution on physical hardware with variable refresh displays and physical display cutouts.

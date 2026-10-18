@@ -162,6 +162,7 @@ class CanaryAssertionResult:
     expected: str
     observed: str
     tier_id: str
+    mode: str = "STATIC"
 
 
 def get_git_commit(project_root: Path = PROJECT_ROOT) -> str:
@@ -245,9 +246,12 @@ def verify_canary_install_floor(
 ) -> CanaryAssertionResult:
     failing_apk = canaries_dir / "canary_install_floor_failing.apk"
     meta = inspect_apk(str(failing_apk)) if failing_apk.exists() else ApkMetadata(target_sdk=22)
+    pkg_name = meta.package_name or "com.apkrevive.canary.installfloor.failing"
+    mode = "ON_DEVICE" if bridge else "STATIC"
 
     if profile.os_api_level >= 34:
         if bridge:
+            bridge.uninstall(pkg_name)
             ok, out = bridge.install(str(failing_apk), bypass_low_target_sdk=False)
             ctrl_pass = (not ok) and ("INSTALL_FAILED_DEPRECATED_SDK_VERSION" in out)
             ctrl_msg = f"Live ADB direct install rejected: {out.strip()}"
@@ -265,6 +269,7 @@ def verify_canary_install_floor(
         ok_bypass, out_bypass = bridge.install(str(failing_apk), bypass_low_target_sdk=True)
         rev_pass = ok_bypass and ("Success" in out_bypass)
         rev_msg = f"Live ADB bypass install succeeded: {out_bypass.strip()}"
+        bridge.uninstall(pkg_name)
     else:
         triage_after = evaluate_triage(meta, profile)
         rev_pass = triage_after.get("verdict") == Verdict.GREEN.value
@@ -281,6 +286,7 @@ def verify_canary_install_floor(
         expected="Reject SDK < floor on API 34+ without bypass; succeed with bypass",
         observed=f"Control: {ctrl_msg} | Revived: {rev_msg}",
         tier_id=tier_from_device_profile(profile),
+        mode=mode,
     )
 
 
@@ -664,15 +670,18 @@ def render_results_table(all_results: list[tuple[AVDTier, list[CanaryAssertionRe
                 header_style="bold magenta",
                 show_lines=True,
             )
-            table.add_column("Canary Identifier", style="cyan", width=24)
-            table.add_column("Control (Unpatched) Assertion", width=42)
-            table.add_column("Revived (Patched) Assertion", width=42)
-            table.add_column("Verdict", justify="center", width=10)
+            table.add_column("Canary Identifier", style="cyan", width=22)
+            table.add_column("Mode", justify="center", width=11)
+            table.add_column("Control (Unpatched) Assertion", width=40)
+            table.add_column("Revived (Patched) Assertion", width=40)
+            table.add_column("Verdict", justify="center", width=9)
 
             for r in records:
                 status_badge = "[bold green]PASS[/bold green]" if r.pass_fail == "PASS" else "[bold red]FAIL[/bold red]"
+                mode_badge = f"[bold cyan]{r.mode}[/bold cyan]" if r.mode == "ON_DEVICE" else f"[dim]{r.mode}[/dim]"
                 table.add_row(
                     f"`{r.canary_id}`",
+                    mode_badge,
                     f"[dim]{r.control_detail}[/dim]",
                     f"{r.revived_detail}",
                     status_badge,
@@ -680,19 +689,19 @@ def render_results_table(all_results: list[tuple[AVDTier, list[CanaryAssertionRe
             console.print(table)
             console.print()
     else:
-        print("\n" + "=" * 90)
+        print("\n" + "=" * 105)
         print("  ApkRevive Canary Matrix Runner & Verification Engine")
         print(f"  Total Assertions: {total_tests} | Verified: {total_passed}/{total_tests}")
-        print("=" * 90)
+        print("=" * 105)
 
         for tier, records in all_results:
             print(f"\n--- {tier.name} ({tier.focus}) ---")
-            print(f"{'Canary':<26} | {'Control Assertion':<32} | {'Revived Assertion':<32} | {'Verdict'}")
-            print("-" * 105)
+            print(f"{'Canary':<24} | {'Mode':<10} | {'Control Assertion':<32} | {'Revived Assertion':<32} | {'Verdict'}")
+            print("-" * 115)
             for r in records:
                 ctrl_short = (r.control_detail[:29] + "...") if len(r.control_detail) > 32 else r.control_detail
                 rev_short = (r.revived_detail[:29] + "...") if len(r.revived_detail) > 32 else r.revived_detail
-                print(f"{r.canary_id:<26} | {ctrl_short:<32} | {rev_short:<32} | [{r.pass_fail}]")
+                print(f"{r.canary_id:<24} | {r.mode:<10} | {ctrl_short:<32} | {rev_short:<32} | [{r.pass_fail}]")
         print("\n")
 
 

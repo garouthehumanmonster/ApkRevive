@@ -148,6 +148,11 @@ def run_corpus_on_device(
         print("-" * 70)
 
         revived_apk = out_dir / f"revived_{filename}"
+        if revived_apk.exists():
+            try:
+                revived_apk.unlink()
+            except OSError:
+                pass
 
         # Step 1: Revive
         revive_cmd = [
@@ -166,21 +171,35 @@ def run_corpus_on_device(
 
         print(f"[1] Reviving: {' '.join(revive_cmd)}")
         rev_res = run_command(revive_cmd, timeout=120)
-        if not revived_apk.exists():
-            print(f"    Revive did not produce output APK (exit {rev_res['exit_code']}): {rev_res['stderr'] or rev_res['stdout']}")
+        output_apk_exists = revived_apk.exists()
+        if rev_res["exit_code"] == 1:
+            triage_verdict = "RED"
+            revive_status = "FAIL (RED)"
+        elif rev_res["exit_code"] == 2:
+            triage_verdict = "YELLOW"
+            revive_status = "WARN (YELLOW)"
+        else:
+            triage_verdict = "GREEN"
+            revive_status = "PASS"
+
+        if not output_apk_exists:
+            print(f"    Revive did not produce output APK (exit {rev_res['exit_code']}, verdict {triage_verdict}): {rev_res['stderr'] or rev_res['stdout']}")
             results.append({
                 "package": pkg,
                 "filename": filename,
                 "target_sdk": entry.get("target_sdk"),
                 "revive_cmd": " ".join(revive_cmd),
-                "revive_status": "FAIL",
+                "revive_status": revive_status,
+                "triage_verdict": triage_verdict,
+                "revive_exit_code": rev_res["exit_code"],
+                "output_apk_exists": False,
                 "revive_output": rev_res["stdout"] + "\n" + rev_res["stderr"],
                 "install_status": "SKIPPED",
                 "launch_status": "SKIPPED",
                 "liveness_status": "SKIPPED",
             })
             continue
-        print(f"    Revived successfully -> {revived_apk.name} (verdict exit code {rev_res['exit_code']})")
+        print(f"    Revived successfully -> {revived_apk.name} (verdict {triage_verdict}, exit {rev_res['exit_code']})")
 
         # Step 2: Clear crash logcat and uninstall any existing test build
         run_command(adb_prefix + ["logcat", "-c", "-b", "crash"])
@@ -208,7 +227,10 @@ def run_corpus_on_device(
                 "filename": filename,
                 "target_sdk": entry.get("target_sdk"),
                 "revive_cmd": " ".join(revive_cmd),
-                "revive_status": "PASS",
+                "revive_status": revive_status,
+                "triage_verdict": triage_verdict,
+                "revive_exit_code": rev_res["exit_code"],
+                "output_apk_exists": output_apk_exists,
                 "install_cmd": install_cmd_str,
                 "install_status": "FAIL",
                 "install_exit_code": inst_res["exit_code"],
@@ -235,7 +257,7 @@ def run_corpus_on_device(
         launch_ok = (launch_res["exit_code"] == 0) and ("Events injected: 1" in launch_res["stdout"])
         print(f"    Launch exit {launch_res['exit_code']} | Result: {'PASS' if launch_ok else 'WARN/FAIL'}")
 
-        # Step 5: Liveness check: sleep 8s, check pidof and resumed activity
+        # Step 5: Liveness check: sleep 8s, check pidof and top resumed activity
         print("[4] Liveness check: sleeping 8s...")
         time.sleep(8)
 
@@ -249,11 +271,23 @@ def run_corpus_on_device(
         )
         resumed_match = ""
         for line in dumpsys_res["stdout"].splitlines():
-            if ("mResumedActivity" in line or "topResumedActivity" in line) and pkg in line:
-                resumed_match = line.strip()
+            stripped = line.strip()
+            if any(k in stripped for k in ("topResumedActivity=", "mResumedActivity:", "ResumedActivity:")):
+                resumed_match = stripped
                 break
+        is_top = bool(resumed_match and pkg in resumed_match)
+        print(f"    Liveness pid: '{pid}' (alive={is_alive}) | Top Activity: '{resumed_match}' (is_top={is_top})")
 
-        print(f"    Liveness pid: '{pid}' (alive={is_alive}) | Resumed: '{resumed_match}'")
+        # Capture screenshot to docs/device_runs/<pkg>.png
+        screenshots_dir = REPO_ROOT / "docs" / "device_runs"
+        screenshots_dir.mkdir(parents=True, exist_ok=True)
+        screenshot_path = screenshots_dir / f"{pkg}.png"
+        try:
+            with open(screenshot_path, "wb") as f_img:
+                subprocess.run(adb_prefix + ["exec-out", "screencap", "-p"], stdout=f_img, timeout=15)
+            print(f"    Screenshot saved -> docs/device_runs/{pkg}.png")
+        except Exception as e:
+            print(f"    Screenshot capture failed: {e}")
 
         # Step 6: Crash check
         crash_res = run_command(adb_prefix + ["logcat", "-d", "-b", "crash"], timeout=10)
@@ -269,7 +303,10 @@ def run_corpus_on_device(
             "filename": filename,
             "target_sdk": entry.get("target_sdk"),
             "revive_cmd": " ".join(revive_cmd),
-            "revive_status": "PASS",
+            "revive_status": revive_status,
+            "triage_verdict": triage_verdict,
+            "revive_exit_code": rev_res["exit_code"],
+            "output_apk_exists": output_apk_exists,
             "install_cmd": install_cmd_str,
             "install_status": "PASS" if install_success else "FAIL",
             "install_exit_code": inst_res["exit_code"],
@@ -281,6 +318,7 @@ def run_corpus_on_device(
             "liveness_status": "PASS" if is_alive else "DEAD",
             "pid": pid,
             "resumed_activity": resumed_match,
+            "top_activity": is_top,
             "crash_detected": has_crash,
             "crash_log": crash_log,
         })
