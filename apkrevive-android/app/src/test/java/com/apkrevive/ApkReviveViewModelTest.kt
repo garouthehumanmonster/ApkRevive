@@ -224,4 +224,14 @@ class ApkReviveViewModelTest {
         assertEquals("User confirmation required", awaiting.reason)
         assertEquals("CONFIRM_PERMISSIONS", awaiting.resumeStep)
     }
-}
+
+    @Test
+    fun testInstallApkGuardsAgainstNullUriAndResetsIsInstalling() {
+        val viewModel = ApkReviveViewModel(testDispatcher)
+        val dummyContext = android.content.ContextWrapper(null)
+        viewModel.installApk(dummyContext)
+
+        assertFalse("isInstalling must be false after installApk with null uri", viewModel.uiState.value.isInstalling)
+        assertTrue(viewModel.reviveJobState.value is ReviveJobState.InstallFailed)
+    }
+}

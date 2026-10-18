@@ -111,9 +111,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun updateShizukuState() {
-        val available = ShizukuPackageInstallerBridge.isShizukuAvailable()
-        val authorized = ShizukuPackageInstallerBridge.isShizukuPermissionGranted()
-        viewModel.setShizukuStatus(available = available, authorized = authorized)
+        viewModel.refreshShizukuConnection(this)
     }
 
     private fun requestShizukuPermission() {

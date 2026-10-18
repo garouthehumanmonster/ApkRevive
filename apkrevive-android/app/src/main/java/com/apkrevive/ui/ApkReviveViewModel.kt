@@ -207,6 +207,8 @@ class ApkReviveViewModel(
     }
 
     fun installApk(context: Context) {
+        if (_uiState.value.isInstalling) return
+
         val currentState = _uiState.value
         val uri = currentState.selectedApkUri
         if (uri == null) {
@@ -254,20 +256,22 @@ class ApkReviveViewModel(
                     it.copy(installStatusMessage = "Installing app. This may take a moment...")
                 }
 
-                val result = ShizukuPackageInstallerBridge.installApk(
-                    context = context,
-                    apkStream = stream,
-                    apkSize = currentState.selectedApkSizeBytes,
-                    bypassLowTargetSdk = bypass,
-                    onProgress = { step, index, total, fraction ->
-                        _reviveJobState.value = ReviveJobState.ExecutingPipeline(
-                            step = step,
-                            stepIndex = index,
-                            totalSteps = total,
-                            progressFraction = fraction
-                        )
-                    }
-                )
+                val result = stream.use { openStream ->
+                    ShizukuPackageInstallerBridge.installApk(
+                        context = context,
+                        apkStream = openStream,
+                        apkSize = currentState.selectedApkSizeBytes,
+                        bypassLowTargetSdk = bypass,
+                        onProgress = { step, index, total, fraction ->
+                            _reviveJobState.value = ReviveJobState.ExecutingPipeline(
+                                step = step,
+                                stepIndex = index,
+                                totalSteps = total,
+                                progressFraction = fraction
+                            )
+                        }
+                    )
+                }
 
                 result.fold(
                     onSuccess = {
@@ -287,9 +291,53 @@ class ApkReviveViewModel(
                             error.errorCode
                         } else if (error.message?.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") == true) {
                             ShizukuPackageInstallerBridge.INSTALL_FAILED_UPDATE_INCOMPATIBLE
+                        } else if (error.message?.contains("INSTALL_FAILED_DEPRECATED_SDK_VERSION") == true) {
+                            ShizukuPackageInstallerBridge.INSTALL_FAILED_DEPRECATED_SDK_VERSION
                         } else {
                             -1
                         }
+
+                        val isDeprecated = errCode == ShizukuPackageInstallerBridge.INSTALL_FAILED_DEPRECATED_SDK_VERSION ||
+                                error.message?.contains("DEPRECATED_SDK_VERSION", ignoreCase = true) == true
+
+                        if (isDeprecated && currentState.isShizukuAuthorized) {
+                            _uiState.update {
+                                it.copy(installStatusMessage = "Retrying via privileged shell installer...")
+                            }
+                            val fallbackStream = context.contentResolver.openInputStream(uri)
+                            if (fallbackStream != null) {
+                                val shellResult = fallbackStream.use { sStream ->
+                                    ShizukuPackageInstallerBridge.installApkViaShell(
+                                        apkStream = sStream,
+                                        apkSize = currentState.selectedApkSizeBytes,
+                                        bypassLowTargetSdk = true,
+                                        onProgress = { step, index, total, fraction ->
+                                            _reviveJobState.value = ReviveJobState.ExecutingPipeline(
+                                                step = step,
+                                                stepIndex = index,
+                                                totalSteps = total,
+                                                progressFraction = fraction
+                                            )
+                                        }
+                                    )
+                                }
+
+                                if (shellResult.isSuccess) {
+                                    val pkg = currentState.apkMetadata?.packageName ?: ""
+                                    _reviveJobState.value = ReviveJobState.InstallSuccess(pkg)
+                                    _uiState.update {
+                                        it.copy(
+                                            isInstalling = false,
+                                            installSuccess = true,
+                                            installStatusMessage = "Installation succeeded!",
+                                            installedPackageName = pkg
+                                        )
+                                    }
+                                    return@launch
+                                }
+                            }
+                        }
+
                         val explanation = ShizukuPackageInstallerBridge.parseInstallError(errCode, error.message)
                         _reviveJobState.value = ReviveJobState.InstallFailed(
                             errorCode = explanation.errorCode,
@@ -314,11 +362,12 @@ class ApkReviveViewModel(
                 )
                 _uiState.update {
                     it.copy(
-                        isInstalling = false,
                         installSuccess = false,
                         installStatusMessage = "Something went wrong: ${t.message ?: "Please try again."}"
                     )
                 }
+            } finally {
+                _uiState.update { it.copy(isInstalling = false) }
             }
         }
     }

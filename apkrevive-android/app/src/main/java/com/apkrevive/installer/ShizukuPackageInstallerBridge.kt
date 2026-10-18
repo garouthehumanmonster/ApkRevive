@@ -12,6 +12,7 @@ import android.os.IInterface
 import android.os.ParcelFileDescriptor
 import android.os.RemoteException
 import android.util.Log
+import com.apkrevive.core.ObbValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -31,13 +32,38 @@ object ShizukuPackageInstallerBridge {
     const val INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK: Int = 0x01000000
 
     const val INSTALL_FAILED_UPDATE_INCOMPATIBLE: Int = -7
-    const val INSTALL_FAILED_DEPRECATED_SDK_VERSION: Int = -127
+    const val INSTALL_FAILED_DEPRECATED_SDK_VERSION: Int = -29
+    const val STATUS_INSTALL_FAILED_DEPRECATED_SDK_VERSION_NAME: String = "INSTALL_FAILED_DEPRECATED_SDK_VERSION"
 
     const val SHELL_PACKAGE_NAME: String = "com.android.shell"
     const val ACTION_INSTALL_RESULT: String = "com.apkrevive.ACTION_INSTALL_STATUS"
 
     // Test hook for mock uninstallation in JVM unit tests
     var uninstallExecutor: (suspend (packageName: String) -> Result<Boolean>)? = null
+
+    // Test hook for mock installation in JVM unit tests
+    var installExecutor: (suspend (apkStream: InputStream, apkSize: Long, bypassLowTargetSdk: Boolean) -> Result<Int>)? = null
+
+    // Centralized reflection helper test hook
+    internal var newProcessMethodResolver: (() -> java.lang.reflect.Method)? = null
+
+    fun invokeShizukuNewProcess(cmd: Array<String>): Process {
+        val method = try {
+            newProcessMethodResolver?.invoke() ?: Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            ).apply { isAccessible = true }
+        } catch (e: NoSuchMethodException) {
+            throw IllegalStateException(
+                "Shizuku.newProcess is unavailable in this Shizuku API runtime (dev.rikka.shizuku:api:13.1.5 private method missing). " +
+                "Verify R8/ProGuard keep rules or migrate to Shizuku UserService.",
+                e
+            )
+        }
+        return method.invoke(null, cmd, null, null) as Process
+    }
 
     data class InstallErrorExplanation(
         val errorCode: Int,
@@ -134,12 +160,12 @@ object ShizukuPackageInstallerBridge {
                 )
             }
             errorCode == INSTALL_FAILED_DEPRECATED_SDK_VERSION ||
-            msg.contains("INSTALL_FAILED_DEPRECATED_SDK_VERSION", ignoreCase = true) ||
+            msg.contains(STATUS_INSTALL_FAILED_DEPRECATED_SDK_VERSION_NAME, ignoreCase = true) ||
             msg.contains("Target SDK below", ignoreCase = true) -> {
                 InstallErrorExplanation(
                     errorCode = INSTALL_FAILED_DEPRECATED_SDK_VERSION,
                     humanExplanation = "Target SDK below device floor.",
-                    remediation = "Bypass flag will be used."
+                    remediation = "App targets older Android version than platform minimum. Shizuku bypass flag required."
                 )
             }
             errorCode == -16 || errorCode == -113 ||
@@ -188,31 +214,213 @@ object ShizukuPackageInstallerBridge {
                 )
             }
 
-        try {
-            val newProcessMethod = Shizuku::class.java.getDeclaredMethod(
-                "newProcess",
-                Array<String>::class.java,
-                Array<String>::class.java,
-                String::class.java
-            )
-            newProcessMethod.isAccessible = true
-            val process = newProcessMethod.invoke(null, arrayOf("pm", "uninstall", packageName), null, null) as Process
-            val exitCode = process.waitFor()
-            val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
-            val errorOutput = process.errorStream.bufferedReader().use { it.readText() }.trim()
+            try {
+                val process = invokeShizukuNewProcess(arrayOf("pm", "uninstall", packageName))
+                val exitCode = process.waitFor()
+                val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+                val errorOutput = process.errorStream.bufferedReader().use { it.readText() }.trim()
 
-            if (exitCode == 0 && (output.contains("Success", ignoreCase = true) || output.isEmpty())) {
+                if (exitCode == 0 && (output.contains("Success", ignoreCase = true) || output.isEmpty())) {
+                    Result.success(true)
+                } else {
+                    val err = if (errorOutput.isNotBlank()) errorOutput else output
+                    Result.failure(Exception("Uninstall failed (exit $exitCode): $err"))
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "Failed to uninstall package $packageName", t)
+                Result.failure(t)
+            }
+        }
+    }
+
+    fun isBypassLowTargetSdkSupported(sdkInt: Int = Build.VERSION.SDK_INT): Boolean {
+        return sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+    }
+
+    /**
+     * Installs an APK using Shizuku privileged shell execution via 'pm install'.
+     */
+    suspend fun installApkViaShell(
+        apkStream: InputStream,
+        apkSize: Long,
+        bypassLowTargetSdk: Boolean = true,
+        onProgress: (step: String, stepIndex: Int, totalSteps: Int, progressFraction: Float) -> Unit = { _, _, _, _ -> }
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        if (!isShizukuPermissionGranted()) {
+            return@withContext Result.failure(
+                IllegalStateException("Shizuku is not running or permission is not granted.")
+            )
+        }
+
+        var process: Process? = null
+        try {
+            val cmd = mutableListOf("pm", "install")
+            if (apkSize > 0) {
+                cmd.add("-S")
+                cmd.add(apkSize.toString())
+            }
+            if (bypassLowTargetSdk && isBypassLowTargetSdkSupported()) {
+                cmd.add("--bypass-low-target-sdk-block")
+            }
+
+            val proc = invokeShizukuNewProcess(cmd.toTypedArray())
+            process = proc
+
+            onProgress("Writing APK", 1, 4, 0.35f)
+            proc.outputStream.use { out ->
+                val buffer = ByteArray(65536)
+                var bytesRead: Int
+                var totalRead = 0L
+                while (apkStream.read(buffer).also { bytesRead = it } != -1) {
+                    out.write(buffer, 0, bytesRead)
+                    totalRead += bytesRead
+                    if (apkSize > 0) {
+                        val fraction = 0.35f + 0.4f * (totalRead.toFloat() / apkSize.toFloat()).coerceIn(0f, 1f)
+                        onProgress("Writing APK", 1, 4, fraction)
+                    }
+                }
+                out.flush()
+            }
+
+            onProgress("Committing Installation", 2, 4, 0.8f)
+            val exitCode = proc.waitFor()
+            val output = proc.inputStream.bufferedReader().use { it.readText() }.trim()
+            val errorOutput = proc.errorStream.bufferedReader().use { it.readText() }.trim()
+
+            if (exitCode == 0 && output.contains("Success", ignoreCase = true)) {
+                onProgress("Installation Complete", 4, 4, 1.0f)
                 Result.success(true)
             } else {
                 val err = if (errorOutput.isNotBlank()) errorOutput else output
-                Result.failure(Exception("Uninstall failed (exit $exitCode): $err"))
+                Result.failure(Exception("Shell install failed (exit $exitCode): $err"))
             }
         } catch (t: Throwable) {
-            Log.e(TAG, "Failed to uninstall package $packageName", t)
+            Log.e(TAG, "Failed to install APK via shell", t)
             Result.failure(t)
+        } finally {
+            try {
+                process?.destroy()
+            } catch (_: Throwable) {}
         }
     }
-}
+
+    /**
+     * Pushes an OBB expansion file to /storage/emulated/<userId>/Android/obb/<targetPackage>/ using Shizuku privileged shell.
+     * Bypasses Android 11+ scoped storage isolation restrictions on /Android/obb/.
+     */
+    suspend fun pushObbViaShell(
+        obbStream: InputStream,
+        targetPackage: String,
+        obbFilename: String,
+        expectedSize: Long = -1L,
+        userId: Int = 0,
+        currentApkVersion: Long = 0L
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        val validation = ObbValidator.validateObbDelivery(
+            obbFilename = obbFilename,
+            targetPackage = targetPackage,
+            currentApkVersion = currentApkVersion,
+            userId = userId
+        )
+        if (!validation.isValid) {
+            return@withContext Result.failure(
+                IllegalArgumentException("Invalid OBB filename: ${validation.reason}")
+            )
+        }
+
+        if (expectedSize <= 0L) {
+            return@withContext Result.failure(
+                IllegalArgumentException("expectedSize must be positive: $expectedSize")
+            )
+        }
+
+        if (!isShizukuPermissionGranted()) {
+            return@withContext Result.failure(
+                IllegalStateException("Shizuku is not running or permission is not granted.")
+            )
+        }
+
+        val targetDir = ObbValidator.resolveObbDirectory(targetPackage, userId)
+        val partPath = "$targetDir/$obbFilename.part"
+        val finalPath = "$targetDir/$obbFilename"
+
+        var writeProcess: Process? = null
+        var isSuccess = false
+        try {
+            val writeCmd = arrayOf("sh", "-c", "mkdir -p \"$1\" && cat > \"$2\"", "sh", targetDir, partPath)
+            val proc = invokeShizukuNewProcess(writeCmd)
+            writeProcess = proc
+
+            var totalBytesWritten = 0L
+            proc.outputStream.use { out ->
+                val buffer = ByteArray(65536)
+                var bytesRead: Int
+                while (obbStream.read(buffer).also { bytesRead = it } != -1) {
+                    out.write(buffer, 0, bytesRead)
+                    totalBytesWritten += bytesRead
+                }
+                out.flush()
+            }
+
+            val writeExitCode = proc.waitFor()
+            val writeErrorOutput = proc.errorStream.bufferedReader().use { it.readText() }.trim()
+
+            if (writeExitCode != 0) {
+                return@withContext Result.failure(
+                    Exception("Failed to write OBB part file to $partPath (exit $writeExitCode): $writeErrorOutput")
+                )
+            }
+
+            if (totalBytesWritten != expectedSize) {
+                return@withContext Result.failure(
+                    IllegalStateException("OBB stream size mismatch: wrote $totalBytesWritten bytes, expected $expectedSize")
+                )
+            }
+
+            // Verify on-device .part size before mv
+            val sizeCmd = arrayOf("sh", "-c", "wc -c < \"$1\"", "sh", partPath)
+            val sizeProc = invokeShizukuNewProcess(sizeCmd)
+            val sizeExitCode = sizeProc.waitFor()
+            val sizeOutput = sizeProc.inputStream.bufferedReader().use { it.readText() }.trim()
+            val onDeviceSize = sizeOutput.toLongOrNull() ?: -1L
+
+            if (sizeExitCode != 0 || onDeviceSize != expectedSize) {
+                return@withContext Result.failure(
+                    IllegalStateException("OBB on-device size mismatch: on-device $onDeviceSize != expected $expectedSize (exit $sizeExitCode)")
+                )
+            }
+
+            val mvCmd = arrayOf("sh", "-c", "mv -f \"$1\" \"$2\"", "sh", partPath, finalPath)
+            val mvProc = invokeShizukuNewProcess(mvCmd)
+            val mvExitCode = mvProc.waitFor()
+            val mvErrorOutput = mvProc.errorStream.bufferedReader().use { it.readText() }.trim()
+
+            if (mvExitCode != 0) {
+                return@withContext Result.failure(
+                    Exception("Failed to move OBB part file to $finalPath (exit $mvExitCode): $mvErrorOutput")
+                )
+            }
+
+            isSuccess = true
+            Result.success(true)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed pushing OBB via shell", t)
+            Result.failure(t)
+        } finally {
+            try {
+                writeProcess?.destroy()
+            } catch (_: Throwable) {}
+            if (!isSuccess) {
+                try {
+                    val rmCmd = arrayOf("sh", "-c", "rm -f \"$1\"", "sh", partPath)
+                    val rmProc = invokeShizukuNewProcess(rmCmd)
+                    rmProc.waitFor()
+                } catch (cleanupEx: Throwable) {
+                    Log.w(TAG, "Failed to clean up OBB part file: $partPath", cleanupEx)
+                }
+            }
+        }
+    }
 
     /**
      * Reflectively sets params.installFlags |= 0x01000000 (INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK).
@@ -250,135 +458,139 @@ object ShizukuPackageInstallerBridge {
         apkSize: Long,
         bypassLowTargetSdk: Boolean = true,
         onProgress: (step: String, stepIndex: Int, totalSteps: Int, progressFraction: Float) -> Unit = { _, _, _, _ -> }
-    ): Result<Int> = withContext(Dispatchers.IO) {
-        var sessionId = -1
-        var session: Any? = null
-        var iPackageInstaller: Any? = null
+    ): Result<Int> {
+        installExecutor?.let { return it.invoke(apkStream, apkSize, bypassLowTargetSdk) }
 
-        try {
-            if (!isShizukuPermissionGranted()) {
-                return@withContext Result.failure(
-                    IllegalStateException("Shizuku is not running or permission is not granted.")
-                )
-            }
+        return withContext(Dispatchers.IO) {
+            var sessionId = -1
+            var session: Any? = null
+            var iPackageInstaller: Any? = null
 
-            onProgress("Opening Stream", 0, 4, 0.1f)
-
-            // 1. Get IPackageManager wrapped in ShizukuBinderWrapper
-            val packageServiceBinder = SystemServiceHelper.getSystemService("package")
-                ?: return@withContext Result.failure(IllegalStateException("Unable to acquire 'package' service"))
-            val wrappedPackageService = ShizukuBinderWrapper(packageServiceBinder)
-
-            val ipmStubClass = Class.forName("android.content.pm.IPackageManager\$Stub")
-            val ipmAsInterface = ipmStubClass.getMethod("asInterface", IBinder::class.java)
-            val iPackageManager = ipmAsInterface.invoke(null, wrappedPackageService)
-
-            // 2. Get IPackageInstaller and wrap in ShizukuBinderWrapper
-            val getInstallerMethod = iPackageManager.javaClass.getMethod("getPackageInstaller")
-            val rawInstaller = getInstallerMethod.invoke(iPackageManager) as IInterface
-            val wrappedInstallerBinder = ShizukuBinderWrapper(rawInstaller.asBinder())
-
-            val ipiStubClass = Class.forName("android.content.pm.IPackageInstaller\$Stub")
-            val ipiAsInterface = ipiStubClass.getMethod("asInterface", IBinder::class.java)
-            iPackageInstaller = ipiAsInterface.invoke(null, wrappedInstallerBinder)
-
-            // 3. Create SessionParams
-            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-            if (apkSize > 0) {
-                params.setSize(apkSize)
-            }
-            if (bypassLowTargetSdk) {
-                applyBypassLowTargetSdkFlag(params)
-            }
-
-            // 4. Resolve createSession signature
-            sessionId = invokeCreateSession(iPackageInstaller, params, SHELL_PACKAGE_NAME, 0)
-            if (sessionId <= 0) {
-                return@withContext Result.failure(
-                    IllegalStateException("Invalid sessionId received: $sessionId")
-                )
-            }
-
-            // 5. Open Session
-            val openSessionMethod = iPackageInstaller.javaClass.getMethod(
-                "openSession",
-                Int::class.javaPrimitiveType
-            )
-            val rawSession = openSessionMethod.invoke(iPackageInstaller, sessionId) as IInterface
-            val wrappedSessionBinder = ShizukuBinderWrapper(rawSession.asBinder())
-
-            val sessionStubClass = Class.forName("android.content.pm.IPackageInstallerSession\$Stub")
-            val sessionAsInterface = sessionStubClass.getMethod("asInterface", IBinder::class.java)
-            session = sessionAsInterface.invoke(null, wrappedSessionBinder)
-
-            // 6. Stream APK bytes into session.openWrite("package", 0, size)
-            onProgress("Writing APK", 1, 4, 0.35f)
-            val openWriteMethod = session.javaClass.getMethod(
-                "openWrite",
-                String::class.java,
-                Long::class.javaPrimitiveType,
-                Long::class.javaPrimitiveType
-            )
-            val pfd = openWriteMethod.invoke(session, "package", 0L, apkSize) as ParcelFileDescriptor
-
-            ParcelFileDescriptor.AutoCloseOutputStream(pfd).use { out ->
-                val buffer = ByteArray(65536)
-                var bytesRead: Int
-                var totalRead = 0L
-                while (apkStream.read(buffer).also { bytesRead = it } != -1) {
-                    out.write(buffer, 0, bytesRead)
-                    totalRead += bytesRead
-                    if (apkSize > 0) {
-                        val fraction = 0.35f + 0.4f * (totalRead.toFloat() / apkSize.toFloat()).coerceIn(0f, 1f)
-                        onProgress("Writing APK", 1, 4, fraction)
-                    }
+            try {
+                if (!isShizukuPermissionGranted()) {
+                    return@withContext Result.failure(
+                        IllegalStateException("Shizuku is not running or permission is not granted.")
+                    )
                 }
-                out.flush()
-            }
 
-            // 7. Commit session with IntentSender
-            onProgress("Committing Session", 2, 4, 0.8f)
-            val intent = Intent(context, InstallResultReceiver::class.java).apply {
-                action = ACTION_INSTALL_RESULT
-                putExtra("SESSION_ID", sessionId)
-            }
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            } else {
-                PendingIntent.FLAG_UPDATE_CURRENT
-            }
-            val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                sessionId,
-                intent,
-                flags
-            )
+                onProgress("Opening Stream", 0, 4, 0.1f)
 
-            invokeCommitSession(session, pendingIntent.intentSender)
+                // 1. Get IPackageManager wrapped in ShizukuBinderWrapper
+                val packageServiceBinder = SystemServiceHelper.getSystemService("package")
+                    ?: return@withContext Result.failure(IllegalStateException("Unable to acquire 'package' service"))
+                val wrappedPackageService = ShizukuBinderWrapper(packageServiceBinder)
 
-            // 8. Await verification
-            onProgress("Awaiting Verification", 3, 4, 0.95f)
-            val event = withTimeoutOrNull(60_000L) {
-                InstallResultReceiver.events.first { it.sessionId == sessionId }
-            }
+                val ipmStubClass = Class.forName("android.content.pm.IPackageManager\$Stub")
+                val ipmAsInterface = ipmStubClass.getMethod("asInterface", IBinder::class.java)
+                val iPackageManager = ipmAsInterface.invoke(null, wrappedPackageService)
 
-            if (event == null) {
-                abandonSessionSafely(session, iPackageInstaller, sessionId)
-                return@withContext Result.failure(
-                    TimeoutException("Installation timed out waiting for PackageInstaller confirmation.")
+                // 2. Get IPackageInstaller and wrap in ShizukuBinderWrapper
+                val getInstallerMethod = iPackageManager.javaClass.getMethod("getPackageInstaller")
+                val rawInstaller = getInstallerMethod.invoke(iPackageManager) as IInterface
+                val wrappedInstallerBinder = ShizukuBinderWrapper(rawInstaller.asBinder())
+
+                val ipiStubClass = Class.forName("android.content.pm.IPackageInstaller\$Stub")
+                val ipiAsInterface = ipiStubClass.getMethod("asInterface", IBinder::class.java)
+                iPackageInstaller = ipiAsInterface.invoke(null, wrappedInstallerBinder)
+
+                // 3. Create SessionParams
+                val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+                if (apkSize > 0) {
+                    params.setSize(apkSize)
+                }
+                if (bypassLowTargetSdk && isBypassLowTargetSdkSupported()) {
+                    applyBypassLowTargetSdkFlag(params)
+                }
+
+                // 4. Resolve createSession signature
+                sessionId = invokeCreateSession(iPackageInstaller, params, SHELL_PACKAGE_NAME, 0)
+                if (sessionId <= 0) {
+                    return@withContext Result.failure(
+                        IllegalStateException("Invalid sessionId received: $sessionId")
+                    )
+                }
+
+                // 5. Open Session
+                val openSessionMethod = iPackageInstaller.javaClass.getMethod(
+                    "openSession",
+                    Int::class.javaPrimitiveType
                 )
-            }
+                val rawSession = openSessionMethod.invoke(iPackageInstaller, sessionId) as IInterface
+                val wrappedSessionBinder = ShizukuBinderWrapper(rawSession.asBinder())
 
-            if (event.isSuccess) {
-                Result.success(sessionId)
-            } else {
+                val sessionStubClass = Class.forName("android.content.pm.IPackageInstallerSession\$Stub")
+                val sessionAsInterface = sessionStubClass.getMethod("asInterface", IBinder::class.java)
+                session = sessionAsInterface.invoke(null, wrappedSessionBinder)
+
+                // 6. Stream APK bytes into session.openWrite("package", 0, size)
+                onProgress("Writing APK", 1, 4, 0.35f)
+                val openWriteMethod = session.javaClass.getMethod(
+                    "openWrite",
+                    String::class.java,
+                    Long::class.javaPrimitiveType,
+                    Long::class.javaPrimitiveType
+                )
+                val pfd = openWriteMethod.invoke(session, "package", 0L, apkSize) as ParcelFileDescriptor
+
+                ParcelFileDescriptor.AutoCloseOutputStream(pfd).use { out ->
+                    val buffer = ByteArray(65536)
+                    var bytesRead: Int
+                    var totalRead = 0L
+                    while (apkStream.read(buffer).also { bytesRead = it } != -1) {
+                        out.write(buffer, 0, bytesRead)
+                        totalRead += bytesRead
+                        if (apkSize > 0) {
+                            val fraction = 0.35f + 0.4f * (totalRead.toFloat() / apkSize.toFloat()).coerceIn(0f, 1f)
+                            onProgress("Writing APK", 1, 4, fraction)
+                        }
+                    }
+                    out.flush()
+                }
+
+                // 7. Commit session with IntentSender
+                onProgress("Committing Session", 2, 4, 0.8f)
+                val intent = Intent(context, InstallResultReceiver::class.java).apply {
+                    action = ACTION_INSTALL_RESULT
+                    putExtra("SESSION_ID", sessionId)
+                }
+                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    sessionId,
+                    intent,
+                    flags
+                )
+
+                invokeCommitSession(session, pendingIntent.intentSender)
+
+                // 8. Await verification
+                onProgress("Awaiting Verification", 3, 4, 0.95f)
+                val event = withTimeoutOrNull(60_000L) {
+                    InstallResultReceiver.events.first { it.sessionId == sessionId }
+                }
+
+                if (event == null) {
+                    abandonSessionSafely(session, iPackageInstaller, sessionId)
+                    return@withContext Result.failure(
+                        TimeoutException("Installation timed out waiting for PackageInstaller confirmation.")
+                    )
+                }
+
+                if (event.isSuccess) {
+                    Result.success(sessionId)
+                } else {
+                    abandonSessionSafely(session, iPackageInstaller, sessionId)
+                    Result.failure(SessionInstallException(event.errorCode, event.message))
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "Shizuku install failed, performing mandatory cleanup", t)
                 abandonSessionSafely(session, iPackageInstaller, sessionId)
-                Result.failure(SessionInstallException(event.errorCode, event.message))
+                Result.failure(t)
             }
-        } catch (t: Throwable) {
-            Log.e(TAG, "Shizuku install failed, performing mandatory cleanup", t)
-            abandonSessionSafely(session, iPackageInstaller, sessionId)
-            Result.failure(t)
         }
     }
 
