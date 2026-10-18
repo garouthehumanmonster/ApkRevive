@@ -48,16 +48,26 @@ class AdbBridge:
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return res.returncode, res.stdout, res.stderr
 
+    def wait_for_device(self, timeout: int = 15) -> bool:
+        code, _, _ = self._cmd(["wait-for-device"])
+        return code == 0
+
     def get_serial(self) -> str:
         code, out, _ = self._cmd(["get-serialno"])
         return out.strip() if code == 0 else ""
 
     def get_prop(self, prop: str) -> str:
-        code, out, _ = self._cmd(["shell", "getprop", prop])
+        code, out, err = self._cmd(["shell", "getprop", prop])
+        if (code != 0 or not out.strip()) and "offline" in err:
+            self._cmd(["wait-for-device"])
+            code, out, err = self._cmd(["shell", "getprop", prop])
         return out.strip() if code == 0 else ""
 
     def get_page_size(self) -> int:
-        code, out, _ = self._cmd(["shell", "getconf", "PAGE_SIZE"])
+        code, out, err = self._cmd(["shell", "getconf", "PAGE_SIZE"])
+        if (code != 0 or not out.strip()) and "offline" in err:
+            self._cmd(["wait-for-device"])
+            code, out, err = self._cmd(["shell", "getconf", "PAGE_SIZE"])
         if code == 0 and out.strip().isdigit():
             return int(out.strip())
         return 4096

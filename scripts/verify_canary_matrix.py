@@ -192,8 +192,8 @@ def tier_from_device_profile(profile: DeviceProfile) -> str:
 
 
 def detect_device_tier(bridge: AdbBridge) -> tuple[str, DeviceProfile, dict[str, str]]:
-    sdk_str = bridge.get_prop("ro.build.version.sdk")
-    sdk = int(sdk_str) if sdk_str.isdigit() else 35
+    bridge.wait_for_device()
+    sdk = bridge.get_sdk()
 
     floor_str = bridge.get_prop("ro.build.version.min_supported_target_sdk")
     floor = int(floor_str) if floor_str.isdigit() else (24 if sdk >= 35 else (23 if sdk >= 34 else 1))

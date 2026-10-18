@@ -204,3 +204,22 @@ Empirical testing on Android 17 (API 37 emulator) resolved earlier hypotheses re
 2. **Display Capabilities Note (UNVERIFIED on Physical Hardware)**:
    - `dumpsys display` confirms `emulator-5554` provides a single display mode (`id=1, 60.0fps`) and no hardware display cutout (`cutout=null`).
    - Consequently, while the bytecode shim successfully executed and set `layoutInDisplayCutoutMode` and `preferredDisplayModeId` on the `Window`, physical high-refresh rate switching and display cutout rendering remain **UNVERIFIED** pending test execution on physical hardware with variable refresh displays and physical display cutouts.
+
+### E. 16KB Page-Size Control Experiments (`atm.starun.game` & `atm.rocketguardian`)
+
+To determine whether ApkRevive's `PAGE_SIZE_COMPAT` transform measurably impacted execution on an active 16KB kernel, control runs were conducted on `emulator-5554` (API 37 x86_64, 16KB page size) by installing and launching the **original (unrevived)** APKs:
+- **`atm.starun.game` (Original)**:
+  - Install: `adb install -r -g --bypass-low-target-sdk-block tests/corpus/apks/atm.starun.game_121.apk` -> `Success`
+  - Launch & Liveness: `monkey` launched process (pid 7752), maintained 8s liveness, top resumed activity reached `atm.starun.game/.AndroidLauncher`.
+  - Crash buffer: `logcat -d -b crash` was completely clean (0 crashes).
+  - Platform logcat: `NativeLibraryHelper: Setting page size compat mode PAGE_SIZE_APP_COMPAT_FLAG_LOAD_NOT_ALIGNED: Minimum ELF LOAD segment alignment: 0x1000 is not at least 0x4000 aligned.`
+- **`atm.rocketguardian` (Original)**:
+  - Install: `adb install -r -g tests/corpus/apks/atm.rocketguardian_1.apk` -> `Success`
+  - Launch & Liveness: `monkey` launched process (pid 7967), maintained 8s liveness, top resumed activity reached `atm.rocketguardian/.AndroidLauncher`.
+  - Crash buffer: `logcat -d -b crash` was completely clean (0 crashes).
+  - Platform logcat: `NativeLibraryHelper: Setting page size compat mode PAGE_SIZE_APP_COMPAT_FLAG_LOAD_NOT_ALIGNED: Minimum ELF LOAD segment alignment: 0x1000 is not at least 0x4000 aligned.`
+
+**Comparison with Revived Runs**:
+Both the original (unrevived) and revived APKs successfully installed, launched, and maintained active liveness without crashing. On modern Android runtimes with 16KB page size support (such as Android 17 / API 37), the platform native runtime (`NativeLibraryHelper`) automatically activates its OS-level backwards compatibility mode (`PAGE_SIZE_APP_COMPAT_FLAG_LOAD_NOT_ALIGNED`) for 4KB-aligned ELF segments. Furthermore, on this x86_64 system image, native libraries run through architecture emulation or compatibility layers.
+**Empirical Conclusion**: `PAGE_SIZE_COMPAT` demonstrated **no measured benefit on API 37; arm64 unverified** on physical 16KB hardware without OS-level compatibility modes.
+

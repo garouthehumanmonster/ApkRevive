@@ -148,8 +148,8 @@ In accordance with strict verification discipline, capabilities are classified a
 |---|---|---|---|
 | AXML Manifest Mutation | Binary AST parser & byte rewriter (`AxmlSurgeon`) | `tests/test_axml.py`, `results/local_rig_canary_apache_http.json` | VERIFIED (Unit/Host) |
 | 16KB Page Size Triage | 3-state header & congruence auditor (`elf16k.py`) | `tests/test_elf16k.py`, `tests/test_elf_surgeon.py` | VERIFIED (Host / Clang ELF) |
-| 16KB Kernel dlopen | bionic dynamic linker on 16KB page kernel | Android Emulator API 35 (16KB) | NOT RUN (No Live AVD) |
-| targetSdk Floor Bypass | Package manager `-d --bypass-low-target-sdk-block` | Android Emulator API 34+ / Shizuku IPC | NOT RUN (No Live AVD) |
+| 16KB Kernel dlopen | bionic dynamic linker on 16KB page kernel | Android Emulator API 37 (16KB) | VERIFIED (no measured benefit on API 37; arm64 unverified) |
+| targetSdk Floor Bypass | Package manager `--bypass-low-target-sdk-block` | Android Emulator API 37 (16KB) / Shizuku IPC | VERIFIED (on-device emulator-5554) |
 | Runtime Shim Injection | ContentProvider initialization hook (`ApkReviveInitProvider`) | `tests/test_shim.py` | VERIFIED (Bytecode / Hash) |
 | Zero-Trust Zip Slip Guard | Path canonicalization & ratio thresholds (`zip_guard.py`) | `tests/test_zip_guard.py` | VERIFIED (Unit) |
 | V2/V3 APK Re-signing | `apksigner` integration & keytool keystore management | `tests/test_signer.py` | VERIFIED (Unit / Toolchain) |
@@ -290,7 +290,7 @@ On modern Android runtimes (empirically verified on Android 17 API 37 emulator, 
 
 1. **Privileged Bypass (`BYPASS_LOW_TARGET_SDK_BLOCK`) — Preferred:**
    - **How it works:** When installing via ADB CLI (`--bypass-low-target-sdk-block`) or the Shizuku companion app (`PackageInstaller` session flag `INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK` = `0x01000000`), the platform restriction is bypassed without altering the APK's manifest `targetSdkVersion`.
-   - **Advantages:** Preserves original cryptographic signature, avoids re-signing, and keeps all permissions as install-time permissions.
+   - **Advantages:** Preserves original cryptographic signature and avoids re-signing. Note that on modern Android runtimes, dangerous permissions still require pre-granting (`adb install -g` or `pm grant`) or user confirmation via the platform permission dialog.
    - **Recommended:** Always prefer bypass when Shizuku or ADB is available.
 
 2. **Target SDK Bump (`BUMP_TARGET_SDK`) — Standalone Alternative:**
