@@ -159,16 +159,20 @@ In accordance with strict verification discipline, capabilities are classified a
 
 ## Installation
 
-### Prerequisites
-- Python 3.9+
-- Android SDK build-tools (for `zipalign` and `apksigner` in PATH, optional if using internal fallback)
-- Android device with USB debugging (for ADB commands) or Shizuku installed (for on-device app)
+### Prerequisites & Dependencies
+- **Python Runtime**: Python 3.9+
+- **Core CLI**: Zero external dependencies (uses standard library exclusively).
+- **Development & Testing Extras**: `pip install -e ".[dev]"` installs pytest, hypothesis, rich, ruff, mypy, and coverage.
+- **Android Tools**: Android SDK build-tools (for `zipalign` and `apksigner` in PATH; fallback to internal signer available).
+- **Device Connectivity**: Android device/emulator with USB/wireless debugging or Shizuku companion app.
 
 ### Install Python CLI
 ```bash
 git clone https://github.com/garouthehumanmonster/ApkRevive.git
 cd ApkRevive
 pip install -e .
+# For testing and dev tools:
+pip install -e ".[dev]"
 ```
 
 ---
@@ -282,7 +286,7 @@ Details: Patched AXML manifest, injected ApkReviveInitProvider, aligned containe
 
 ### Target SDK Strategy: Bypass vs. Bump Trade-Off
 
-Android 14+ (API 34+) blocks direct installation of apps targeting SDK < 23, and Android 15+ (API 35+) blocks apps targeting SDK < 24 with `INSTALL_FAILED_DEPRECATED_SDK_VERSION`. ApkRevive provides two distinct strategies:
+On modern Android runtimes (empirically verified on Android 17 API 37 emulator, with platform floor `targetSdk >= 24`), direct installation of apps targeting below the platform install floor is rejected with `INSTALL_FAILED_DEPRECATED_SDK_VERSION`. ApkRevive provides two distinct strategies:
 
 1. **Privileged Bypass (`BYPASS_LOW_TARGET_SDK_BLOCK`) — Preferred:**
    - **How it works:** When installing via ADB CLI (`--bypass-low-target-sdk-block`) or the Shizuku companion app (`PackageInstaller` session flag `INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK` = `0x01000000`), the platform restriction is bypassed without altering the APK's manifest `targetSdkVersion`.
@@ -290,11 +294,25 @@ Android 14+ (API 34+) blocks direct installation of apps targeting SDK < 23, and
    - **Recommended:** Always prefer bypass when Shizuku or ADB is available.
 
 2. **Target SDK Bump (`BUMP_TARGET_SDK`) — Standalone Alternative:**
-   - **How it works:** When using `--bump-target-sdk` or `--standalone-install`, ApkRevive bumps `targetSdkVersion` in `AndroidManifest.xml` ONLY to the minimum install floor for the device profile (`dev.install_floor`, e.g., 24 for Android 15), never 35 by default.
+   - **How it works:** When using `--bump-target-sdk` or `--standalone-install`, ApkRevive bumps `targetSdkVersion` in `AndroidManifest.xml` ONLY to the minimum install floor for the device profile (`dev.install_floor`, e.g., 24 for Android 15/17), never 35 by default.
    - **Trade-Off & Breaking Changes:**
      - **Signature Invalidation:** Modifying the manifest requires re-signing the APK, which breaks original signature fingerprints.
-     - **Runtime Permissions Transition:** On Android >= 23, permissions classified as dangerous (e.g., `CAMERA`, `READ_EXTERNAL_STORAGE`, `ACCESS_FINE_LOCATION`) become **runtime permissions**. Legacy apps targetSdk < 23 expect permissions to be granted at install time and do not call `requestPermissions()`. Operations requiring these permissions will silently fail or crash unless granted manually by the user via App Info / Settings or `adb shell pm grant`.
+     - **Runtime Permissions Transition:** On Android >= 23, permissions classified as dangerous (e.g., `CAMERA`, `READ_EXTERNAL_STORAGE`, `ACCESS_FINE_LOCATION`) become **runtime permissions**. Legacy apps targetSdk < 23 expect permissions to be granted at install time and do not call `requestPermissions()`. Operations requiring these permissions will silently fail or be intercepted by the platform permission UI unless pre-granted (`adb install -g` or `pm grant`).
      - **Warning Code:** Triage automatically emits `WARN_RUNTIME_PERMISSIONS_ON_BUMP` whenever targetSdk is bumped to >= 23 on an APK declaring dangerous permissions.
+
+### CLI Exit Codes
+
+ApkRevive CLI commands (`triage`, `revive`) return distinct exit codes reflecting the triage and patching outcome:
+
+| Exit Code | Identifier | Meaning |
+| :---: | :--- | :--- |
+| **0** | `GREEN` | Compatible unmodified (`RUNNABLE_UNMODIFIED`). |
+| **1** | `RED` | Blocked / incompatible. Fail-closed: no output APK is written without `--force`. |
+| **2** | `YELLOW` | Modification required; transformations applied and output APK generated. |
+| **3** | `NEEDS_USER_INPUT` | Self-signature check or security anomaly detected; requires operator decision. |
+| **4** | `RED_FORCED` | Forced revival on a RED triage verdict using `--force` (warning: APK may fail or crash on target device). |
+
+
 
 
 ### 5. Probe Connected Device (`apkrevive probe`)

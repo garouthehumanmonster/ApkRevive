@@ -139,6 +139,14 @@ adb shell ls -la /storage/emulated/0/Android/obb/com.apkrevive.canary.obbversion
 - **Platform API Level / OS**: API 37 (Android 17)
 - **Architecture & Page Size**: `x86_64`, Kernel Page Size: `16384 bytes` (16KB)
 
+### Package Verifier Configuration (Emulator)
+Package verification was explicitly disabled on `emulator-5554` to avoid automated install blocks from Play Protect / package verifiers during testing:
+```bash
+adb shell settings put global package_verifier_enable 0
+adb shell settings put global verifier_verify_adb_installs 0
+```
+Verified that both global settings return `0`.
+
 > [!NOTE]
 > Testing was conducted on an `x86_64` 16KB system image. 64-bit multi-arch APKs (`atm.rocketguardian`, `atm.starun.game`) executed their `x86_64` native slices. Execution of `arm64-v8a` slices on a physical arm64 device or arm64 system image remains **UNVERIFIED**.
 
@@ -157,7 +165,7 @@ Executed live verification suite across all 8 vectors against `emulator-5554` (A
 | `canary_has_code` | **STATIC** | `hasCode=False` prevents Dalvik loading | `hasCode=true` injected and verified | **PASS** |
 | `canary_obb_version` | **STATIC** | OBB v200 ahead of APK v100 triggers mismatch | OBB v100 with APK v150 delivery validated | **PASS** |
 
-**Summary**: 8/8 canary vectors verified PASS. `canary_install_floor` verified ON_DEVICE with idempotent pre- and post-uninstalls. Remaining 7 assertions verified statically against bytecode/AXML models.
+**Summary**: 8/8 canary vectors verified PASS (1 ON_DEVICE / 7 STATIC). `canary_install_floor` verified ON_DEVICE with idempotent pre- and post-uninstalls. Remaining 7 assertions verified statically against bytecode/AXML models.
 
 ### B. Corpus Verification on Live Emulator (`scripts/run_emulator_corpus.py`)
 
@@ -171,16 +179,16 @@ All 8 corpus APKs evaluated on live API 37 16KB emulator with fail-closed semant
 | `acr.browser.barebones` | 19 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13150)** | `GrantPermissionsActivity` (`is_top=False`) | Clean (0 crashes) | `docs/device_runs/acr.browser.barebones.png` |
 | `akk.astro.droid.moonphase` | 18 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13306)** | `akk.astro.droid.moonphase/.MoonActivity` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/akk.astro.droid.moonphase.png` |
 | `android.androidVNC` | 4 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13443)** | `GrantPermissionsActivity` (`is_top=False`) | Clean (0 crashes) | `docs/device_runs/android.androidVNC.png` |
-| `atm.rocketguardian` | 25 | **RED** (`INCOMPATIBLE_PAGE_SIZE`) | 1 | None (fail-closed) | SKIPPED | SKIPPED | SKIPPED | N/A | Clean | N/A |
-| `atm.starun.game` | 20 | **RED** (`INCOMPATIBLE_PAGE_SIZE`) | 1 | None (fail-closed) | SKIPPED | SKIPPED | SKIPPED | N/A | Clean | N/A |
+| `atm.rocketguardian` | 25 | **YELLOW** (`PAGE_SIZE_COMPAT`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 6593 via -g pass)** | `atm.rocketguardian/.AndroidLauncher` (`top_activity=True`) | Clean (0 crashes) | `docs/device_runs/atm.rocketguardian.png` |
+| `atm.starun.game` | 20 | **YELLOW** (`PAGE_SIZE_COMPAT`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 6879 via -g pass)** | `atm.starun.game/.AndroidLauncher` (`top_activity=True`) | Clean (0 crashes) | `docs/device_runs/atm.starun.game.png` |
 
-### C. Crash & A/B/C Anomaly Investigation
+### C. Crash & Permission Dialog Anomaly Investigation
 
-Empirical A/B/C testing on modern Android (API 34+) resolved earlier hypotheses regarding `acr.browser.barebones` and `android.androidVNC`:
-- **Crash Buffer Evidence**: The crash buffer (`logcat -d -b crash`) was verified completely clean (0 crashes, 0 fatal exceptions) for both applications.
-- **Root Cause of Process Stall**: When installed with `targetSdk < 23` on modern Android, the platform permission controller intercepts app launch with a system modal `ReviewPermissionsActivity` (`com.google.android.permissioncontroller/com.android.permissioncontroller.permission.ui.ReviewPermissionsActivity`). Until the user clicks "Continue" on the dialog, the target process is not spawned (`pidof` returns empty).
-- **Target SDK Bump Resolution**: When revived with `--bump-target-sdk 24`, the modern permission model applies. The app launches immediately into active background execution and displays standard runtime permission requests (`GrantPermissionsActivity`) without blocking process creation.
-- **Conclusion**: The targetSdk bump does NOT cause crashes; it prevents the legacy permission review dialog deadlock.
+Empirical testing on Android 17 (API 37 emulator) resolved earlier hypotheses regarding `acr.browser.barebones` and `android.androidVNC`:
+- **Crash Buffer Evidence**: The crash buffer (`logcat -d -b crash`) was verified completely clean (0 crashes, 0 fatal exceptions) for all running applications. Earlier reports of `Crash Detected: YES` were caused by unparsed circular crash buffers retaining stale system service crashes from system startup; filtering specifically for the target package name or PID confirmed zero crashes for the tested applications.
+- **Root Cause of Process Interception**: When installed with `targetSdk < 23` without runtime permission pre-grants, the platform permission controller intercepts application launch with a modal system dialog (`ReviewPermissionsActivity` or `GrantPermissionsActivity`). Until user confirmation or pre-granting permissions via `install -g` or `pm grant`, the application activity remains behind the permission UI.
+- **Two-Pass Execution**: Installing with `-g` pre-grants declared runtime permissions so application launch immediately reaches the app's own top activity.
+- **Conclusion**: The targetSdk bump does NOT cause crashes.
 
 ### D. Shim Tagged Logging & Display/Cutout Proof
 
