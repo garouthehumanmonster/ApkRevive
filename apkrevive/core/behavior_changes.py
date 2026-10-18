@@ -89,7 +89,10 @@ def _cond_scoped_storage(apk: ApkMetadata, dev: DeviceProfile) -> bool:
     return (
         apk.target_sdk >= 30
         and dev.os_api_level >= 30
-        and any(p in storage_perms for p in apk.permissions)
+        and (
+            any(p in storage_perms for p in apk.permissions)
+            or apk.has_request_legacy_external_storage
+        )
     )
 
 

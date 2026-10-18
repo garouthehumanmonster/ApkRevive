@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.apkrevive.canary.scopedstorage.failing"
+    android:versionCode="100"
+    android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="30"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <application
+        android:hasCode="true"
+        android:label="CanaryScopedStorageFailing"
+        android:requestLegacyExternalStorage="true">
+        <activity android:name="com.apkrevive.canary.scopedstorage.CanaryScopedStorageActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

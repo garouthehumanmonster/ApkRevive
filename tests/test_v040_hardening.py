@@ -8,6 +8,7 @@ import struct
 import tempfile
 import unittest
 import zipfile
+from typing import Optional
 from unittest.mock import patch
 
 from apkrevive.core.axml import AxmlSurgeon, AxmlNode, KNOWN_RESOURCE_IDS
@@ -19,7 +20,7 @@ from apkrevive.core.triage import evaluate_triage
 from apkrevive.cli import main
 
 
-def create_apk_with_signing_block(path: str, pairs, cd_offset_align: int = 4096, input_apk: str = None):
+def create_apk_with_signing_block(path: str, pairs, cd_offset_align: int = 4096, input_apk: Optional[str] = None):
     if input_apk and os.path.exists(input_apk):
         with open(input_apk, "rb") as f_in:
             raw_zip = f_in.read()

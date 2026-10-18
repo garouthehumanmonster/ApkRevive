@@ -15,7 +15,7 @@ from apkrevive.core.models import DeviceProfile, ApkMetadata, PatchReport
 from apkrevive.core.triage import evaluate_triage
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import align_apk, validate_zip_archive
-from apkrevive.core.signer import sign_apk
+from apkrevive.core.signer import sign_apk, verify_apk_certs
 from apkrevive.core.behavior_changes import TRANSFORM_RISK_LEVELS
 from apkrevive.core.obb import validate_obb_delivery
 from apkrevive.core.extractor import inspect_apk
@@ -323,8 +323,10 @@ def revive_cmd(args):
         os.remove(temp_apk)
 
     sys.stderr.write(
-        "WARNING: APK signature has changed. Re-signing requires uninstalling the existing "
-        "application on device, which will permanently delete all existing user data.\n"
+        "WARNING: APK signature has changed. Re-signing breaks Google Play updates, "
+        "signature-based licensing (Google LVL), and anti-tamper DRM checks. "
+        "Installing the revived APK requires uninstalling the existing application on device, "
+        "which will permanently delete all existing user data.\n"
     )
     sys.stderr.flush()
 
@@ -333,6 +335,11 @@ def revive_cmd(args):
     ks_alias = getattr(args, "ks_alias", None)
     key_pass = getattr(args, "key_pass", None)
     if not sign_apk(output_path, keystore_path=ks, keystore_pass=ks_pass, key_alias=ks_alias, key_pass=key_pass):
+        return 1
+
+    ok, cert_details = verify_apk_certs(output_path)
+    if not ok:
+        sys.stderr.write(f"ERROR: Post-revive signature verification failed:\n{cert_details}\n")
         return 1
 
     details = triage.get("details", "")

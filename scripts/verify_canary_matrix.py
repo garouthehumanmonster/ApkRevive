@@ -312,7 +312,8 @@ def verify_canary_apache_http(
     root_after = AxmlSurgeon.parse(patched_xml)
     app_after = root_after.find_child("application")
     lib_node = app_after.find_child("uses-library", "name", "org.apache.http.legacy") if app_after else None
-    rev_pass = (lib_node is not None) and (not lib_node.get_attr("required").get_value())
+    req_attr = lib_node.get_attr("required") if lib_node else None
+    rev_pass = (lib_node is not None) and (req_attr is not None and not req_attr.get_value())
     rev_msg = "uses-library org.apache.http.legacy injected with android:required=false"
 
     passed = ctrl_pass and rev_pass
@@ -351,7 +352,7 @@ def verify_canary_page_size(
         ctrl_pass = align_fail == 4096
         ctrl_msg = f"ELF align 4KB recorded; kernel page size is {profile.page_size_bytes}B"
 
-    rev_pass = (align_ctrl >= 16384) and (triage_ctrl.get("reason") != TriageSignal.INCOMPATIBLE_PAGE_SIZE.value)
+    rev_pass = (align_ctrl is not None and align_ctrl >= 16384) and (triage_ctrl.get("reason") != TriageSignal.INCOMPATIBLE_PAGE_SIZE.value)
     rev_msg = f"Control ELF rewritten with {align_ctrl}B alignment; 16KB page size constraint satisfied"
 
     passed = ctrl_pass and rev_pass
@@ -402,7 +403,8 @@ def verify_canary_physics_tick(
     meta_node = app_after.find_child("meta-data", "name", "apkrevive.enable_60hz_lock") if app_after else None
     prov_node = app_after.find_child("provider", "name", "apkrevive.shim.ApkReviveInitProvider") if app_after else None
 
-    rev_pass = bool(meta_node and meta_node.get_attr("value").get_value() and prov_node)
+    meta_val = meta_node.get_attr("value") if meta_node else None
+    rev_pass = bool(meta_val and meta_val.get_value() and prov_node)
     rev_msg = "ApkReviveInitProvider shim and apkrevive.enable_60hz_lock metadata injected"
 
     passed = ctrl_pass and rev_pass
@@ -428,7 +430,8 @@ def verify_canary_aspect_ratio(
     with zipfile.ZipFile(failing_apk, "r") as zf:
         root_before = AxmlSurgeon.parse(zf.read("AndroidManifest.xml"))
         app_before = root_before.find_child("application")
-        is_resizeable_before = app_before.get_attr("resizeableActivity").get_value() if app_before and app_before.get_attr("resizeableActivity") else False
+        resiz_before = app_before.get_attr("resizeableActivity") if app_before else None
+        is_resizeable_before = resiz_before.get_value() if resiz_before else False
 
     triage_fail = evaluate_triage(meta_fail, profile)
     if profile.is_widescreen:
@@ -444,7 +447,8 @@ def verify_canary_aspect_ratio(
         patched_xml = AxmlSurgeon.patch_manifest(zf.read("AndroidManifest.xml"), ["EXPAND_ASPECT_RATIO"])
     root_after = AxmlSurgeon.parse(patched_xml)
     app_after = root_after.find_child("application")
-    is_resizeable_after = app_after.get_attr("resizeableActivity").get_value() if app_after and app_after.get_attr("resizeableActivity") else False
+    resiz_after = app_after.get_attr("resizeableActivity") if app_after else None
+    is_resizeable_after = resiz_after.get_value() if resiz_after else False
 
     rev_pass = bool(is_resizeable_after)
     rev_msg = "resizeableActivity=true injected; fills modern viewport without letterboxing"
@@ -518,7 +522,8 @@ def verify_canary_has_code(
     with zipfile.ZipFile(failing_apk, "r") as zf:
         root_before = AxmlSurgeon.parse(zf.read("AndroidManifest.xml"))
         app_before = root_before.find_child("application")
-        has_code_before = app_before.get_attr("hasCode").get_value() if app_before and app_before.get_attr("hasCode") else True
+        hc_before = app_before.get_attr("hasCode") if app_before else None
+        has_code_before = hc_before.get_value() if hc_before else True
 
     ctrl_pass = not has_code_before
     ctrl_msg = f"hasCode={has_code_before} prevents Dalvik/ART bytecode execution"
@@ -527,7 +532,8 @@ def verify_canary_has_code(
         patched_xml = AxmlSurgeon.patch_manifest(zf.read("AndroidManifest.xml"), ["SET_HAS_CODE_TRUE"])
     root_after = AxmlSurgeon.parse(patched_xml)
     app_after = root_after.find_child("application")
-    has_code_after = app_after.get_attr("hasCode").get_value() if app_after and app_after.get_attr("hasCode") else False
+    hc_after = app_after.get_attr("hasCode") if app_after else None
+    has_code_after = hc_after.get_value() if hc_after else False
 
     rev_pass = has_code_after is True
     rev_msg = "hasCode=true injected and primary DEX trampoline enabled"

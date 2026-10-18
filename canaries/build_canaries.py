@@ -31,7 +31,6 @@ def find_sdk_root() -> Path:
         os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk") if os.environ.get("LOCALAPPDATA") else None,
         os.path.expanduser("~/Library/Android/sdk"),
         os.path.expanduser("~/Android/Sdk"),
-        r"C:\Users\Divyansh\AppData\Local\Android\Sdk",
     ]
     for c in candidates:
         if c and os.path.isdir(c):
@@ -80,18 +79,15 @@ def resolve_tool(name: str, build_tools_dir: Optional[Path] = None) -> str:
             if javac_cand.is_file():
                 return str(javac_cand)
         if sys.platform == "win32":
-            known_windows_javacs = [
-                r"C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot\bin\javac.exe",
-            ]
-            for p in known_windows_javacs:
-                if os.path.isfile(p):
-                    return p
             prog_files = os.environ.get("ProgramFiles", r"C:\Program Files")
-            java_dir = Path(prog_files) / "Java"
-            if java_dir.is_dir():
-                for cand in sorted(java_dir.glob("**/javac.exe"), reverse=True):
-                    return str(cand)
-        return "javac.exe" if sys.platform == "win32" else "javac"
+            for jdir in ["Java", "Microsoft", "Eclipse Adoptium", "Zulu"]:
+                search_dir = Path(prog_files) / jdir
+                if search_dir.is_dir():
+                    for p in sorted(search_dir.glob("**/javac.exe"), reverse=True):
+                        if p.is_file():
+                            return str(p)
+            return "javac.exe"
+        return "javac"
 
     if build_tools_dir and build_tools_dir.is_dir():
         candidates = [f"{name}.bat", f"{name}.exe", f"{name}.cmd", name] if sys.platform == "win32" else [name]
@@ -126,7 +122,11 @@ SRC_DIR = CANARIES_DIR / "src"
 BUILD_DIR = CANARIES_DIR / "build"
 
 
-def create_arm64_elf_so(p_align: int = 16384, needed_libs: Optional[List[str]] = None) -> bytes:
+def create_arm64_elf_so(
+    p_align: int = 16384,
+    needed_libs: Optional[List[str]] = None,
+    has_textrel: bool = False,
+) -> bytes:
     """
     Generates a deterministic 64-bit ELF shared library (arm64-v8a) with specified
     PT_LOAD p_align and dynamic DT_NEEDED entries.
@@ -147,6 +147,9 @@ def create_arm64_elf_so(p_align: int = 16384, needed_libs: Optional[List[str]] =
     dyn_entries = []
     for off in needed_offsets:
         dyn_entries.append((1, off))  # DT_NEEDED = 1
+
+    if has_textrel:
+        dyn_entries.append((22, 0))  # DT_TEXTREL = 22
 
     phnum = 3
     phentsize = 56
@@ -344,6 +347,111 @@ CANARY_DEFINITIONS: List[Dict[str, Any]] = [
         "logcat_line": "ApkReviveCanary: canary_obb_version variant=failing apk_vcode=100 obb_vcode=200 status=WARNING_AHEAD",
         "page_align": 16384,
     },
+    # 9. canary_hidden_api
+    {
+        "id": "canary_hidden_api",
+        "variant": "control",
+        "manifest": "canary_hidden_api_control.xml",
+        "has_code": True,
+        "logcat_line": "ApkReviveCanary: canary_hidden_api variant=control hidden_apis=none",
+        "page_align": 16384,
+    },
+    {
+        "id": "canary_hidden_api",
+        "variant": "failing",
+        "manifest": "canary_hidden_api_failing.xml",
+        "has_code": True,
+        "logcat_line": "ApkReviveCanary: canary_hidden_api variant=failing hidden_apis=ActivityThread",
+        "page_align": 16384,
+    },
+    # 10. canary_gles1
+    {
+        "id": "canary_gles1",
+        "variant": "control",
+        "manifest": "canary_gles1_control.xml",
+        "has_code": True,
+        "logcat_line": "ApkReviveCanary: canary_gles1 variant=control gles=2.0",
+        "page_align": 16384,
+    },
+    {
+        "id": "canary_gles1",
+        "variant": "failing",
+        "manifest": "canary_gles1_failing.xml",
+        "has_code": True,
+        "native_so": ("libGLESv1_CM.so", 16384, []),
+        "logcat_line": "ApkReviveCanary: canary_gles1 variant=failing gles=1.0 uses_library=libGLESv1_CM",
+        "page_align": 16384,
+    },
+    # 11. canary_dead_sdks
+    {
+        "id": "canary_dead_sdks",
+        "variant": "control",
+        "manifest": "canary_dead_sdks_control.xml",
+        "has_code": True,
+        "logcat_line": "ApkReviveCanary: canary_dead_sdks variant=control dead_sdks=none",
+        "page_align": 16384,
+    },
+    {
+        "id": "canary_dead_sdks",
+        "variant": "failing",
+        "manifest": "canary_dead_sdks_failing.xml",
+        "has_code": True,
+        "logcat_line": "ApkReviveCanary: canary_dead_sdks variant=failing dead_sdks=Google_Maps_v1",
+        "page_align": 16384,
+    },
+    # 12. canary_textrel
+    {
+        "id": "canary_textrel",
+        "variant": "control",
+        "manifest": "canary_textrel_control.xml",
+        "has_code": True,
+        "native_so": ("libcanary_clean.so", 16384, [], False),
+        "logcat_line": "ApkReviveCanary: canary_textrel variant=control textrel=false",
+        "page_align": 16384,
+    },
+    {
+        "id": "canary_textrel",
+        "variant": "failing",
+        "manifest": "canary_textrel_failing.xml",
+        "has_code": True,
+        "native_so": ("libcanary_textrel.so", 16384, [], True),
+        "logcat_line": "ApkReviveCanary: canary_textrel variant=failing textrel=true",
+        "page_align": 16384,
+    },
+    # 13. canary_cleartext_tls
+    {
+        "id": "canary_cleartext_tls",
+        "variant": "control",
+        "manifest": "canary_cleartext_tls_control.xml",
+        "has_code": True,
+        "logcat_line": "ApkReviveCanary: canary_cleartext_tls variant=control usesCleartextTraffic=true",
+        "page_align": 16384,
+    },
+    {
+        "id": "canary_cleartext_tls",
+        "variant": "failing",
+        "manifest": "canary_cleartext_tls_failing.xml",
+        "has_code": True,
+        "logcat_line": "ApkReviveCanary: canary_cleartext_tls variant=failing usesCleartextTraffic=false",
+        "page_align": 16384,
+    },
+    # 14. canary_scoped_storage
+    {
+        "id": "canary_scoped_storage",
+        "variant": "control",
+        "manifest": "canary_scoped_storage_control.xml",
+        "has_code": True,
+        "logcat_line": "ApkReviveCanary: canary_scoped_storage variant=control targetSdk=28",
+        "page_align": 16384,
+    },
+    {
+        "id": "canary_scoped_storage",
+        "variant": "failing",
+        "manifest": "canary_scoped_storage_failing.xml",
+        "has_code": True,
+        "logcat_line": "ApkReviveCanary: canary_scoped_storage variant=failing targetSdk=30 requestLegacyExternalStorage=true",
+        "page_align": 16384,
+    },
 ]
 
 
@@ -420,8 +528,12 @@ def build_canary_apk(defn: Dict[str, Any], shared_classes_dex: Path, tmp_dir: Pa
 
         # Write native library if specified (stored uncompressed for page align)
         if "native_so" in defn:
-            so_name, so_align, needed_libs = defn["native_so"]
-            so_bytes = create_arm64_elf_so(p_align=so_align, needed_libs=needed_libs)
+            native_tuple = defn["native_so"]
+            so_name = native_tuple[0]
+            so_align = native_tuple[1]
+            needed_libs = native_tuple[2]
+            has_textrel = native_tuple[3] if len(native_tuple) > 3 else False
+            so_bytes = create_arm64_elf_so(p_align=so_align, needed_libs=needed_libs, has_textrel=has_textrel)
             zinfo = zipfile.ZipInfo(f"lib/arm64-v8a/{so_name}")
             zinfo.compress_type = zipfile.ZIP_STORED
             zout.writestr(zinfo, so_bytes)
@@ -513,4 +625,4 @@ def build_all() -> Dict[str, Any]:
 
 if __name__ == "__main__":
     res = build_all()
-    sys.exit(0 if res["count"] == 16 else 1)
+    sys.exit(0 if res["count"] == len(CANARY_DEFINITIONS) else 1)

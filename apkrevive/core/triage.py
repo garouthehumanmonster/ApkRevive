@@ -130,20 +130,8 @@ def evaluate_triage(
     # Additional Triage Warnings with Remediation Guidance
     permissions = apk.get("permissions", [])
 
-    # Warning 2: Scoped Storage & OBB on Android 11+
-    # Only emitted if SCOPED_STORAGE_ENFORCEMENT (targetSdk >= 30 on API 30+)
-    # or RAW_OBB_DATA_PATH_RESTRICTION (accessing raw Android/data, Android/obb or has OBB) applies.
-    if "SCOPED_STORAGE_ENFORCEMENT" in applicable_ids or "RAW_OBB_DATA_PATH_RESTRICTION" in applicable_ids:
-        warnings.append(
-            "WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions or accesses external storage/OBB "
-            "paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access "
-            "to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / "
-            "MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver "
-            "OBB files via standard app expansion / Play Asset Delivery."
-        )
-
-    # Warning 3: Hidden-API reflection
-    if "HIDDEN_API_REFLECTION_RESTRICTION" in applicable_ids:
+    # Warning 1: Hidden-API reflection
+    if (apk.get("hidden_api_reflections") and device_sdk >= 28) or "HIDDEN_API_REFLECTION_RESTRICTION" in applicable_ids:
         hidden_matches = sorted(list(set(apk.get("hidden_api_reflections", []))))
         warnings.append(
             f"WARN_HIDDEN_API_REFLECTION: Non-SDK / hidden Android API reflection detected ({hidden_matches}). "
@@ -151,7 +139,35 @@ def evaluate_triage(
             f"or inject runtime reflection bypass shims (e.g. HiddenApiBypass / VMRuntime exemptions) during Application initialization."
         )
 
-    # Warning 4: Cleartext HTTP & Legacy TLS
+    # Warning 2: GLES 1.x Deprecation
+    if apk.get("uses_gles1"):
+        warnings.append(
+            "WARN_GLES1_DEPRECATED: Application depends on legacy OpenGL ES 1.x APIs or libraries (libGLESv1_CM). "
+            "Modern Android devices and 64-bit environments deprecate GLES 1.x in favor of GLES 2.0/3.x or Vulkan. "
+            "Remediation: Migrate rendering pipeline to OpenGL ES 2.0+ / Vulkan, or bundle a software GLES 1.x translation layer."
+        )
+
+    # Warning 3: Known-Dead SDKs
+    if apk.get("dead_sdks"):
+        dead_matches = sorted(list(set(apk.get("dead_sdks", []))))
+        warnings.append(
+            f"WARN_DEAD_SDKS: Defunct or sunset legacy SDKs detected ({dead_matches}). "
+            f"These services (e.g., Google LVL, Maps v1, legacy In-App Billing, obsolete ad SDKs) are no longer functional or supported. "
+            f"Remediation: Remove obsolete SDK dependencies, migrate to Google Play Billing Library v6+, Google Maps Android API v2, "
+            f"or modern ad provider SDKs."
+        )
+
+    # Warning 4: TEXTREL Native Libs
+    if apk.get("has_textrel") or apk.get("textrel_libs"):
+        textrel_names = sorted(list(set(apk.get("textrel_libs", []))))
+        lib_str = f" ({textrel_names})" if textrel_names else ""
+        warnings.append(
+            f"WARN_TEXTREL: Native library containing text relocations (DT_TEXTREL) detected{lib_str}. "
+            f"Android 6.0+ (API 23+) dynamic linker refuses to load binaries with text relocations for security (W^X memory policy). "
+            f"Remediation: Recompile native code with -fPIC to eliminate text relocations."
+        )
+
+    # Warning 5: Cleartext HTTP & Legacy TLS
     uses_cleartext = apk.get("uses_cleartext_traffic")
     has_nsc = bool(apk.get("has_network_security_config", False))
     legacy_tls = apk.get("legacy_tls_protocols", [])
@@ -175,7 +191,24 @@ def evaluate_triage(
             "to negotiate TLS 1.2 and TLS 1.3 exclusively."
         )
 
-    # Warning 5: Deprecated permissions
+    # Warning 6: Scoped Storage & OBB on Android 11+
+    has_storage_perms = any(p in {"android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.READ_EXTERNAL_STORAGE", "android.permission.MANAGE_EXTERNAL_STORAGE"} for p in permissions)
+    is_scoped_storage_risk = (
+        "SCOPED_STORAGE_ENFORCEMENT" in applicable_ids
+        or "RAW_OBB_DATA_PATH_RESTRICTION" in applicable_ids
+        or (target_sdk >= 30 and device_sdk >= 30 and (has_storage_perms or apk.get("has_request_legacy_external_storage")))
+        or (device_sdk >= 30 and (apk.get("accesses_scoped_storage_paths") or apk.get("has_obb")))
+    )
+    if is_scoped_storage_risk:
+        warnings.append(
+            "WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, "
+            "or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts "
+            "raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / "
+            "MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver "
+            "OBB files via standard app expansion / Play Asset Delivery."
+        )
+
+    # Deprecated permissions
     found_deprecated = sorted(list(set(p for p in permissions if p in DEPRECATED_PERMISSIONS)))
     if found_deprecated:
         remediations_text = "; ".join(f"{p}: {DEPRECATED_PERMISSIONS[p]}" for p in found_deprecated)
@@ -206,7 +239,21 @@ def evaluate_triage(
             }
 
     # 3. 16KB Page Size Segment Alignment Check
-    if "16KB_PAGE_SIZE_KERNEL" in applicable_ids:
+    elf_16kb_status = apk.get("elf_16kb_status")
+    has_invalid_elf = bool(apk.get("has_invalid_elf_layout", False))
+
+    if "16KB_PAGE_SIZE_KERNEL" in applicable_ids or (device.get("page_size_bytes") == 16384 and (elf_16kb_status == "UNSAFE" or has_invalid_elf)):
+        if elf_16kb_status == "UNSAFE" or has_invalid_elf:
+            return {
+                "verdict": Verdict.RED.value,
+                "reason": TriageSignal.INCOMPATIBLE_PAGE_SIZE.value,
+                "details": "64-bit ELF has invalid or <16KB segment alignment: fake header patch with colliding 16KB pages cannot run safely on 16KB kernel",
+                "warnings": warnings,
+                "required_transforms": [],
+                "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
+                "page_size_compat_verified": True,
+            }
+
         if device_sdk < 36:
             return {
                 "verdict": Verdict.RED.value,
