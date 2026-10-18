@@ -158,6 +158,14 @@ In accordance with strict verification discipline, capabilities are classified a
 | V2/V3 APK Re-signing | `apksigner` integration & keytool keystore management | `tests/test_signer.py` | VERIFIED (Unit / Toolchain) |
 | Split APK Reassembly | Archive merge & DEX renumbering (`split_merger.py`) | `tests/test_split_merger.py` | VERIFIED (Unit) |
 
+> [!IMPORTANT]
+> **16KB Page-Size Evidence Boundaries (Exact Claims):**
+> - **Verified Evidence**: Validated strictly on Android 17 (API 37) `x86_64` emulator with a 16KB kernel (`sdk_gphone16k_x86_64`, `PAGE_SIZE=16384`). On API 37 x86_64, both original (unrevived) and revived APKs executed with identical platform logcat (`NativeLibraryHelper: Setting page size compat mode PAGE_SIZE_APP_COMPAT_FLAG_LOAD_NOT_ALIGNED`), demonstrating that modern Android runtimes engage OS-level backcompat automatically for 4KB-aligned ELFs.
+> - **Unverified (No Evidence Available)**:
+>   - **Android 15 (API 35)** 16KB: UNVERIFIED (no local API 35 16KB system image; `sdkmanager` unavailable).
+>   - **Android 16 (API 36)**: UNVERIFIED (no image tested).
+>   - **Physical `arm64-v8a` hardware execution on 16KB**: UNVERIFIED (tested APKs executed `x86_64` native slices on emulator).
+
 ---
 
 ## Installation

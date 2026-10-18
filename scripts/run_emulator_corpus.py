@@ -105,6 +105,74 @@ def run_command(cmd: List[str], timeout: int = 60) -> Dict[str, Any]:
         }
 
 
+def poll_liveness_and_activity(
+    adb_prefix: List[str],
+    pkg: str,
+    max_wait_seconds: float = 6.0,
+    interval: float = 1.0,
+) -> tuple[bool, str, str, bool, bool]:
+    perm_indicators = ("GrantPermissionsActivity", "ReviewPermissionsActivity", "permissioncontroller")
+    deadline = time.time() + max_wait_seconds
+    pid = ""
+    is_alive = False
+    last_resumed = ""
+    is_top = False
+    is_perm_blocked = False
+
+    while time.time() < deadline:
+        time.sleep(interval)
+        if not is_alive:
+            pid_res = run_command(adb_prefix + ["shell", "pidof", pkg], timeout=5)
+            cand_pid = pid_res["stdout"].strip()
+            if cand_pid:
+                pid = cand_pid
+                is_alive = True
+
+        dumpsys_res = run_command(adb_prefix + ["shell", "dumpsys", "activity", "activities"], timeout=10)
+        resumed_match = ""
+        for line in dumpsys_res["stdout"].splitlines():
+            stripped = line.strip()
+            if any(k in stripped for k in ("topResumedActivity=", "mResumedActivity:", "ResumedActivity:")):
+                resumed_match = stripped
+                break
+
+        if not resumed_match:
+            win_res = run_command(adb_prefix + ["shell", "dumpsys", "window", "displays"], timeout=10)
+            for line in win_res["stdout"].splitlines():
+                stripped = line.strip()
+                if "mCurrentFocus=" in stripped or "mFocusedApp=" in stripped:
+                    resumed_match = stripped
+                    break
+
+        if resumed_match:
+            last_resumed = resumed_match
+            if any(ind in resumed_match for ind in perm_indicators):
+                is_perm_blocked = True
+                is_top = False
+                break
+            if pkg in resumed_match:
+                is_top = True
+
+    # Ensure PID is resolved if app reached foreground or permission interception
+    if (is_top or is_perm_blocked) and not is_alive:
+        pid_res = run_command(adb_prefix + ["shell", "pidof", pkg], timeout=5)
+        cand_pid = pid_res["stdout"].strip()
+        if cand_pid:
+            pid = cand_pid
+            is_alive = True
+        else:
+            ps_res = run_command(adb_prefix + ["shell", "ps", "-A"], timeout=5)
+            for line in ps_res["stdout"].splitlines():
+                if pkg in line:
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[1].isdigit():
+                        pid = parts[1]
+                        is_alive = True
+                        break
+
+    return is_alive, pid, last_resumed, is_top, is_perm_blocked
+
+
 def run_corpus_on_device(
     adb_path: Optional[str] = None,
     device_serial: Optional[str] = None,
@@ -281,25 +349,11 @@ def run_corpus_on_device(
         launch_ok = (launch_res["exit_code"] == 0) and ("Events injected: 1" in launch_res["stdout"])
         print(f"    Launch exit {launch_res['exit_code']} | Result: {'PASS' if launch_ok else 'WARN/FAIL'}")
 
-        # Step 5: Liveness check: sleep 8s, check pidof and top resumed activity
-        print("[4] Liveness check: sleeping 8s...")
-        time.sleep(8)
-
-        pid_res = run_command(adb_prefix + ["shell", "pidof", pkg], timeout=10)
-        pid = pid_res["stdout"].strip()
-        is_alive = bool(pid)
-
-        dumpsys_res = run_command(
-            adb_prefix + ["shell", "dumpsys", "activity", "activities"],
-            timeout=15,
+        # Step 5: Liveness check: poll up to 8s for pid and top resumed activity/window
+        print("[4] Liveness check: polling up to 8s for liveness & top activity...")
+        is_alive, pid, resumed_match, is_top, is_perm_blocked = poll_liveness_and_activity(
+            adb_prefix, pkg, max_wait_seconds=8.0, interval=1.0
         )
-        resumed_match = ""
-        for line in dumpsys_res["stdout"].splitlines():
-            stripped = line.strip()
-            if any(k in stripped for k in ("topResumedActivity=", "mResumedActivity:", "ResumedActivity:")):
-                resumed_match = stripped
-                break
-        is_top = bool(resumed_match and pkg in resumed_match)
         print(f"    Liveness pid: '{pid}' (alive={is_alive}) | Top Activity: '{resumed_match}' (is_top={is_top})")
 
         liveness_status = "PASS" if is_alive else "DEAD"
@@ -307,8 +361,7 @@ def run_corpus_on_device(
         second_pass_pid: Optional[str] = None
         second_pass_top_activity: Optional[str] = None
 
-        perm_dialog_indicators = ("GrantPermissionsActivity", "ReviewPermissionsActivity", "permissioncontroller")
-        if any(ind in resumed_match for ind in perm_dialog_indicators):
+        if is_perm_blocked:
             liveness_status = "BLOCKED_ON_PERMISSION_DIALOG"
             print(f"    Detected permission dialog: '{resumed_match}'. Running second pass with -g...")
 
@@ -327,23 +380,14 @@ def run_corpus_on_device(
             second_launch_ok = (second_launch_res["exit_code"] == 0) and ("Events injected: 1" in second_launch_res["stdout"])
             print(f"    Second pass launch exit {second_launch_res['exit_code']} | Result: {'PASS' if second_launch_ok else 'WARN/FAIL'}")
 
-            print("    Second pass liveness check: sleeping 8s...")
-            time.sleep(8)
-
-            second_pid_res = run_command(adb_prefix + ["shell", "pidof", pkg], timeout=10)
-            second_pass_pid = second_pid_res["stdout"].strip()
-            second_alive = bool(second_pass_pid)
-
-            second_dumpsys_res = run_command(adb_prefix + ["shell", "dumpsys", "activity", "activities"], timeout=15)
-            second_resumed = ""
-            for line in second_dumpsys_res["stdout"].splitlines():
-                stripped = line.strip()
-                if any(k in stripped for k in ("topResumedActivity=", "mResumedActivity:", "ResumedActivity:")):
-                    second_resumed = stripped
-                    break
-            second_pass_top_activity = second_resumed
-            second_pass_status = "PASS" if second_alive else "DEAD"
-            if second_resumed and pkg in second_resumed:
+            print("    Second pass liveness check: polling up to 8s...")
+            s_alive, s_pid, s_resumed, s_is_top, _ = poll_liveness_and_activity(
+                adb_prefix, pkg, max_wait_seconds=8.0, interval=1.0
+            )
+            second_pass_pid = s_pid
+            second_pass_top_activity = s_resumed
+            second_pass_status = "PASS" if s_alive else "DEAD"
+            if s_is_top:
                 is_top = True
 
         # Capture screenshot to docs/device_runs/<pkg>.png

@@ -79,7 +79,8 @@ class TestCanaryMatrixRunner(unittest.TestCase):
             }
             return mapping.get(prop, "")
 
-        with patch.object(bridge, "get_prop", side_effect=mock_getprop_19):
+        with patch.object(bridge, "get_prop", side_effect=mock_getprop_19), \
+             patch.object(bridge, "wait_for_device", return_value=True):
             tier_id, prof, props = detect_device_tier(bridge)
             self.assertEqual(tier_id, "19")
             self.assertEqual(prof.os_api_level, 19)
@@ -99,7 +100,8 @@ class TestCanaryMatrixRunner(unittest.TestCase):
             }
             return mapping.get(prop, "")
 
-        with patch.object(bridge, "get_prop", side_effect=mock_getprop_35):
+        with patch.object(bridge, "get_prop", side_effect=mock_getprop_35), \
+             patch.object(bridge, "wait_for_device", return_value=True):
             tier_id, prof, props = detect_device_tier(bridge)
             self.assertEqual(tier_id, "35")
             self.assertEqual(prof.os_api_level, 35)

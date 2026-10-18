@@ -221,5 +221,10 @@ To determine whether ApkRevive's `PAGE_SIZE_COMPAT` transform measurably impacte
 
 **Comparison with Revived Runs**:
 Both the original (unrevived) and revived APKs successfully installed, launched, and maintained active liveness without crashing. On modern Android runtimes with 16KB page size support (such as Android 17 / API 37), the platform native runtime (`NativeLibraryHelper`) automatically activates its OS-level backwards compatibility mode (`PAGE_SIZE_APP_COMPAT_FLAG_LOAD_NOT_ALIGNED`) for 4KB-aligned ELF segments. Furthermore, on this x86_64 system image, native libraries run through architecture emulation or compatibility layers.
-**Empirical Conclusion**: `PAGE_SIZE_COMPAT` demonstrated **no measured benefit on API 37; arm64 unverified** on physical 16KB hardware without OS-level compatibility modes.
+
+**Empirical Conclusion & Exact 16KB Boundaries**:
+- **VERIFIED**: Android 17 (API 37) `x86_64` 16KB emulator (`sdk_gphone16k_x86_64`, `PAGE_SIZE=16384`). Revived and original APKs yielded identical `NativeLibraryHelper` logcat outputs with zero crashes. `PAGE_SIZE_COMPAT` showed **no measured benefit on API 37**.
+- **UNVERIFIED**: Android 15 (API 35) on 16KB hardware or emulator (no local API 35 16KB system image; `sdkmanager` unavailable).
+- **UNVERIFIED**: Android 16 (API 36) on 16KB hardware or emulator (untested).
+- **UNVERIFIED**: Execution of `arm64-v8a` native slices on a 16KB kernel (tested APKs executed `x86_64` native slices). No claims are made beyond these tested boundaries.
 
