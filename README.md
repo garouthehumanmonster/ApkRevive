@@ -99,6 +99,9 @@ Inspects modifications between original and modernized APKs:
 - Real-time capability chips (`arm64-v8a`, `16KB-ready`, `60Hz-locked`) and WCAG 2.2 AA accessibility semantics (`LiveRegionMode.Polite`/`Assertive`).
 - One-tap remediation for `INSTALL_FAILED_UPDATE_INCOMPATIBLE` signature mismatch.
 
+> [!WARNING]
+> **Companion App Signing Key Migration:** The companion APK for v0.5.0a1 is signed with a different key than v0.4.0. Upgrading from v0.4.0 requires an explicit uninstall of the existing companion app first (`adb uninstall com.apkrevive`).
+
 ### 9. Client-Side Web APK Triage Hub (`web/`)
 - Zero-upload, browser-based APK triage and diagnostic suite built with pure client-side Web Workers.
 - Interactive 16KB ELF Segment Layout Visualizer with modulo congruence equations.

@@ -50,9 +50,9 @@ def test_standard_4kb_linked_64bit_elf_on_android15_returns_red():
     assert res["reason"] == TriageSignal.INCOMPATIBLE_PAGE_SIZE.value
 
 
-def test_standard_4kb_linked_64bit_elf_on_android16_returns_yellow():
+def test_standard_4kb_linked_64bit_elf_on_android16_returns_green_advisory():
     """
-    c) Standard 4KB-linked 64-bit ELF on Android 16 (API 36) returns YELLOW with PAGE_SIZE_COMPAT.
+    c) Standard 4KB-linked 64-bit ELF on Android 16 (API 36) returns GREEN with advisory note.
     """
     apk = ApkMetadata(
         target_sdk=28,
@@ -67,8 +67,21 @@ def test_standard_4kb_linked_64bit_elf_on_android16_returns_yellow():
         page_size_bytes=16384,
     )
     res = evaluate_triage(apk, dev)
-    assert res["verdict"] == Verdict.YELLOW.value
-    assert "PAGE_SIZE_COMPAT" in res["required_transforms"]
+    assert res["verdict"] == Verdict.GREEN.value
+    assert any("WARN_PAGE_SIZE_COMPAT_ADVISORY" in w for w in res["warnings"])
+
+    # Forced transform option returns YELLOW with PAGE_SIZE_COMPAT
+    apk_forced = ApkMetadata(
+        target_sdk=28,
+        abis=["arm64-v8a"],
+        elf_16kb_status="COMPAT_ONLY",
+        elf_load_align_64bit=4096,
+        size_bytes=5_000_000,
+        force_page_size_compat=True,
+    )
+    res_forced = evaluate_triage(apk_forced, dev)
+    assert res_forced["verdict"] == Verdict.YELLOW.value
+    assert "PAGE_SIZE_COMPAT" in res_forced["required_transforms"]
 
 
 def test_32bit_only_native_libs_on_64bit_only_device_returns_red():

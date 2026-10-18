@@ -171,8 +171,8 @@ class TestCanaries(unittest.TestCase):
         self.assertEqual(triage_fail_35["reason"], TriageSignal.INCOMPATIBLE_PAGE_SIZE.value)
 
         triage_fail_36 = evaluate_triage(meta_fail, dev16k_api36)
-        self.assertEqual(triage_fail_36["verdict"], Verdict.YELLOW.value)
-        self.assertIn("PAGE_SIZE_COMPAT", triage_fail_36["required_transforms"])
+        self.assertEqual(triage_fail_36["verdict"], Verdict.GREEN.value)
+        self.assertTrue(any("WARN_PAGE_SIZE_COMPAT_ADVISORY" in w for w in triage_fail_36["warnings"]))
 
     # 4. canary_physics_tick
     def test_canary_04_physics_tick(self):
@@ -469,7 +469,8 @@ class TestCanaries(unittest.TestCase):
 
         triage_page_36 = evaluate_triage(meta_page, dev_16k_api36)
         self.assertEqual(triage_page_36["verdict"], Verdict.YELLOW.value)
-        self.assertIn("PAGE_SIZE_COMPAT", triage_page_36["required_transforms"])
+        self.assertNotIn("PAGE_SIZE_COMPAT", triage_page_36["required_transforms"])
+        self.assertTrue(any("WARN_PAGE_SIZE_COMPAT_ADVISORY" in w for w in triage_page_36["warnings"]))
 
         with zipfile.ZipFile(apk_page, "r") as zf:
             orig_page_manifest = zf.read("AndroidManifest.xml")

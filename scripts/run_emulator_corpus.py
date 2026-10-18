@@ -25,11 +25,22 @@ from apkrevive.adb.bridge import find_adb
 
 
 def get_attached_device(adb: str, serial: Optional[str] = None) -> Optional[str]:
+    wait_cmd = [adb]
+    if serial:
+        wait_cmd.extend(["-s", serial])
+    wait_cmd.append("wait-for-device")
+    try:
+        subprocess.run(wait_cmd, capture_output=True, timeout=15)
+    except Exception:
+        pass
+
     cmd = [adb, "devices"]
     res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    lines = [line.strip() for line in res.stdout.strip().splitlines() if line.strip()]
     devices = []
-    for line in lines[1:]:
+    for line in res.stdout.splitlines():
+        line = line.strip()
+        if not line or line.startswith("*") or line.startswith("List of devices"):
+            continue
         parts = line.split()
         if len(parts) >= 2 and parts[1] == "device":
             devices.append(parts[0])
@@ -301,6 +312,9 @@ def run_corpus_on_device(
             liveness_status = "BLOCKED_ON_PERMISSION_DIALOG"
             print(f"    Detected permission dialog: '{resumed_match}'. Running second pass with -g...")
 
+            # Clean uninstall before pass 2
+            run_command(adb_prefix + ["uninstall", pkg])
+
             second_install_args = adb_prefix + ["install", "-r", "-g"]
             if use_bypass:
                 second_install_args.append("--bypass-low-target-sdk-block")
@@ -394,6 +408,9 @@ def run_corpus_on_device(
             "crash_detected": has_crash,
             "crash_log": crash_log,
         })
+
+        # Step 7: Post-test cleanup: uninstall package
+        run_command(adb_prefix + ["uninstall", pkg])
 
     report = {
         "device_info": dev_info,

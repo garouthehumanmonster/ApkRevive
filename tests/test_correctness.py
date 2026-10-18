@@ -93,7 +93,7 @@ class TestCorrectness(unittest.TestCase):
         self.assertEqual(res_36["reason"], TriageSignal.INCOMPATIBLE_PAGE_SIZE.value)
         self.assertIn("colliding 16KB pages", res_36["details"])
 
-        # Standard 4KB-linked ELF (clean layout, no collisions) can use PAGE_SIZE_COMPAT on API 36
+        # Standard 4KB-linked ELF on API 36 returns GREEN advisory (OS compat handles it dynamically)
         apk_clean_4k = ApkMetadata(
             package_name="com.test.clean4k",
             target_sdk=28,
@@ -104,8 +104,8 @@ class TestCorrectness(unittest.TestCase):
             size_bytes=5_000_000,
         )
         res_clean_36 = evaluate_triage(apk_clean_4k, dev_36)
-        self.assertEqual(res_clean_36["verdict"], Verdict.YELLOW.value)
-        self.assertIn("PAGE_SIZE_COMPAT", res_clean_36["required_transforms"])
+        self.assertEqual(res_clean_36["verdict"], Verdict.GREEN.value)
+        self.assertTrue(any("WARN_PAGE_SIZE_COMPAT_ADVISORY" in w for w in res_clean_36["warnings"]))
 
     # 3. Idempotent revive: running revive twice produces same dex count and identical manifest
     def test_idempotent_revive(self):

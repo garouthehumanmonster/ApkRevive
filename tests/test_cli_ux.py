@@ -455,6 +455,7 @@ class TestCliUx(unittest.TestCase):
                 target_sdk=28,
                 apk_abis="arm64-v8a",
                 uses_apache_http=False,
+                force_page_size_compat=True,
                 json=False,
             )
             with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
@@ -475,6 +476,7 @@ class TestCliUx(unittest.TestCase):
                 target_sdk=28,
                 apk_abis="arm64-v8a",
                 uses_apache_http=False,
+                force_page_size_compat=True,
                 json=True,
             )
             with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
@@ -494,6 +496,7 @@ class TestCliUx(unittest.TestCase):
                 enable_60hz=False,
                 enable_cutout=False,
                 enable_resizable=False,
+                force_page_size_compat=True,
                 device_api=36,
                 page_size=16384,
                 ks=None,
@@ -517,6 +520,7 @@ class TestCliUx(unittest.TestCase):
                 enable_60hz=False,
                 enable_cutout=False,
                 enable_resizable=False,
+                force_page_size_compat=True,
                 device_api=36,
                 page_size=16384,
                 ks=None,

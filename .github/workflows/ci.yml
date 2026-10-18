@@ -63,7 +63,23 @@ jobs:
         with:
           packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
+      - name: Decode Release Keystore (if secret present)
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_B64" ]; then
+            echo "$ANDROID_KEYSTORE_B64" | base64 -d > apkrevive-android/release.keystore
+            echo "RELEASE_KEYSTORE_EXISTS=true" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_KEYSTORE_EXISTS=false" >> "$GITHUB_ENV"
+            echo "::warning::ANDROID_KEYSTORE_B64 secret is not configured. Release APK will be signed with debug keystore."
+          fi
+
       - name: Build, Lint & Test Android Companion
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x apkrevive-android/gradlew
           cd apkrevive-android
@@ -72,8 +88,14 @@ jobs:
       - name: Stage Companion APKs
         run: |
           mkdir -p dist-companion
-          cp apkrevive-android/app/build/outputs/apk/release/app-release.apk dist-companion/ApkRevive-Companion-v0.5.0-alpha.1.apk
-          cp apkrevive-android/app/build/outputs/apk/debug/app-debug.apk dist-companion/ApkRevive-Companion-v0.5.0-alpha.1-debug.apk
+          VERSION_NAME="v0.5.0-alpha.1"
+          if [ "$RELEASE_KEYSTORE_EXISTS" = "true" ]; then
+            cp apkrevive-android/app/build/outputs/apk/release/app-release.apk dist-companion/ApkRevive-Companion-${VERSION_NAME}.apk
+          else
+            echo "::warning::Naming release APK with -debug-signed suffix because release keystore was absent."
+            cp apkrevive-android/app/build/outputs/apk/release/app-release.apk dist-companion/ApkRevive-Companion-${VERSION_NAME}-debug-signed.apk
+          fi
+          cp apkrevive-android/app/build/outputs/apk/debug/app-debug.apk dist-companion/ApkRevive-Companion-${VERSION_NAME}-debug.apk
 
       - name: Upload Companion APK Artifacts
         uses: actions/upload-artifact@v4
@@ -201,6 +223,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Inspect Release Tag
+        id: tag_check
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "Tag: $TAG"
+          # PEP 440 prerelease regex: e.g. v0.5.0a1, v1.0.0b2, v2.1.0rc3
+          if echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)[0-9]+$'; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "Detected PEP 440 pre-release tag: $TAG"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "Detected stable release tag: $TAG"
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -224,11 +260,11 @@ jobs:
           path: dist/sarif/
 
       - name: Publish to PyPI (OIDC Trusted Publishing)
+        if: steps.tag_check.outputs.is_prerelease != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
           skip-existing: true
-        continue-on-error: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -239,3 +275,4 @@ jobs:
             dist/companion/*.apk
             dist/sarif/*
           generate_release_notes: true
+          prerelease: ${{ steps.tag_check.outputs.is_prerelease == 'true' }}

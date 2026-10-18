@@ -88,6 +88,7 @@ class ApkMetadata:
     textrel_libs: List[str] = field(default_factory=list)
     has_textrel: bool = False
     has_request_legacy_external_storage: bool = False
+    force_page_size_compat: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation:** Added `docs/DEVICE_TESTING.md` (multi-API test protocol and matrix) and `docs/EMULATOR_16KB.md` (16KB Android 15+ emulator guide).
 
 ### Changed
+- **Companion App Keystore Migration Notice:** Companion APKs for v0.5.0a1 are signed with a distinct keystore compared to v0.4.0. Upgrading from v0.4.0 requires an explicit uninstall of the existing companion app first (`adb uninstall com.apkrevive`).
 - Aligned `mypy` `python_version = "3.9"` with `requires-python = ">=3.9"` in `pyproject.toml`.
 - Expanded CI matrix to test Python 3.9 and 3.13 on `ubuntu-latest`.
 

@@ -167,6 +167,8 @@ def triage_cmd(args):
         dev.is_high_refresh = True
     if getattr(args, "enable_cutout", False):
         dev.is_widescreen = True
+    if getattr(args, "force_page_size_compat", False):
+        apk.force_page_size_compat = True
 
     bump_target_sdk = getattr(args, "bump_target_sdk", None)
     standalone_install = getattr(args, "standalone_install", False)
@@ -209,6 +211,8 @@ def revive_cmd(args):
         os_api_level=getattr(args, "device_api", 35),
         page_size_bytes=getattr(args, "page_size", 16384),
     ) if (hasattr(args, "device_api") or hasattr(args, "page_size")) else DeviceProfile()
+    if getattr(args, "force_page_size_compat", False):
+        meta.force_page_size_compat = True
     bump_target_sdk = getattr(args, "bump_target_sdk", None)
     standalone_install = getattr(args, "standalone_install", False)
     if bump_target_sdk == -1 or (standalone_install and bump_target_sdk is None):
@@ -464,6 +468,7 @@ def main():
     p_triage.add_argument("--enable-cutout", action="store_true", help="Evaluate display cutout short edges layout")
     p_triage.add_argument("--bump-target-sdk", nargs="?", const=-1, type=int, default=None, help="Simulate bumping targetSdkVersion (defaults to device install floor)")
     p_triage.add_argument("--standalone-install", action="store_true", help="Simulate standalone installation mode (defaults targetSdk to device install floor)")
+    p_triage.add_argument("--force-page-size-compat", action="store_true", help="Force PAGE_SIZE_COMPAT transform on API >= 36 16KB kernels")
     p_triage.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     p_triage.add_argument("--sarif", action="store_true", help="Output SARIF v2.1.0 telemetry")
 
@@ -471,6 +476,7 @@ def main():
     p_revive.add_argument("apk", help="Path to APK file")
     p_revive.add_argument("--output", help="Output path")
     p_revive.add_argument("--force", action="store_true", help="Force revive even when triage verdict is RED")
+    p_revive.add_argument("--force-page-size-compat", action="store_true", help="Force PAGE_SIZE_COMPAT transform on API >= 36 16KB kernels")
     p_revive.add_argument("--dry-run", action="store_true", help="Perform triage and plan transforms without writing files or signing")
     p_revive.add_argument("--bump-target-sdk", nargs="?", const=-1, type=int, default=None, help="Bump targetSdkVersion in AndroidManifest.xml (defaults to device install floor)")
     p_revive.add_argument("--standalone-install", action="store_true", help="Prepare APK for standalone install (defaults targetSdk to device install floor and injects runtime shim)")

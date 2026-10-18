@@ -169,18 +169,18 @@ Executed live verification suite across all 8 vectors against `emulator-5554` (A
 
 ### B. Corpus Verification on Live Emulator (`scripts/run_emulator_corpus.py`)
 
-All 8 corpus APKs evaluated on live API 37 16KB emulator with fail-closed semantics enforced:
+All 8 corpus APKs evaluated on live API 37 16KB emulator with fail-closed semantics enforced (timestamp: `2026-10-18 12:03:27` UTC):
 
-| Package | Original `targetSdk` | Triage Verdict | Revive Exit | Output APK | Install Status | Launch Status | 8s Liveness Check | Top Resumed Activity | Crash Buffer (`-b crash`) | Screenshot |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `ch.hsr.eyecam` | 18 | **RED** (`UNSUPPORTED_32BIT_ABI`) | 1 | None (fail-closed) | SKIPPED | SKIPPED | SKIPPED | N/A | Clean | N/A |
-| `ch.nexuscomputing.android.osciprimeics` | 19 | **RED** (`UNSUPPORTED_32BIT_ABI`) | 1 | None (fail-closed) | SKIPPED | SKIPPED | SKIPPED | N/A | Clean | N/A |
-| `a2dp.Vol` | 19 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13005)** | `a2dp.Vol/.main` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/a2dp.Vol.png` |
-| `acr.browser.barebones` | 19 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13150)** | `GrantPermissionsActivity` (`is_top=False`) | Clean (0 crashes) | `docs/device_runs/acr.browser.barebones.png` |
-| `akk.astro.droid.moonphase` | 18 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13306)** | `akk.astro.droid.moonphase/.MoonActivity` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/akk.astro.droid.moonphase.png` |
-| `android.androidVNC` | 4 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 13443)** | `GrantPermissionsActivity` (`is_top=False`) | Clean (0 crashes) | `docs/device_runs/android.androidVNC.png` |
-| `atm.rocketguardian` | 25 | **YELLOW** (`PAGE_SIZE_COMPAT`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 6593 via -g pass)** | `atm.rocketguardian/.AndroidLauncher` (`top_activity=True`) | Clean (0 crashes) | `docs/device_runs/atm.rocketguardian.png` |
-| `atm.starun.game` | 20 | **YELLOW** (`PAGE_SIZE_COMPAT`) | 2 | Exists | **PASS** | **PASS** | **PASS (pid 6879 via -g pass)** | `atm.starun.game/.AndroidLauncher` (`top_activity=True`) | Clean (0 crashes) | `docs/device_runs/atm.starun.game.png` |
+| Package | Original `targetSdk` | Triage Verdict | Revive Exit | Output APK | Pass 1 Liveness | Pass 2 (-g) Liveness | Top Resumed Activity | Crash Buffer (`-b crash`) | Screenshot |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `ch.hsr.eyecam` | 18 | **RED** (`UNSUPPORTED_32BIT_ABI`) | 1 | None (fail-closed) | SKIPPED | N/A | N/A | Clean (0 crashes) | N/A |
+| `ch.nexuscomputing.android.osciprimeics` | 19 | **RED** (`UNSUPPORTED_32BIT_ABI`) | 1 | None (fail-closed) | SKIPPED | N/A | N/A | Clean (0 crashes) | N/A |
+| `a2dp.Vol` | 19 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | BLOCKED_ON_PERMISSION_DIALOG (pid 9204) | **PASS (pid 9387)** | `a2dp.Vol/.main` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/a2dp.Vol.png` |
+| `acr.browser.barebones` | 19 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | BLOCKED_ON_PERMISSION_DIALOG (pid 9544) | **PASS (pid 9689)** | `acr.browser.barebones/.activities.BrowserActivity` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/acr.browser.barebones.png` |
+| `akk.astro.droid.moonphase` | 18 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS (pid 9887)** | N/A | `akk.astro.droid.moonphase/.MoonActivity` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/akk.astro.droid.moonphase.png` |
+| `android.androidVNC` | 4 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS (pid 10078)** | N/A | `android.androidVNC/.androidVNC` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/android.androidVNC.png` |
+| `atm.rocketguardian` | 25 | **YELLOW** (`WARN_PAGE_SIZE_COMPAT_ADVISORY`) | 2 | Exists | **PASS (pid 10259)** | N/A | `atm.rocketguardian/.AndroidLauncher` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/atm.rocketguardian.png` |
+| `atm.starun.game` | 20 | **YELLOW** (`MODIFICATION_REQUIRED`) | 2 | Exists | **PASS (pid 10501)** | N/A | `atm.starun.game/.AndroidLauncher` (`is_top=True`) | Clean (0 crashes) | `docs/device_runs/atm.starun.game.png` |
 
 ### C. Crash & Permission Dialog Anomaly Investigation
 

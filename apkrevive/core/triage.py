@@ -242,6 +242,8 @@ def evaluate_triage(
     elf_16kb_status = apk.get("elf_16kb_status")
     has_invalid_elf = bool(apk.get("has_invalid_elf_layout", False))
 
+    force_page_size_compat = bool(apk.get("force_page_size_compat", False))
+
     if "16KB_PAGE_SIZE_KERNEL" in applicable_ids or (device.get("page_size_bytes") == 16384 and (elf_16kb_status == "UNSAFE" or has_invalid_elf)):
         if elf_16kb_status == "UNSAFE" or has_invalid_elf:
             return {
@@ -264,9 +266,14 @@ def evaluate_triage(
                 "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
                 "page_size_compat_verified": True,
             }
-        else:
+        elif force_page_size_compat:
             required_transforms.append("PAGE_SIZE_COMPAT")
             reasons.append(TriageSignal.NEEDS_PAGE_SIZE_COMPAT_ANDROID16.value)
+        else:
+            warnings.append(
+                "WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; "
+                "platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation."
+            )
 
     # 4. Modification Requirements Analysis
     if "APACHE_HTTP_LEGACY_REMOVAL" in applicable_ids:
