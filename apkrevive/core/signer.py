@@ -81,6 +81,11 @@ def ensure_keystore(
     If keystore_path is provided, checks it exists (raises FileNotFoundError if missing).
     If keystore_path is None, generates per-user keystore via keytool if missing (raises RuntimeError on failure).
     """
+    if keystore_path is None:
+        env_ks = os.environ.get("APKREVIVE_KEYSTORE")
+        if env_ks and Path(env_ks).is_file():
+            keystore_path = env_ks
+
     if keystore_path:
         path = Path(keystore_path)
         if not path.is_file():
@@ -170,6 +175,34 @@ def verify_apk(apk_path: str, verbose: bool = False) -> Dict[str, Any]:
         return {"verified": res.returncode == 0, "output": res.stdout + res.stderr}
     except Exception as e:
         return {"verified": False, "output": str(e)}
+
+
+def verify_apk_certs(apk_path: str) -> Tuple[bool, str]:
+    """
+    Verifies APK certificates post-signing using apksigner if available,
+    or falls back to internal signing block padding validation.
+    """
+    apksigner = get_apksigner_cmd()
+    apksigner_available = (os.path.isabs(apksigner) and os.path.exists(apksigner)) or (shutil.which(apksigner) is not None)
+    if apksigner_available:
+        try:
+            res = subprocess.run(
+                [apksigner, "verify", "--print-certs", str(apk_path)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            return (res.returncode == 0, res.stdout + res.stderr)
+        except Exception as e:
+            return (False, f"apksigner execution error: {e}")
+
+    result = verify_signing_block_padding(apk_path)
+    msg = (
+        "Internal signing block validation passed"
+        if result["valid"]
+        else "Invalid signing block or Central Directory alignment"
+    )
+    return (bool(result["valid"]), msg)
 
 
 def verify_signing_block_padding(apk_path: str) -> Dict[str, Any]:
