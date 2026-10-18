@@ -414,6 +414,31 @@ class TestPageSizeCompatVerification(unittest.TestCase):
             mock_is_dir.return_value = False
             self.assertFalse(is_page_size_compat_verified(None))
 
+    def test_public_system_libraries_parity(self):
+        """Asserts that Python, Kotlin, and Web Hub copies of PUBLIC_SYSTEM_LIBRARIES match exactly."""
+        import re
+        from apkrevive.core.behavior_changes import PUBLIC_SYSTEM_LIBRARIES as PY_BEHAVIOR
+        from apkrevive.core.extractor import PUBLIC_SYSTEM_LIBRARIES as PY_EXTRACTOR
+
+        self.assertEqual(PY_BEHAVIOR, PY_EXTRACTOR)
+
+        # Parse Kotlin set
+        repo_root = Path(__file__).resolve().parent.parent
+        kt_path = repo_root / "apkrevive-android" / "app" / "src" / "main" / "java" / "com" / "apkrevive" / "core" / "TriageEvaluator.kt"
+        kt_content = kt_path.read_text(encoding="utf-8")
+        kt_match = re.search(r"val PUBLIC_SYSTEM_LIBRARIES\s*=\s*setOf\((.*?)\)", kt_content, re.DOTALL)
+        self.assertIsNotNone(kt_match, "Could not find PUBLIC_SYSTEM_LIBRARIES in TriageEvaluator.kt")
+        kt_libs = set(re.findall(r'"([^"]+)"', kt_match.group(1)))
+        self.assertEqual(PY_BEHAVIOR, kt_libs, f"Kotlin libraries differ from Python: {PY_BEHAVIOR ^ kt_libs}")
+
+        # Parse JS set
+        js_path = repo_root / "web" / "app.js"
+        js_content = js_path.read_text(encoding="utf-8")
+        js_match = re.search(r"const PUBLIC_SYSTEM_LIBRARIES\s*=\s*new Set\(\[(.*?)\]\);", js_content, re.DOTALL)
+        self.assertIsNotNone(js_match, "Could not find PUBLIC_SYSTEM_LIBRARIES in web/app.js")
+        js_libs = set(re.findall(r'"([^"]+)"', js_match.group(1)))
+        self.assertEqual(PY_BEHAVIOR, js_libs, f"Web JS libraries differ from Python: {PY_BEHAVIOR ^ js_libs}")
+
 
 if __name__ == "__main__":
     unittest.main()

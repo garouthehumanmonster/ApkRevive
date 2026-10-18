@@ -225,8 +225,8 @@ The companion app is located in [`apkrevive-android`](apkrevive-android).
   - In [`ApkInspector.kt:268-274`](apkrevive-android/app/src/main/java/com/apkrevive/core/ApkInspector.kt#L268-L274), the Android app checks if the file name of a *bundled* library in the APK matches `BIONIC_GREYLIST`. It does **not** inspect `DT_NEEDED` ELF headers. Apps linking against private platform libraries (e.g. `libandroid_runtime.so`) do not bundle them, so the companion app fails to detect private library linkages.
 - **Hardcoded Paths & Key Inspection:**
   - No cryptographic keys or private tokens are hardcoded.
-  - Local configuration [`apkrevive-android/local.properties`](apkrevive-android/local.properties#L1) contains a machine-specific path (`C:\\Users\\Divyansh\\AppData\\Local\\Android\\Sdk`) which should be untracked in git.
-  - [`canaries/build_canaries.py:34`](canaries/build_canaries.py#L34) and [`L84`](canaries/build_canaries.py#L84) contain hardcoded machine paths (`C:\Users\Divyansh\...`) in fallback lists.
+  - Local configuration [`apkrevive-android/local.properties`](apkrevive-android/local.properties#L1) contains a machine-specific path (`<android-sdk-path>`) which should be untracked in git.
+  - [`canaries/build_canaries.py:34`](canaries/build_canaries.py#L34) and [`L84`](canaries/build_canaries.py#L84) contain hardcoded machine paths (`<local-sdk-path>`) in fallback lists.
 
 ---
 

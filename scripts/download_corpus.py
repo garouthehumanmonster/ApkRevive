@@ -14,14 +14,11 @@ import urllib.request
 from typing import Dict, Any, List, Union
 
 MANIFEST_PATH = Path(__file__).resolve().parent.parent / "tests" / "corpus" / "corpus.json"
-FALLBACK_MANIFEST_PATH = Path(__file__).resolve().parent.parent / "tests" / "corpus" / "corpus_manifest.json"
 DEFAULT_DEST_DIR = Path(__file__).resolve().parent.parent / "tests" / "corpus" / "apks"
 
 
 def load_manifest(path: Union[Path, str] = MANIFEST_PATH) -> Dict[str, Any]:
     target = Path(path)
-    if not target.is_file() and FALLBACK_MANIFEST_PATH.is_file():
-        target = FALLBACK_MANIFEST_PATH
     with open(target, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -75,9 +72,6 @@ def main(argv: List[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     manifest_file = Path(args.manifest)
-    if not manifest_file.exists() and FALLBACK_MANIFEST_PATH.exists():
-        manifest_file = FALLBACK_MANIFEST_PATH
-
     if not manifest_file.exists():
         sys.stderr.write(f"ERROR: Corpus manifest not found at {manifest_file}\n")
         return 1

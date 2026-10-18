@@ -19,7 +19,7 @@ from scripts.download_corpus import (
     main as downloader_main,
 )
 
-MANIFEST_PATH = Path(__file__).resolve().parent / "corpus" / "corpus_manifest.json"
+MANIFEST_PATH = Path(__file__).resolve().parent / "corpus" / "corpus.json"
 CORPUS_APKS_DIR = Path(__file__).resolve().parent / "corpus" / "apks"
 
 

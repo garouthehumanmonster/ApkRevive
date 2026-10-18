@@ -36,6 +36,8 @@ results/*.tmp
 *.apk.tmp
 
 # Corpus test APK binaries (must not be committed)
+tests/corpus/apks/
 tests/corpus/apks/*.apk
 corpus/*.apk
+tests/corpus/emulator_test/
 
