@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Companion App Keystore Migration Notice:** Companion APKs for v0.5.0a1 are signed with a distinct keystore compared to v0.4.0. Upgrading from v0.4.0 requires an explicit uninstall of the existing companion app first (`adb uninstall com.apkrevive`).
-- **Advisory 16KB Triage on Android 16+ (API 36+):** On API >= 36 with 16KB kernels, `PAGE_SIZE_COMPAT` emits an advisory warning (`WARN_PAGE_SIZE_COMPAT_ADVISORY`). For API 37 (where x86_64 emulator evidence exists), `page_size_compat_verified` is `true`. For Android 16 (API 36), `page_size_compat_verified` is `false` and triage emits `GREEN (UNVERIFIED)` due to absence of verified on-device receipts for API 36. Golden scenario `scenario_04_page_size_16kb_android16_compat.json` updated accordingly.
+- **Advisory 16KB Triage on Android 16+ (API 36+):** On API >= 36 with 16KB kernels, `PAGE_SIZE_COMPAT` emits an advisory warning (`WARN_PAGE_SIZE_COMPAT_ADVISORY`). For API 37 with x86_64 ABI (where emulator evidence exists), `page_size_compat_verified` is `true`. For Android 16 (API 36) and arm64-v8a devices, `page_size_compat_verified` is `false` and triage emits `GREEN (UNVERIFIED)` due to absence of verified on-device receipts. Golden scenario `scenario_04_page_size_16kb_android16_compat.json` updated accordingly.
 - Aligned `mypy` `python_version = "3.9"` with `requires-python = ">=3.9"` in `pyproject.toml`.
 - Expanded CI matrix to test Python 3.9 and 3.13 on `ubuntu-latest`.
 

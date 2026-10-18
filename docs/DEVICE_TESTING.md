@@ -186,8 +186,8 @@ All 8 corpus APKs evaluated on live API 37 16KB emulator with fail-closed semant
 
 Empirical testing on Android 17 (API 37 emulator) resolved earlier hypotheses regarding `acr.browser.barebones` and `android.androidVNC`:
 - **Crash Buffer Evidence**: The crash buffer (`logcat -d -b crash`) was verified completely clean (0 crashes, 0 fatal exceptions) for all running applications. Earlier reports of `Crash Detected: YES` were caused by unparsed circular crash buffers retaining stale system service crashes from system startup; filtering specifically for the target package name or PID confirmed zero crashes for the tested applications.
-- **Root Cause of Process Interception**: When installed with `targetSdk < 23` without runtime permission pre-grants, the platform permission controller intercepts application launch with a modal system dialog (`ReviewPermissionsActivity` or `GrantPermissionsActivity`). Until user confirmation or pre-granting permissions via `install -g` or `pm grant`, the application activity remains behind the permission UI.
-- **Two-Pass Execution**: Installing with `-g` pre-grants declared runtime permissions so application launch immediately reaches the app's own top activity.
+- **Permission Dialog Flakiness**: In unprivileged pass-1 runs, modal system dialogs (`ReviewPermissionsActivity` or `GrantPermissionsActivity`) appeared intermittently for certain legacy apps on launch. The underlying cause of this first-pass permission-dialog flakiness across launches is undetermined (asynchronous permission controller timing vs monkey event delivery).
+- **Two-Pass Execution**: Installing with `-g` in pass 2 pre-grants declared runtime permissions so application launch immediately and deterministically reaches the app's own top activity.
 - **Conclusion**: The targetSdk bump does NOT cause crashes.
 
 ### D. Shim Tagged Logging & Display/Cutout Proof

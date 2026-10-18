@@ -43,5 +43,51 @@ class TestTriage(unittest.TestCase):
                     self.assertEqual(sorted(res.get("required_transforms", [])), sorted(exp["required_transforms"]))
 
 
+    def test_verified_flag_api37_x86_64_only(self):
+        """Verifies that 16KB page_size_compat_verified is True ONLY when API == 37 AND device ABI is x86_64."""
+        apk = ApkMetadata(
+            package_name="com.example.native4k",
+            target_sdk=28,
+            abis=["arm64-v8a", "x86_64"],
+            elf_load_align_64bit=4096,
+        )
+
+        # 1. API 37 with x86_64 -> VERIFIED
+        dev_37_x86 = DeviceProfile(
+            os_api_level=37,
+            install_floor=24,
+            supported_abis=["x86_64"],
+            page_size_bytes=16384,
+        )
+        res_37_x86 = evaluate_triage(apk, dev_37_x86)
+        self.assertEqual(res_37_x86["verdict"], "GREEN")
+        self.assertTrue(res_37_x86["page_size_compat_verified"])
+        self.assertNotIn("verdict_display", res_37_x86)
+
+        # 2. API 37 with arm64-v8a only -> UNVERIFIED
+        dev_37_arm = DeviceProfile(
+            os_api_level=37,
+            install_floor=24,
+            supported_abis=["arm64-v8a"],
+            page_size_bytes=16384,
+        )
+        res_37_arm = evaluate_triage(apk, dev_37_arm)
+        self.assertEqual(res_37_arm["verdict"], "GREEN")
+        self.assertFalse(res_37_arm["page_size_compat_verified"])
+        self.assertEqual(res_37_arm.get("verdict_display"), "GREEN (UNVERIFIED)")
+
+        # 3. API 36 with x86_64 -> UNVERIFIED
+        dev_36_x86 = DeviceProfile(
+            os_api_level=36,
+            install_floor=24,
+            supported_abis=["x86_64"],
+            page_size_bytes=16384,
+        )
+        res_36_x86 = evaluate_triage(apk, dev_36_x86)
+        self.assertEqual(res_36_x86["verdict"], "GREEN")
+        self.assertFalse(res_36_x86["page_size_compat_verified"])
+        self.assertEqual(res_36_x86.get("verdict_display"), "GREEN (UNVERIFIED)")
+
+
 if __name__ == "__main__":
     unittest.main()

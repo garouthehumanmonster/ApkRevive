@@ -361,11 +361,16 @@ def evaluate_triage(
                 "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
             }
 
+        has_x86_64 = "x86_64" in device_abis
         if "PAGE_SIZE_COMPAT" in required_transforms:
-            if device_sdk == 37:
+            if device_sdk == 37 and has_x86_64:
                 verified = True
             else:
-                verified = is_page_size_compat_verified(results_dir, target_api=device_sdk)
+                verified = is_page_size_compat_verified(
+                    results_dir,
+                    target_api=device_sdk,
+                    target_abi="x86_64" if has_x86_64 else ("arm64-v8a" if "arm64-v8a" in device_abis else None),
+                )
             res["page_size_compat_verified"] = verified
             if not verified:
                 res["verdict_display"] = f"{res['verdict']} (UNVERIFIED)"
@@ -385,8 +390,9 @@ def evaluate_triage(
     )
     install_method = "BYPASS_LOW_TARGET_SDK_BLOCK" if is_blocked_by_floor else "DIRECT_INSTALL"
 
+    has_x86_64 = "x86_64" in device_abis
     if has_16kb_advisory:
-        if device_sdk == 37:
+        if device_sdk == 37 and has_x86_64:
             is_verified = True
             verdict_disp = None
         else:

@@ -292,6 +292,7 @@ def get_applicable_behavior_changes(
 def is_page_size_compat_verified(
     results_dir: Optional[Union[str, Path]] = None,
     target_api: Optional[int] = None,
+    target_abi: Optional[str] = None,
 ) -> bool:
     """
     Scans results/*.json (defaulting to the repository's results/ directory or Path.cwd() / "results").
@@ -299,6 +300,7 @@ def is_page_size_compat_verified(
       - pass_fail == "PASS"
       - kernel_page_size == 16384
       - Matching target_api environment (defaulting to API 37 if target_api is None or 37).
+      - Matching target_abi environment (defaulting to x86_64 if target_abi is None or "x86_64").
     Returns True if such a PASS result exists, False otherwise.
     """
     if results_dir is not None:
@@ -315,6 +317,9 @@ def is_page_size_compat_verified(
 
     expected_api = 37 if (target_api is None or target_api == 37) else target_api
     expected_api_str = str(expected_api)
+
+    expected_abi = "x86_64" if (target_abi is None or target_abi == "x86_64") else target_abi
+    expected_abi_str = str(expected_abi)
 
     for json_file in sorted(target_dir.glob("*.json")):
         try:
@@ -353,7 +358,20 @@ def is_page_size_compat_verified(
                 or expected_api_str in str(entry.get("device_model", ""))
                 or expected_api_str in str(entry.get("environment", ""))
             )
-            if matches_api:
+            if not matches_api:
+                continue
+
+            matches_abi = (
+                entry.get("abi") == expected_abi
+                or entry.get("device_abi") == expected_abi
+                or entry.get("arch") == expected_abi
+                or expected_abi_str in str(entry.get("android_build", ""))
+                or expected_abi_str in str(entry.get("device_model", ""))
+                or expected_abi_str in str(entry.get("environment", ""))
+                or (expected_abi in ("arm64-v8a", "arm64") and "arm64" in str(entry.get("android_build", "")))
+                or (expected_abi in ("x86_64", "x86-64") and "x86_64" in str(entry.get("android_build", "")))
+            )
+            if matches_abi:
                 return True
 
     return False

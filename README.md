@@ -165,6 +165,7 @@ In accordance with strict verification discipline, capabilities are classified a
 >   - **Android 15 (API 35)** 16KB: UNVERIFIED (no local API 35 16KB system image; `sdkmanager` unavailable).
 >   - **Android 16 (API 36)**: UNVERIFIED (no image tested; triage emits GREEN (UNVERIFIED) with page_size_compat_verified=false on API 36 with 16KB kernel).
 >   - **Physical `arm64-v8a` hardware execution on 16KB**: UNVERIFIED (tested APKs executed `x86_64` native slices on emulator).
+>   - **Real-display 60Hz rate switching & display cutout rendering**: UNVERIFIED (emulator provides a single 60Hz mode without physical cutout).
 
 ---
 
@@ -301,14 +302,14 @@ On modern Android runtimes (empirically verified on Android 17 API 37 emulator, 
 
 1. **Privileged Bypass (`BYPASS_LOW_TARGET_SDK_BLOCK`) — Preferred:**
    - **How it works:** When installing via ADB CLI (`--bypass-low-target-sdk-block`) or the Shizuku companion app (`PackageInstaller` session flag `INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK` = `0x01000000`), the platform restriction is bypassed without altering the APK's manifest `targetSdkVersion`.
-   - **Advantages:** Preserves original cryptographic signature and avoids re-signing. Note that on modern Android runtimes, dangerous permissions still require pre-granting (`adb install -g` or `pm grant`) or user confirmation via the platform permission dialog.
+   - **Advantages:** Preserves original cryptographic signature and avoids re-signing. Note that on modern Android runtimes, dangerous permissions still require pre-granting (`adb install -g` or `pm grant`) or user confirmation via the platform permission dialog. (The exact cause of first-pass permission-dialog flakiness on legacy apps is undetermined; pre-granting via `-g` provides deterministic execution).
    - **Recommended:** Always prefer bypass when Shizuku or ADB is available.
 
 2. **Target SDK Bump (`BUMP_TARGET_SDK`) — Standalone Alternative:**
    - **How it works:** When using `--bump-target-sdk` or `--standalone-install`, ApkRevive bumps `targetSdkVersion` in `AndroidManifest.xml` ONLY to the minimum install floor for the device profile (`dev.install_floor`, e.g., 24 for Android 15/17), never 35 by default.
    - **Trade-Off & Breaking Changes:**
      - **Signature Invalidation:** Modifying the manifest requires re-signing the APK, which breaks original signature fingerprints.
-     - **Runtime Permissions Transition:** On Android >= 23, permissions classified as dangerous (e.g., `CAMERA`, `READ_EXTERNAL_STORAGE`, `ACCESS_FINE_LOCATION`) become **runtime permissions**. Legacy apps targetSdk < 23 expect permissions to be granted at install time and do not call `requestPermissions()`. Operations requiring these permissions will silently fail or be intercepted by the platform permission UI unless pre-granted (`adb install -g` or `pm grant`).
+     - **Runtime Permissions Transition:** On Android >= 23, permissions classified as dangerous (e.g., `CAMERA`, `READ_EXTERNAL_STORAGE`, `ACCESS_FINE_LOCATION`) become **runtime permissions**. Legacy apps targetSdk < 23 expect permissions to be granted at install time and do not call `requestPermissions()`. Operations requiring these permissions will silently fail or be intercepted by the platform permission UI unless pre-granted (`adb install -g` or `pm grant`). (Note: The exact cause of first-pass permission-dialog timing flakiness across launches is undetermined; pass-2 pre-granting via `-g` is the deterministic check).
      - **Warning Code:** Triage automatically emits `WARN_RUNTIME_PERMISSIONS_ON_BUMP` whenever targetSdk is bumped to >= 23 on an APK declaring dangerous permissions.
 
 ### CLI Exit Codes

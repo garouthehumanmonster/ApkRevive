@@ -329,7 +329,7 @@ class TestPageSizeCompatVerification(unittest.TestCase):
         self.assertFalse(is_page_size_compat_verified())
 
     def test_synthetic_api37_16kb_pass_result_verified(self):
-        """With synthetic temporary results folder containing an API 37 16KB PASS result, is_page_size_compat_verified(tmp_dir) returns True."""
+        """With synthetic temporary results folder containing an API 37 16KB PASS result for x86_64, is_page_size_compat_verified(tmp_dir) returns True."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             result_file = os.path.join(tmp_dir, "android17_rig_page_size.json")
             data = {
@@ -351,8 +351,29 @@ class TestPageSizeCompatVerification(unittest.TestCase):
 
             self.assertTrue(is_page_size_compat_verified(tmp_dir))
             self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=37))
+            self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="x86_64"))
             self.assertTrue(is_page_size_compat_verified(Path(tmp_dir)))
             self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=36))
+            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="arm64-v8a"))
+
+    def test_synthetic_api37_arm64_unverified_for_x86_64(self):
+        """Synthetic API 37 16KB PASS result on arm64-v8a does NOT satisfy default x86_64 verification."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            result_file = os.path.join(tmp_dir, "android17_arm64_page_size.json")
+            data = {
+                "device_model": "Pixel 9 Pro API 37 (16KB)",
+                "android_build": "sdk_gphone64_arm64",
+                "abi": "arm64-v8a",
+                "os_api_level": 37,
+                "kernel_page_size": 16384,
+                "pass_fail": "PASS",
+            }
+            with open(result_file, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+
+            self.assertFalse(is_page_size_compat_verified(tmp_dir))
+            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="x86_64"))
+            self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="arm64-v8a"))
 
     def test_synthetic_api36_16kb_pass_result_verified(self):
         """With synthetic temporary results folder containing an API 36 16KB PASS result, target_api=36 returns True and target_api=37 returns False."""
@@ -368,7 +389,7 @@ class TestPageSizeCompatVerification(unittest.TestCase):
             with open(result_file, "w", encoding="utf-8") as f:
                 json.dump(data, f)
 
-            self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=36))
+            self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=36, target_abi="arm64-v8a"))
             self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37))
             self.assertFalse(is_page_size_compat_verified(tmp_dir))
 
@@ -425,7 +446,7 @@ class TestPageSizeCompatVerification(unittest.TestCase):
                     "string_not_dict",
                     {"pass_fail": "PASS", "kernel_page_size": "not_an_int"},
                     {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": "not_an_int", "android_build": "no_match"},
-                    {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": 37},
+                    {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": 37, "abi": "x86_64"},
                 ], f)
             self.assertTrue(is_page_size_compat_verified(tmp_dir))
 
