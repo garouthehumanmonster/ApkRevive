@@ -169,8 +169,8 @@ def triage_cmd(args):
 
     bump_target_sdk = getattr(args, "bump_target_sdk", None)
     standalone_install = getattr(args, "standalone_install", False)
-    if standalone_install and bump_target_sdk is None:
-        bump_target_sdk = 24
+    if bump_target_sdk == -1 or (standalone_install and bump_target_sdk is None):
+        bump_target_sdk = dev.install_floor
     res = evaluate_triage(apk, dev, bump_target_sdk=bump_target_sdk)
 
     if getattr(args, "sarif", False):
@@ -210,8 +210,8 @@ def revive_cmd(args):
     ) if (hasattr(args, "device_api") or hasattr(args, "page_size")) else DeviceProfile()
     bump_target_sdk = getattr(args, "bump_target_sdk", None)
     standalone_install = getattr(args, "standalone_install", False)
-    if standalone_install and bump_target_sdk is None:
-        bump_target_sdk = 24
+    if bump_target_sdk == -1 or (standalone_install and bump_target_sdk is None):
+        bump_target_sdk = dev.install_floor
     triage = evaluate_triage(meta, dev, bump_target_sdk=bump_target_sdk)
 
     transforms = list(triage.get("required_transforms", []))
@@ -446,8 +446,8 @@ def main():
     p_triage.add_argument("--uses-apache-http", action="store_true", default=None)
     p_triage.add_argument("--enable-60hz", action="store_true", help="Evaluate fixed physics display lock")
     p_triage.add_argument("--enable-cutout", action="store_true", help="Evaluate display cutout short edges layout")
-    p_triage.add_argument("--bump-target-sdk", type=int, default=None, help="Simulate bumping targetSdkVersion")
-    p_triage.add_argument("--standalone-install", action="store_true", help="Simulate standalone installation mode (defaults targetSdk to 24)")
+    p_triage.add_argument("--bump-target-sdk", nargs="?", const=-1, type=int, default=None, help="Simulate bumping targetSdkVersion (defaults to device install floor)")
+    p_triage.add_argument("--standalone-install", action="store_true", help="Simulate standalone installation mode (defaults targetSdk to device install floor)")
     p_triage.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     p_triage.add_argument("--sarif", action="store_true", help="Output SARIF v2.1.0 telemetry")
 
@@ -455,8 +455,8 @@ def main():
     p_revive.add_argument("apk", help="Path to APK file")
     p_revive.add_argument("--output", help="Output path")
     p_revive.add_argument("--dry-run", action="store_true", help="Perform triage and plan transforms without writing files or signing")
-    p_revive.add_argument("--bump-target-sdk", type=int, default=None, help="Bump targetSdkVersion in AndroidManifest.xml")
-    p_revive.add_argument("--standalone-install", action="store_true", help="Prepare APK for standalone install (defaults targetSdk to 24 and injects runtime shim)")
+    p_revive.add_argument("--bump-target-sdk", nargs="?", const=-1, type=int, default=None, help="Bump targetSdkVersion in AndroidManifest.xml (defaults to device install floor)")
+    p_revive.add_argument("--standalone-install", action="store_true", help="Prepare APK for standalone install (defaults targetSdk to device install floor and injects runtime shim)")
     p_revive.add_argument("--enable-60hz", action="store_true")
     p_revive.add_argument("--enable-cutout", action="store_true")
     p_revive.add_argument("--enable-resizable", action="store_true", help="Opt-in: inject resizeableActivity=true (Caution: may distort 2D canvas/HUD scaling)")

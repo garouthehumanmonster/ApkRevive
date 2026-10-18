@@ -308,11 +308,14 @@ def evaluate_triage(
         required_transforms.append("BUMP_TARGET_SDK")
         reasons.append(TriageSignal.MODIFICATION_REQUIRED.value)
 
-    is_blocked_by_floor = (
-        "TARGET_SDK_INSTALL_FLOOR_API34" in applicable_ids
-        or "TARGET_SDK_INSTALL_FLOOR_API35" in applicable_ids
-        or effective_target_sdk < device_floor
-    )
+    if bump_target_sdk is not None:
+        is_blocked_by_floor = effective_target_sdk < device_floor
+    else:
+        is_blocked_by_floor = (
+            "TARGET_SDK_INSTALL_FLOOR_API34" in applicable_ids
+            or "TARGET_SDK_INSTALL_FLOOR_API35" in applicable_ids
+            or effective_target_sdk < device_floor
+        )
     install_method = "BYPASS_LOW_TARGET_SDK_BLOCK" if is_blocked_by_floor else "DIRECT_INSTALL"
 
     # 5. Evaluate Verdict Class
