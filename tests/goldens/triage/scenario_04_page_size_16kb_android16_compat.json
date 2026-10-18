@@ -1,0 +1,15 @@
+{
+  "details": "Requires transforms: ['PAGE_SIZE_COMPAT'] (UNVERIFIED: pageSizeCompat mode is unverified; no API 36 16KB device result in results/)",
+  "install_method": "DIRECT_INSTALL",
+  "page_size_compat_verified": false,
+  "reason": "MODIFICATION_REQUIRED",
+  "required_transforms": [
+    "PAGE_SIZE_COMPAT"
+  ],
+  "transform_risks": {
+    "PAGE_SIZE_COMPAT": "HIGH"
+  },
+  "verdict": "YELLOW",
+  "verdict_display": "YELLOW (UNVERIFIED)",
+  "warnings": []
+}
