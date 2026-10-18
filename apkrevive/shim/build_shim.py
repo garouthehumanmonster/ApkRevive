@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-CANONICAL_SHIM_SHA256 = "4cc2989d2f34e9c9a7192e2e0c4b1f2e219dc712d6ad12b6554d6079142af58d"
+CANONICAL_SHIM_SHA256 = "e98aa52caf836fee44189b37f87fd91082bd6754a11cd796ec8ca9cf1d35feaa"
 SHIM_DIR = Path(__file__).resolve().parent
 SHIM_JAVA_PATH = SHIM_DIR / "ApkReviveInitProvider.java"
 SHIM_DEX_PATH = SHIM_DIR / "shim.dex"
