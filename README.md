@@ -1,9 +1,9 @@
-# ApkRevive v0.3.3 (Alpha)
+# ApkRevive v0.4.0a1 (Alpha)
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
 [![Android Target](https://img.shields.io/badge/Android%20API-3%20to%2035+-brightgreen.svg)](https://developer.android.com)
 [![Page Alignment](https://img.shields.io/badge/16KB%20Page%20Size-Compat%20Only%20Triage-orange.svg)](https://developer.android.com/guide/practices/page-sizes)
-[![Status](https://img.shields.io/badge/Status-Alpha%20(0.3.3)-yellow.svg)](#)
+[![Status](https://img.shields.io/badge/Status-Alpha%20(0.4.0a1)-yellow.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey.svg)](LICENSE)
 
 > [!WARNING]
@@ -151,7 +151,7 @@ In accordance with strict verification discipline, capabilities are classified a
 | 16KB Kernel dlopen | bionic dynamic linker on 16KB page kernel | Android Emulator API 35 (16KB) | NOT RUN (No Live AVD) |
 | targetSdk Floor Bypass | Package manager `-d --bypass-low-target-sdk-block` | Android Emulator API 34+ / Shizuku IPC | NOT RUN (No Live AVD) |
 | Runtime Shim Injection | ContentProvider initialization hook (`ApkReviveInitProvider`) | `tests/test_shim.py` | VERIFIED (Bytecode / Hash) |
-| Zero-Trust Zip Slip Guard | Path canonicalization & ratio thresholds (`zip_guard.py`) | `tests/test_security.py` | VERIFIED (Unit) |
+| Zero-Trust Zip Slip Guard | Path canonicalization & ratio thresholds (`zip_guard.py`) | `tests/test_zip_guard.py` | VERIFIED (Unit) |
 | V2/V3 APK Re-signing | `apksigner` integration & keytool keystore management | `tests/test_signer.py` | VERIFIED (Unit / Toolchain) |
 | Split APK Reassembly | Archive merge & DEX renumbering (`split_merger.py`) | `tests/test_split_merger.py` | VERIFIED (Unit) |
 
@@ -385,13 +385,14 @@ ApkRevive includes 8 pairs of control and failing canary test vectors (16 APKs t
 | 7 | `canary_has_code` | ART / Zygote | `hasCode="false"` preventing bytecode execution |
 | 8 | `canary_obb_version` | Storage / Expansion | OBB version code mismatch or ahead of APK versionCode |
 
-For the complete OS and device support matrix, refresh rate behaviors, and hardware vs. emulator details, see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+For the complete OS and device support matrix, refresh rate behaviors, and hardware vs. emulator details, see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md), [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md), and [docs/EMULATOR_16KB.md](docs/EMULATOR_16KB.md).
 
 ---
 
 ## Known Limitations & Security Considerations
 
-- **Cryptographic Signature Invalidation:** Re-signing an APK alters its certificate fingerprint. Installing a revived APK over an existing installation causes `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The companion app provides a one-tap remediation flow to cleanly uninstall the conflicting package and retry.
+- **Cryptographic Signature Invalidation & Data Wipe:** Re-signing an APK alters its certificate fingerprint. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data. The companion app provides a one-tap remediation flow to cleanly uninstall the conflicting package and retry.
+- **Custom Keystore & Signing Key Precedence:** Users can supply custom PKCS12 signing keystores via `--ks <path>`, `--ks-pass <pass>`, `--ks-alias <alias>`, and `--key-pass <pass>`. If `--ks` is not explicitly provided on the CLI, ApkRevive checks the `APKREVIVE_KEYSTORE` environment variable before falling back to the isolated per-user keystore in `~/.apkrevive/` (never a shared or hardcoded secret).
 - **Self-Signature Checks & Anti-Tamper DRM:** Binaries that implement runtime checksum validation against their own signing certificate or employ proprietary DRM wrappers will detect package re-signing and refuse execution.
 - **32-bit ELF Binaries:** 32-bit ELF binaries (`ELFCLASS32`) are exempt from 16KB kernel requirements and are preserved unmodified. Devices with 64-bit-only hardware (e.g., Pixel 7+) require 64-bit native libraries or an OS-level 32-bit translation layer.
 
@@ -423,6 +424,8 @@ python -m unittest discover -s tests
   - [x] [`SECURITY.md`](SECURITY.md) — Security policy, shim provenance & vulnerability disclosure
   - [x] [`CHANGELOG.md`](CHANGELOG.md) — Semantic versioning changelog
   - [x] [`CONTRIBUTING.md`](CONTRIBUTING.md) — Contribution guidelines & development setup
+  - [x] [`docs/DEVICE_TESTING.md`](docs/DEVICE_TESTING.md) — Device testing protocols & compatibility matrix
+  - [x] [`docs/EMULATOR_16KB.md`](docs/EMULATOR_16KB.md) — Android 15+ 16KB-page-size emulator testing guide
   - [x] [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — Multi-version Python & Android CI pipeline
 
 ---

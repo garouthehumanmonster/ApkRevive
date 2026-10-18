@@ -46,8 +46,9 @@ class TestCli(unittest.TestCase):
             code = probe_cmd(args)
         self.assertEqual(code, 0)
 
+    @patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK"))
     @patch("apkrevive.cli.sign_apk")
-    def test_cli_revive(self, mock_sign):
+    def test_cli_revive(self, mock_sign, mock_verify):
         mock_sign.return_value = True
         manifest = AxmlNode(tag="manifest")
         manifest.set_attr("package", "com.test.revive", ns="")
@@ -82,7 +83,8 @@ class TestCli(unittest.TestCase):
                 with self.assertRaises(SystemExit) as cm:
                     main()
                 self.assertEqual(cm.exception.code, 0)
-                self.assertIn(f"apkrevive {apkrevive.__version__}", mock_stdout.getvalue())
+                self.assertEqual(apkrevive.__version__, "0.4.0a1")
+                self.assertIn("0.4.0a1", mock_stdout.getvalue())
 
 
 if __name__ == "__main__":

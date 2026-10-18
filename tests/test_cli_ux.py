@@ -205,8 +205,9 @@ class TestCliUx(unittest.TestCase):
         self.assertIn("fail_under = 80", content)
         self.assertIn("show_missing = true", content)
 
+    @patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK"))
     @patch("apkrevive.cli.sign_apk", return_value=True)
-    def test_revive_enable_resizable_opt_in(self, mock_sign):
+    def test_revive_enable_resizable_opt_in(self, mock_sign, mock_verify):
         """Verifies:
         1. revive without --enable-resizable defaults to minimal changes and does NOT inject resizeableActivity="true".
         2. revive with --enable-resizable injects resizeableActivity="true"."""
