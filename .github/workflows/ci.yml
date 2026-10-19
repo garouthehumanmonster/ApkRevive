@@ -221,7 +221,7 @@ jobs:
           api-level: 35
           target: google_apis_ps16k
           arch: x86_64
-          profile: pixel_8
+          profile: pixel_6
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -no-audio
           script: bash scripts/ci_16kb.sh

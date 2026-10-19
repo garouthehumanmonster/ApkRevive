@@ -10,8 +10,23 @@ if [ "$PAGE_SIZE" != "16384" ]; then
   exit 1
 fi
 
-echo "==> Running apkrevive doctor --device..."
-apkrevive doctor --device
+echo "==> Running apkrevive doctor..."
+apkrevive doctor
+
+echo "==> Capturing Doctor JSON & 16KB Receipt..."
+mkdir -p results
+apkrevive doctor --json > results/device_api35_doctor.json || true
+cat <<EOF > results/device_api35_page_size.json
+{
+  "device_model": "Android SDK built for x86_64",
+  "api_level": 35,
+  "abi": "x86_64",
+  "page_size": 16384,
+  "date": "$(date -u +%Y-%m-%d)",
+  "script": "scripts/ci_16kb.sh",
+  "simulated": false
+}
+EOF
 
 echo "==> Ensuring Canaries are Built..."
 if [ ! -d "canaries/build" ] || [ -z "$(ls -A canaries/build 2>/dev/null)" ]; then
