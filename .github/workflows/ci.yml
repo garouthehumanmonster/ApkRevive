@@ -41,9 +41,24 @@ jobs:
       - name: Type check with mypy
         run: mypy apkrevive --ignore-missing-imports
 
+      - name: Cache F-Droid Corpus APKs
+        uses: actions/cache@v4
+        with:
+          path: tests/corpus/apks
+          key: corpus-${{ hashFiles('tests/corpus/corpus.json') }}
+
+      - name: Download & Verify Corpus APKs
+        run: python scripts/download_corpus.py
+
+      - name: Build Canary Test Suite
+        continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
+        run: python canaries/build_canaries.py
+
       - name: Test suite with coverage and Hypothesis fuzzing
+        env:
+          APKREVIVE_REQUIRE_ARTIFACTS: ${{ matrix.os == 'ubuntu-latest' && '1' || '0' }}
         run: |
-          coverage run -m pytest tests/
+          coverage run -m pytest tests/ -rs
           coverage report --fail-under=80
 
   android-ci:
