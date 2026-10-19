@@ -28,6 +28,8 @@ def find_sdk_root() -> Path:
     candidates = [
         os.environ.get("ANDROID_HOME"),
         os.environ.get("ANDROID_SDK_ROOT"),
+        "/usr/local/lib/android/sdk",
+        "/usr/lib/android-sdk",
         os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk") if os.environ.get("LOCALAPPDATA") else None,
         os.path.expanduser("~/Library/Android/sdk"),
         os.path.expanduser("~/Android/Sdk"),
@@ -94,6 +96,13 @@ def resolve_tool(name: str, build_tools_dir: Optional[Path] = None) -> str:
         for cand in candidates:
             p = build_tools_dir / cand
             if p.is_file():
+                if sys.platform != "win32":
+                    try:
+                        mode = os.stat(p).st_mode
+                        if not (mode & 0o111):
+                            os.chmod(p, mode | 0o755)
+                    except Exception:
+                        pass
                 return str(p)
 
     if sys.platform == "win32":
