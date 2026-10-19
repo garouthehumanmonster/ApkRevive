@@ -110,15 +110,30 @@ class TestCli(unittest.TestCase):
         self.assertIn("BUMP_TARGET_SDK", res["required_transforms"])
         self.assertEqual(res["install_method"], "DIRECT_INSTALL")
 
+    def _create_synthetic_red_apk(self, apk_path: str):
+        manifest = AxmlNode(tag="manifest")
+        manifest.set_attr("package", "com.test.red", ns="")
+        app = AxmlNode(tag="application")
+        manifest.children.append(app)
+        raw_manifest = AxmlSurgeon.serialize(manifest)
+        with zipfile.ZipFile(apk_path, "w") as zf:
+            zf.writestr("AndroidManifest.xml", raw_manifest)
+            zf.writestr("classes.dex", b"DEX\n035\x00")
+            # 32-bit armeabi-v7a library triggers RED (INCOMPATIBLE_DEVICE_ABI) on 64-bit device profile
+            zf.writestr("lib/armeabi-v7a/libnative.so", b"synthetic_native_lib")
+
     def test_revive_fail_closed_on_red_without_force(self):
-        apk_path = os.path.join(os.path.dirname(__file__), "corpus", "apks", "atm.starun.game_121.apk")
-        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_in, tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            in_apk = f_in.name
             out_apk = f_out.name
+        f_in.close()
+        f_out.close()
         try:
             if os.path.exists(out_apk):
                 os.remove(out_apk)
+            self._create_synthetic_red_apk(in_apk)
             args = argparse.Namespace(
-                apk=apk_path,
+                apk=in_apk,
                 output=out_apk,
                 device_api=35,
                 page_size=16384,
@@ -139,18 +154,23 @@ class TestCli(unittest.TestCase):
             self.assertFalse(os.path.exists(out_apk))
             self.assertIn("triage verdict is RED", mock_stderr.getvalue())
         finally:
+            if os.path.exists(in_apk):
+                os.remove(in_apk)
             if os.path.exists(out_apk):
                 os.remove(out_apk)
 
     def test_revive_succeeds_on_red_with_force(self):
-        apk_path = os.path.join(os.path.dirname(__file__), "corpus", "apks", "atm.starun.game_121.apk")
-        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_in, tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            in_apk = f_in.name
             out_apk = f_out.name
+        f_in.close()
+        f_out.close()
         try:
             if os.path.exists(out_apk):
                 os.remove(out_apk)
+            self._create_synthetic_red_apk(in_apk)
             args = argparse.Namespace(
-                apk=apk_path,
+                apk=in_apk,
                 output=out_apk,
                 device_api=35,
                 page_size=16384,
@@ -171,6 +191,8 @@ class TestCli(unittest.TestCase):
             self.assertTrue(os.path.exists(out_apk))
             self.assertIn("Forcing revive on RED triage verdict", mock_stderr.getvalue())
         finally:
+            if os.path.exists(in_apk):
+                os.remove(in_apk)
             if os.path.exists(out_apk):
                 os.remove(out_apk)
 
