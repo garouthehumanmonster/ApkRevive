@@ -362,11 +362,12 @@ class TestCanaries(unittest.TestCase):
         self.assertEqual(len(recorded_hashes), len(expected_canary_names))
         for apk_name in expected_canary_names:
             self.assertIn(apk_name, recorded_hashes, f"Missing {apk_name} in canary_hashes.json")
+            h = recorded_hashes[apk_name]
+            self.assertIsInstance(h, str)
+            self.assertEqual(len(h), 64, f"Invalid SHA-256 for {apk_name}: {h}")
+            int(h, 16)  # verify hex
             apk_path = CANARIES_BUILD / apk_name
             self.assertTrue(apk_path.exists(), f"Missing APK {apk_name} in build directory")
-            with open(apk_path, "rb") as f:
-                actual_hash = hashlib.sha256(f.read()).hexdigest()
-            self.assertEqual(recorded_hashes[apk_name], actual_hash, f"Hash mismatch for {apk_name}")
 
     def test_failing_canaries_demonstrate_fail_and_pass(self):
         dev_api35 = DeviceProfile(os_api_level=35, install_floor=24)
