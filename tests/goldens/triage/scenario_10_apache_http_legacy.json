@@ -1,0 +1,14 @@
+{
+  "details": "Requires transforms: ['INJECT_USES_LIBRARY_APACHE_HTTP']",
+  "install_method": "DIRECT_INSTALL",
+  "page_size_compat_verified": true,
+  "reason": "MODIFICATION_REQUIRED",
+  "required_transforms": [
+    "INJECT_USES_LIBRARY_APACHE_HTTP"
+  ],
+  "transform_risks": {
+    "INJECT_USES_LIBRARY_APACHE_HTTP": "LOW"
+  },
+  "verdict": "YELLOW",
+  "warnings": []
+}

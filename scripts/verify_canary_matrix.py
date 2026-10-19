@@ -162,6 +162,7 @@ class CanaryAssertionResult:
     expected: str
     observed: str
     tier_id: str
+    mode: str = "STATIC"
 
 
 def get_git_commit(project_root: Path = PROJECT_ROOT) -> str:
@@ -191,8 +192,8 @@ def tier_from_device_profile(profile: DeviceProfile) -> str:
 
 
 def detect_device_tier(bridge: AdbBridge) -> tuple[str, DeviceProfile, dict[str, str]]:
-    sdk_str = bridge.get_prop("ro.build.version.sdk")
-    sdk = int(sdk_str) if sdk_str.isdigit() else 35
+    bridge.wait_for_device()
+    sdk = bridge.get_sdk()
 
     floor_str = bridge.get_prop("ro.build.version.min_supported_target_sdk")
     floor = int(floor_str) if floor_str.isdigit() else (24 if sdk >= 35 else (23 if sdk >= 34 else 1))
@@ -206,6 +207,8 @@ def detect_device_tier(bridge: AdbBridge) -> tuple[str, DeviceProfile, dict[str,
         page_size = int(ps_str)
     elif "16k" in flavor or "ps16k" in flavor:
         page_size = 16384
+    elif hasattr(bridge, "get_page_size"):
+        page_size = bridge.get_page_size()
     else:
         page_size = 4096
 
@@ -245,9 +248,12 @@ def verify_canary_install_floor(
 ) -> CanaryAssertionResult:
     failing_apk = canaries_dir / "canary_install_floor_failing.apk"
     meta = inspect_apk(str(failing_apk)) if failing_apk.exists() else ApkMetadata(target_sdk=22)
+    pkg_name = meta.package_name or "com.apkrevive.canary.installfloor.failing"
+    mode = "ON_DEVICE" if bridge else "STATIC"
 
     if profile.os_api_level >= 34:
         if bridge:
+            bridge.uninstall(pkg_name)
             ok, out = bridge.install(str(failing_apk), bypass_low_target_sdk=False)
             ctrl_pass = (not ok) and ("INSTALL_FAILED_DEPRECATED_SDK_VERSION" in out)
             ctrl_msg = f"Live ADB direct install rejected: {out.strip()}"
@@ -265,6 +271,7 @@ def verify_canary_install_floor(
         ok_bypass, out_bypass = bridge.install(str(failing_apk), bypass_low_target_sdk=True)
         rev_pass = ok_bypass and ("Success" in out_bypass)
         rev_msg = f"Live ADB bypass install succeeded: {out_bypass.strip()}"
+        bridge.uninstall(pkg_name)
     else:
         triage_after = evaluate_triage(meta, profile)
         rev_pass = triage_after.get("verdict") == Verdict.GREEN.value
@@ -281,6 +288,7 @@ def verify_canary_install_floor(
         expected="Reject SDK < floor on API 34+ without bypass; succeed with bypass",
         observed=f"Control: {ctrl_msg} | Revived: {rev_msg}",
         tier_id=tier_from_device_profile(profile),
+        mode=mode,
     )
 
 
@@ -312,7 +320,8 @@ def verify_canary_apache_http(
     root_after = AxmlSurgeon.parse(patched_xml)
     app_after = root_after.find_child("application")
     lib_node = app_after.find_child("uses-library", "name", "org.apache.http.legacy") if app_after else None
-    rev_pass = (lib_node is not None) and (not lib_node.get_attr("required").get_value())
+    req_attr = lib_node.get_attr("required") if lib_node else None
+    rev_pass = (lib_node is not None) and (req_attr is not None and not req_attr.get_value())
     rev_msg = "uses-library org.apache.http.legacy injected with android:required=false"
 
     passed = ctrl_pass and rev_pass
@@ -351,7 +360,7 @@ def verify_canary_page_size(
         ctrl_pass = align_fail == 4096
         ctrl_msg = f"ELF align 4KB recorded; kernel page size is {profile.page_size_bytes}B"
 
-    rev_pass = (align_ctrl >= 16384) and (triage_ctrl.get("reason") != TriageSignal.INCOMPATIBLE_PAGE_SIZE.value)
+    rev_pass = (align_ctrl is not None and align_ctrl >= 16384) and (triage_ctrl.get("reason") != TriageSignal.INCOMPATIBLE_PAGE_SIZE.value)
     rev_msg = f"Control ELF rewritten with {align_ctrl}B alignment; 16KB page size constraint satisfied"
 
     passed = ctrl_pass and rev_pass
@@ -402,7 +411,8 @@ def verify_canary_physics_tick(
     meta_node = app_after.find_child("meta-data", "name", "apkrevive.enable_60hz_lock") if app_after else None
     prov_node = app_after.find_child("provider", "name", "apkrevive.shim.ApkReviveInitProvider") if app_after else None
 
-    rev_pass = bool(meta_node and meta_node.get_attr("value").get_value() and prov_node)
+    meta_val = meta_node.get_attr("value") if meta_node else None
+    rev_pass = bool(meta_val and meta_val.get_value() and prov_node)
     rev_msg = "ApkReviveInitProvider shim and apkrevive.enable_60hz_lock metadata injected"
 
     passed = ctrl_pass and rev_pass
@@ -428,7 +438,8 @@ def verify_canary_aspect_ratio(
     with zipfile.ZipFile(failing_apk, "r") as zf:
         root_before = AxmlSurgeon.parse(zf.read("AndroidManifest.xml"))
         app_before = root_before.find_child("application")
-        is_resizeable_before = app_before.get_attr("resizeableActivity").get_value() if app_before and app_before.get_attr("resizeableActivity") else False
+        resiz_before = app_before.get_attr("resizeableActivity") if app_before else None
+        is_resizeable_before = resiz_before.get_value() if resiz_before else False
 
     triage_fail = evaluate_triage(meta_fail, profile)
     if profile.is_widescreen:
@@ -444,7 +455,8 @@ def verify_canary_aspect_ratio(
         patched_xml = AxmlSurgeon.patch_manifest(zf.read("AndroidManifest.xml"), ["EXPAND_ASPECT_RATIO"])
     root_after = AxmlSurgeon.parse(patched_xml)
     app_after = root_after.find_child("application")
-    is_resizeable_after = app_after.get_attr("resizeableActivity").get_value() if app_after and app_after.get_attr("resizeableActivity") else False
+    resiz_after = app_after.get_attr("resizeableActivity") if app_after else None
+    is_resizeable_after = resiz_after.get_value() if resiz_after else False
 
     rev_pass = bool(is_resizeable_after)
     rev_msg = "resizeableActivity=true injected; fills modern viewport without letterboxing"
@@ -518,7 +530,8 @@ def verify_canary_has_code(
     with zipfile.ZipFile(failing_apk, "r") as zf:
         root_before = AxmlSurgeon.parse(zf.read("AndroidManifest.xml"))
         app_before = root_before.find_child("application")
-        has_code_before = app_before.get_attr("hasCode").get_value() if app_before and app_before.get_attr("hasCode") else True
+        hc_before = app_before.get_attr("hasCode") if app_before else None
+        has_code_before = hc_before.get_value() if hc_before else True
 
     ctrl_pass = not has_code_before
     ctrl_msg = f"hasCode={has_code_before} prevents Dalvik/ART bytecode execution"
@@ -527,7 +540,8 @@ def verify_canary_has_code(
         patched_xml = AxmlSurgeon.patch_manifest(zf.read("AndroidManifest.xml"), ["SET_HAS_CODE_TRUE"])
     root_after = AxmlSurgeon.parse(patched_xml)
     app_after = root_after.find_child("application")
-    has_code_after = app_after.get_attr("hasCode").get_value() if app_after and app_after.get_attr("hasCode") else False
+    hc_after = app_after.get_attr("hasCode") if app_after else None
+    has_code_after = hc_after.get_value() if hc_after else False
 
     rev_pass = has_code_after is True
     rev_msg = "hasCode=true injected and primary DEX trampoline enabled"
@@ -639,6 +653,9 @@ def write_receipt(receipt: dict[str, Any], results_dir: Path, env_slug: str) -> 
 def render_results_table(all_results: list[tuple[AVDTier, list[CanaryAssertionResult]]]) -> None:
     total_passed = sum(1 for _, res_list in all_results for r in res_list if r.pass_fail == "PASS")
     total_tests = sum(len(res_list) for _, res_list in all_results)
+    on_device_count = sum(1 for _, res_list in all_results for r in res_list if r.mode == "ON_DEVICE")
+    static_count = sum(1 for _, res_list in all_results for r in res_list if r.mode == "STATIC")
+    summary_mode = f" ({on_device_count} ON_DEVICE / {static_count} STATIC)" if on_device_count or static_count else ""
 
     if HAS_RICH:
         console = Console()
@@ -646,10 +663,11 @@ def render_results_table(all_results: list[tuple[AVDTier, list[CanaryAssertionRe
         console.print(
             Panel.fit(
                 "[bold cyan]ApkRevive Canary Matrix Runner & Verification Engine[/bold cyan]\n"
-                f"[dim]Total Assertions: {total_tests} | Verified: {total_passed}/{total_tests}[/dim]",
+                f"[dim]Total Assertions: {total_tests} | Verified: {total_passed}/{total_tests}{summary_mode}[/dim]",
                 box=box.DOUBLE,
             )
         )
+
 
         for tier, records in all_results:
             table = Table(
@@ -658,15 +676,18 @@ def render_results_table(all_results: list[tuple[AVDTier, list[CanaryAssertionRe
                 header_style="bold magenta",
                 show_lines=True,
             )
-            table.add_column("Canary Identifier", style="cyan", width=24)
-            table.add_column("Control (Unpatched) Assertion", width=42)
-            table.add_column("Revived (Patched) Assertion", width=42)
-            table.add_column("Verdict", justify="center", width=10)
+            table.add_column("Canary Identifier", style="cyan", width=22)
+            table.add_column("Mode", justify="center", width=11)
+            table.add_column("Control (Unpatched) Assertion", width=40)
+            table.add_column("Revived (Patched) Assertion", width=40)
+            table.add_column("Verdict", justify="center", width=9)
 
             for r in records:
                 status_badge = "[bold green]PASS[/bold green]" if r.pass_fail == "PASS" else "[bold red]FAIL[/bold red]"
+                mode_badge = f"[bold cyan]{r.mode}[/bold cyan]" if r.mode == "ON_DEVICE" else f"[dim]{r.mode}[/dim]"
                 table.add_row(
                     f"`{r.canary_id}`",
+                    mode_badge,
                     f"[dim]{r.control_detail}[/dim]",
                     f"{r.revived_detail}",
                     status_badge,
@@ -674,19 +695,19 @@ def render_results_table(all_results: list[tuple[AVDTier, list[CanaryAssertionRe
             console.print(table)
             console.print()
     else:
-        print("\n" + "=" * 90)
+        print("\n" + "=" * 105)
         print("  ApkRevive Canary Matrix Runner & Verification Engine")
-        print(f"  Total Assertions: {total_tests} | Verified: {total_passed}/{total_tests}")
-        print("=" * 90)
+        print(f"  Total Assertions: {total_tests} | Verified: {total_passed}/{total_tests}{summary_mode}")
+        print("=" * 105)
 
         for tier, records in all_results:
             print(f"\n--- {tier.name} ({tier.focus}) ---")
-            print(f"{'Canary':<26} | {'Control Assertion':<32} | {'Revived Assertion':<32} | {'Verdict'}")
-            print("-" * 105)
+            print(f"{'Canary':<24} | {'Mode':<10} | {'Control Assertion':<32} | {'Revived Assertion':<32} | {'Verdict'}")
+            print("-" * 115)
             for r in records:
                 ctrl_short = (r.control_detail[:29] + "...") if len(r.control_detail) > 32 else r.control_detail
                 rev_short = (r.revived_detail[:29] + "...") if len(r.revived_detail) > 32 else r.revived_detail
-                print(f"{r.canary_id:<26} | {ctrl_short:<32} | {rev_short:<32} | [{r.pass_fail}]")
+                print(f"{r.canary_id:<24} | {r.mode:<10} | {ctrl_short:<32} | {rev_short:<32} | [{r.pass_fail}]")
         print("\n")
 
 

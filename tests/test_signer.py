@@ -19,6 +19,7 @@ from apkrevive.core.signer import (
     ensure_keystore,
     sign_apk,
     verify_apk,
+    verify_apk_certs,
     get_apksigner_cmd
 )
 from apkrevive.cli import revive_cmd, main
@@ -134,13 +135,15 @@ class TestSigner(unittest.TestCase):
             stderr_buf = io.StringIO()
             stdout_buf = io.StringIO()
 
-            with patch("sys.stderr", stderr_buf), patch("sys.stdout", stdout_buf), patch("apkrevive.cli.sign_apk", return_value=True):
+            with patch("sys.stderr", stderr_buf), patch("sys.stdout", stdout_buf), patch("apkrevive.cli.sign_apk", return_value=True), patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK")):
                 code = revive_cmd(args)
 
             self.assertEqual(code, 0)
             stderr_output = stderr_buf.getvalue()
             expected_warning = (
-                "WARNING: APK signature has changed. Re-signing requires uninstalling the existing application "
+                "WARNING: APK signature has changed. Re-signing breaks Google Play updates, "
+                "signature-based licensing (Google LVL), and anti-tamper DRM checks. "
+                "Installing the revived APK requires uninstalling the existing application "
                 "on device, which will permanently delete all existing user data."
             )
             self.assertIn(expected_warning, stderr_output)
@@ -193,6 +196,36 @@ class TestSigner(unittest.TestCase):
         self.assertIsNotNone(env)
         self.assertEqual(env.get("APKREVIVE_KS_PASS"), "mock_ks_pwd")
         self.assertEqual(env.get("APKREVIVE_KEY_PASS"), "mock_key_pwd")
+
+    def test_keystore_env_var_precedence(self):
+        """Tests that APKREVIVE_KEYSTORE is used when keystore_path is None."""
+        with tempfile.NamedTemporaryFile(suffix=".p12", delete=False) as f:
+            env_ks_path = f.name
+        try:
+            with patch.dict(os.environ, {"APKREVIVE_KEYSTORE": env_ks_path}):
+                ks, pwd, alias = ensure_keystore(keystore_path=None)
+                self.assertEqual(ks, env_ks_path)
+        finally:
+            if os.path.exists(env_ks_path):
+                os.remove(env_ks_path)
+
+    def test_verify_apk_certs_fallback(self):
+        """Tests verify_apk_certs fallback when apksigner is unavailable."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            apk_path = os.path.join(tmp_dir, "test.apk")
+            create_synthetic_apk(apk_path)
+            with patch("apkrevive.core.signer.get_apksigner_cmd", return_value="nonexistent_apksigner"), \
+                 patch("shutil.which", return_value=None):
+                # Unsigned APK fails validation
+                ok, details = verify_apk_certs(apk_path)
+                self.assertFalse(ok)
+                self.assertIn("Invalid signing block", details)
+
+                # Valid signing block passes validation
+                with patch("apkrevive.core.signer.verify_signing_block_padding", return_value={"valid": True}):
+                    ok2, details2 = verify_apk_certs(apk_path)
+                    self.assertTrue(ok2)
+                    self.assertIn("Internal signing block validation passed", details2)
 
 
 if __name__ == "__main__":

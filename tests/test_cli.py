@@ -46,8 +46,9 @@ class TestCli(unittest.TestCase):
             code = probe_cmd(args)
         self.assertEqual(code, 0)
 
+    @patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK"))
     @patch("apkrevive.cli.sign_apk")
-    def test_cli_revive(self, mock_sign):
+    def test_cli_revive(self, mock_sign, mock_verify):
         mock_sign.return_value = True
         manifest = AxmlNode(tag="manifest")
         manifest.set_attr("package", "com.test.revive", ns="")
@@ -82,7 +83,118 @@ class TestCli(unittest.TestCase):
                 with self.assertRaises(SystemExit) as cm:
                     main()
                 self.assertEqual(cm.exception.code, 0)
-                self.assertIn(f"apkrevive {apkrevive.__version__}", mock_stdout.getvalue())
+                self.assertEqual(apkrevive.__version__, "0.5.0a1")
+                self.assertIn("0.5.0a1", mock_stdout.getvalue())
+
+    def test_cli_triage_bump_target_sdk_default_floor(self):
+        args = argparse.Namespace(
+            apk="test.apk",
+            device_api=35,
+            device_abis="arm64-v8a",
+            page_size=16384,
+            target_sdk=22,
+            apk_abis="",
+            uses_apache_http=False,
+            bump_target_sdk=-1,
+            standalone_install=False,
+            device_floor=24,
+            json=True,
+            sarif=False,
+        )
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_stdout:
+            code = triage_cmd(args)
+        self.assertEqual(code, 2)
+        import json
+        res = json.loads(mock_stdout.getvalue())
+        self.assertEqual(res["verdict"], "YELLOW")
+        self.assertIn("BUMP_TARGET_SDK", res["required_transforms"])
+        self.assertEqual(res["install_method"], "DIRECT_INSTALL")
+
+    def _create_synthetic_red_apk(self, apk_path: str):
+        manifest = AxmlNode(tag="manifest")
+        manifest.set_attr("package", "com.test.red", ns="")
+        app = AxmlNode(tag="application")
+        manifest.children.append(app)
+        raw_manifest = AxmlSurgeon.serialize(manifest)
+        with zipfile.ZipFile(apk_path, "w") as zf:
+            zf.writestr("AndroidManifest.xml", raw_manifest)
+            zf.writestr("classes.dex", b"DEX\n035\x00")
+            # 32-bit armeabi-v7a library triggers RED (INCOMPATIBLE_DEVICE_ABI) on 64-bit device profile
+            zf.writestr("lib/armeabi-v7a/libnative.so", b"synthetic_native_lib")
+
+    def test_revive_fail_closed_on_red_without_force(self):
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_in, tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            in_apk = f_in.name
+            out_apk = f_out.name
+        f_in.close()
+        f_out.close()
+        try:
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            self._create_synthetic_red_apk(in_apk)
+            args = argparse.Namespace(
+                apk=in_apk,
+                output=out_apk,
+                device_api=35,
+                page_size=16384,
+                force=False,
+                dry_run=False,
+                bump_target_sdk=None,
+                standalone_install=False,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+            )
+            with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
+                code = revive_cmd(args)
+            self.assertEqual(code, 1)
+            self.assertFalse(os.path.exists(out_apk))
+            self.assertIn("triage verdict is RED", mock_stderr.getvalue())
+        finally:
+            if os.path.exists(in_apk):
+                os.remove(in_apk)
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+
+    def test_revive_succeeds_on_red_with_force(self):
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_in, tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            in_apk = f_in.name
+            out_apk = f_out.name
+        f_in.close()
+        f_out.close()
+        try:
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            self._create_synthetic_red_apk(in_apk)
+            args = argparse.Namespace(
+                apk=in_apk,
+                output=out_apk,
+                device_api=35,
+                page_size=16384,
+                force=True,
+                dry_run=False,
+                bump_target_sdk=None,
+                standalone_install=False,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+            )
+            with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr, patch("sys.stdout", new_callable=io.StringIO):
+                code = revive_cmd(args)
+            self.assertEqual(code, 4)
+            self.assertTrue(os.path.exists(out_apk))
+            self.assertIn("Forcing revive on RED triage verdict", mock_stderr.getvalue())
+        finally:
+            if os.path.exists(in_apk):
+                os.remove(in_apk)
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
 
 
 if __name__ == "__main__":

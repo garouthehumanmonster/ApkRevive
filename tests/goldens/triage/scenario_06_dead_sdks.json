@@ -1,0 +1,12 @@
+{
+  "details": "No transforms needed. Install method: DIRECT_INSTALL (targetSdk=28, floor=24)",
+  "install_method": "DIRECT_INSTALL",
+  "page_size_compat_verified": true,
+  "reason": "RUNNABLE_UNMODIFIED",
+  "required_transforms": [],
+  "transform_risks": {},
+  "verdict": "GREEN",
+  "warnings": [
+    "WARN_DEAD_SDKS: Defunct or sunset legacy SDKs detected (['com.android.vending.licensing.ILicensingService', 'com.google.android.maps']). These services (e.g., Google LVL, Maps v1, legacy In-App Billing, obsolete ad SDKs) are no longer functional or supported. Remediation: Remove obsolete SDK dependencies, migrate to Google Play Billing Library v6+, Google Maps Android API v2, or modern ad provider SDKs."
+  ]
+}

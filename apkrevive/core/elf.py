@@ -2,6 +2,7 @@
 elf.py - 64-bit ELF parser extracting PT_LOAD segment alignment (p_align).
 """
 
+import os
 import struct
 import zipfile
 from typing import Optional, List, Tuple
@@ -9,9 +10,14 @@ from typing import Optional, List, Tuple
 from apkrevive.core.elf_surgeon import rewrite_elf_16kb, rewrite_apk_elfs_16kb
 
 ELF_MAGIC = b"\x7fELF"
+EI_CLASS_32 = 1
 EI_CLASS_64 = 2
 EI_DATA_LSB = 1
 PT_LOAD = 1
+PT_DYNAMIC = 2
+DT_TEXTREL = 22
+DT_FLAGS = 30
+DF_TEXTREL = 0x4
 
 
 def parse_elf_load_align(data: bytes) -> Optional[int]:
@@ -132,7 +138,132 @@ def inspect_apk_elf_align(apk_path: str) -> Optional[int]:
         return min_align if min_align < 4096 else 4096
     return min_align
 
+def check_elf_textrel(so_bytes: bytes) -> bool:
+    """
+    Parses ELF PT_DYNAMIC section for both 32-bit (EI_CLASS=1) and 64-bit (EI_CLASS=2) ELF binaries.
+    Checks for DT_TEXTREL (tag 22) or DT_FLAGS (tag 30) with flag DF_TEXTREL (val & 0x4).
+    Returns True if text relocations are present.
+    """
+    if len(so_bytes) < 52 or not so_bytes.startswith(ELF_MAGIC):
+        return False
+
+    ei_class = so_bytes[4]
+    ei_data = so_bytes[5]
+    endian = "<" if ei_data == EI_DATA_LSB else ">"
+
+    if ei_class == EI_CLASS_32:
+        if len(so_bytes) < 52:
+            return False
+        e_phoff = struct.unpack_from(f"{endian}I", so_bytes, 0x1C)[0]
+        e_phentsize = struct.unpack_from(f"{endian}H", so_bytes, 0x2A)[0]
+        e_phnum = struct.unpack_from(f"{endian}H", so_bytes, 0x2C)[0]
+
+        if e_phoff == 0 or e_phnum == 0 or e_phentsize < 32:
+            return False
+
+        dyn_off = None
+        dyn_sz = None
+
+        for i in range(e_phnum):
+            off = e_phoff + (i * e_phentsize)
+            if off + 32 > len(so_bytes):
+                break
+            p_type = struct.unpack_from(f"{endian}I", so_bytes, off)[0]
+            if p_type == PT_DYNAMIC:
+                dyn_off = struct.unpack_from(f"{endian}I", so_bytes, off + 4)[0]
+                dyn_sz = struct.unpack_from(f"{endian}I", so_bytes, off + 16)[0] or struct.unpack_from(f"{endian}I", so_bytes, off + 20)[0]
+                break
+
+        if dyn_off is None or dyn_sz is None:
+            return False
+
+        curr = dyn_off
+        end = min(dyn_off + dyn_sz, len(so_bytes))
+        while curr + 8 <= end:
+            tag, val = struct.unpack_from(f"{endian}II", so_bytes, curr)
+            if tag == 0:  # DT_NULL
+                break
+            if tag == DT_TEXTREL:
+                return True
+            if tag == DT_FLAGS and bool(val & DF_TEXTREL):
+                return True
+            curr += 8
+
+        return False
+
+    elif ei_class == EI_CLASS_64:
+        if len(so_bytes) < 64:
+            return False
+        e_phoff = struct.unpack_from(f"{endian}Q", so_bytes, 0x20)[0]
+        e_phentsize = struct.unpack_from(f"{endian}H", so_bytes, 0x36)[0]
+        e_phnum = struct.unpack_from(f"{endian}H", so_bytes, 0x38)[0]
+
+        if e_phoff == 0 or e_phnum == 0 or e_phentsize < 56:
+            return False
+
+        dyn_off = None
+        dyn_sz = None
+
+        for i in range(e_phnum):
+            off = e_phoff + (i * e_phentsize)
+            if off + 56 > len(so_bytes):
+                break
+            p_type = struct.unpack_from(f"{endian}I", so_bytes, off)[0]
+            if p_type == PT_DYNAMIC:
+                dyn_off = struct.unpack_from(f"{endian}Q", so_bytes, off + 8)[0]
+                dyn_sz = struct.unpack_from(f"{endian}Q", so_bytes, off + 32)[0] or struct.unpack_from(f"{endian}Q", so_bytes, off + 40)[0]
+                break
+
+        if dyn_off is None or dyn_sz is None:
+            return False
+
+        curr = dyn_off
+        end = min(dyn_off + dyn_sz, len(so_bytes))
+        while curr + 16 <= end:
+            tag, val = struct.unpack_from(f"{endian}QQ", so_bytes, curr)
+            if tag == 0:  # DT_NULL
+                break
+            if tag == DT_TEXTREL:
+                return True
+            if tag == DT_FLAGS and bool(val & DF_TEXTREL):
+                return True
+            curr += 16
+
+        return False
+
+    return False
+
+
+def inspect_apk_elf_textrel(apk_path: str) -> List[str]:
+    """
+    Scans all .so files inside the APK (under lib/) and returns list of .so library names
+    that have text relocations.
+    """
+    textrel_libs: List[str] = []
+    if not os.path.exists(apk_path):
+        return textrel_libs
+
+    try:
+        with zipfile.ZipFile(apk_path, "r") as zf:
+            for name in zf.namelist():
+                if name.startswith("lib/") and name.endswith(".so"):
+                    try:
+                        so_bytes = zf.read(name)
+                        if check_elf_textrel(so_bytes):
+                            lib_name = os.path.basename(name)
+                            if lib_name not in textrel_libs:
+                                textrel_libs.append(lib_name)
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    return sorted(textrel_libs)
+
+
 __all__ = [
+    "check_elf_textrel",
+    "inspect_apk_elf_textrel",
     "parse_elf_load_align",
     "validate_elf_segments",
     "inspect_apk_elf_details",

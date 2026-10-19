@@ -6,8 +6,9 @@ ApkRevive is currently in **Alpha** status. Security patches are applied to the 
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.3.x (Alpha) | :white_check_mark: |
-| < 0.3.3 | :x:                |
+| 0.5.x (Alpha) | :white_check_mark: |
+| 0.4.x   | :white_check_mark: |
+| < 0.4.0 | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -32,7 +33,7 @@ Reports will be acknowledged within 48 hours, followed by a proposed fix or reme
 
 ApkRevive injects an optional lightweight lifecycle shim (`ApkReviveInitProvider`) when modern display compatibility flags (such as 60Hz display refresh locking or cutout short-edge mode) are enabled. To maintain uncompromising security and auditability:
 
-- **Source Provenance:** The runtime shim source is maintained transparently at [`apkrevive/shim/ApkReviveInitProvider.java`](file:///C:/Users/Divyansh/Desktop/Projects/apkrevive/apkrevive/shim/ApkReviveInitProvider.java) and deterministically compiled via [`apkrevive/shim/build_shim.py`](file:///C:/Users/Divyansh/Desktop/Projects/apkrevive/apkrevive/shim/build_shim.py).
+- **Source Provenance:** The runtime shim source is maintained transparently at [`apkrevive/shim/ApkReviveInitProvider.java`](apkrevive/shim/ApkReviveInitProvider.java) and deterministically compiled via [`apkrevive/shim/build_shim.py`](apkrevive/shim/build_shim.py).
 - **Zero Network:** The shim contains zero networking code, opens no sockets, and makes no HTTP/HTTPS calls.
 - **Zero Data Collection / Telemetry:** The shim does not collect, read, store, or transmit device identifiers, user data, or telemetry.
 - **Strictly Scoped Functionality:** Solely sets 60Hz display mode ID and short-edge display cutout layout mode on activity resume.

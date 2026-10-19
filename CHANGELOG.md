@@ -5,6 +5,33 @@ All notable changes to ApkRevive will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0a1] - 2026-10-18
+
+### Added
+- **AXML Surgeon Round-Trip Testing:** Hermetic byte-for-byte serialization tests (`test_axml_correctness.py`) ensuring non-mutated manifests serialize identically to original inputs.
+- **Fail-Closed ELF Alignment on Android 16+:** Triage now returns a strict `RED` verdict (`UNFIXABLE_ELF_SEGMENT_MISALIGNMENT`) when 4KB-aligned 64-bit native libraries cannot safely run on API 36+ 16KB page-size devices.
+- **Post-Revive Certificate Verification:** `verify_apk_certs` runs `apksigner verify --print-certs` (with fallback to internal ASN.1 certificate parser) after every modernization run.
+- **New Triage Detection Passes & Canaries (Phase 3):**
+  - `WARN_HIDDEN_API_REFLECTION`: Detects restricted grey/dark-list reflection vectors.
+  - `WARN_GLES1_DEPRECATED`: Flags legacy OpenGL ES 1.x dependencies.
+  - `WARN_DEAD_SDKS`: Detects obsolete SDKs (Google LVL, Maps v1, legacy in-app billing, defunct ad networks).
+  - `WARN_TEXTREL`: Detects legacy native libraries containing `DT_TEXTREL`.
+  - `WARN_CLEARTEXT` / `WARN_LEGACY_TLS`: Flags unencrypted HTTP and deprecated TLS protocols.
+  - `WARN_SCOPED_STORAGE_OBB`: Warns on legacy external storage assumptions on Android 11+ (API 30+).
+- **Corpus & Golden Triage Suite (Phase 4):** Hermetic F-Droid corpus download tool (`scripts/download_corpus.py`) with SHA-256 verification, offline-safe execution, and golden-file triage regressions (`tests/test_golden_triage.py`).
+- **Android Companion Security Hardening (Phase 5 & 7):**
+  - Privileged shell installation fallback via `Shizuku.newProcess` with `--bypass-low-target-sdk-block` on Android 14+ (API 34+).
+  - Centralized reflection handler `invokeShizukuNewProcess` with loud `IllegalStateException` on missing private API and R8/ProGuard keep rule (`app/proguard-rules.pro`).
+  - Positional shell invocation (`sh -c 'mkdir -p "$1" && cat > "$2"'`) for OBB delivery with atomic `.part` staging, `mv` on success, `rm` cleanup on failure, and byte-count verification.
+  - Multi-user storage support (`resolveObbDestinationPath`) supporting non-zero user IDs (e.g. work profiles).
+- **Documentation:** Added `docs/DEVICE_TESTING.md` (multi-API test protocol and matrix) and `docs/EMULATOR_16KB.md` (16KB Android 15+ emulator guide).
+
+### Changed
+- **Companion App Keystore Migration Notice:** Companion APKs for v0.5.0a1 are signed with a distinct keystore compared to v0.4.0. Upgrading from v0.4.0 requires an explicit uninstall of the existing companion app first (`adb uninstall com.apkrevive`).
+- **Advisory 16KB Triage on Android 16+ (API 36+):** On API >= 36 with 16KB kernels, `PAGE_SIZE_COMPAT` emits an advisory warning (`WARN_PAGE_SIZE_COMPAT_ADVISORY`). For API 37 with x86_64 ABI (where emulator evidence exists), `page_size_compat_verified` is `true`. For Android 16 (API 36) and arm64-v8a devices, `page_size_compat_verified` is `false` and triage emits `GREEN (UNVERIFIED)` due to absence of verified on-device receipts. Golden scenario `scenario_04_page_size_16kb_android16_compat.json` updated accordingly.
+- Aligned `mypy` `python_version = "3.9"` with `requires-python = ">=3.9"` in `pyproject.toml`.
+- Expanded CI matrix to test Python 3.9 and 3.13 on `ubuntu-latest`.
+
 ## [0.4.0] - 2026-10-17
 
 ### Added

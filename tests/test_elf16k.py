@@ -72,7 +72,6 @@ def find_c_compiler():
         os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk") if os.environ.get("LOCALAPPDATA") else None,
         os.path.expanduser("~/Library/Android/sdk"),
         os.path.expanduser("~/Android/Sdk"),
-        r"C:\Users\Divyansh\AppData\Local\Android\Sdk",
     ]
     for c in candidates:
         if c and os.path.isdir(c):

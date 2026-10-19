@@ -205,8 +205,9 @@ class TestCliUx(unittest.TestCase):
         self.assertIn("fail_under = 80", content)
         self.assertIn("show_missing = true", content)
 
+    @patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK"))
     @patch("apkrevive.cli.sign_apk", return_value=True)
-    def test_revive_enable_resizable_opt_in(self, mock_sign):
+    def test_revive_enable_resizable_opt_in(self, mock_sign, mock_verify):
         """Verifies:
         1. revive without --enable-resizable defaults to minimal changes and does NOT inject resizeableActivity="true".
         2. revive with --enable-resizable injects resizeableActivity="true"."""
@@ -454,6 +455,7 @@ class TestCliUx(unittest.TestCase):
                 target_sdk=28,
                 apk_abis="arm64-v8a",
                 uses_apache_http=False,
+                force_page_size_compat=True,
                 json=False,
             )
             with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
@@ -474,6 +476,7 @@ class TestCliUx(unittest.TestCase):
                 target_sdk=28,
                 apk_abis="arm64-v8a",
                 uses_apache_http=False,
+                force_page_size_compat=True,
                 json=True,
             )
             with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
@@ -493,6 +496,7 @@ class TestCliUx(unittest.TestCase):
                 enable_60hz=False,
                 enable_cutout=False,
                 enable_resizable=False,
+                force_page_size_compat=True,
                 device_api=36,
                 page_size=16384,
                 ks=None,
@@ -516,6 +520,7 @@ class TestCliUx(unittest.TestCase):
                 enable_60hz=False,
                 enable_cutout=False,
                 enable_resizable=False,
+                force_page_size_compat=True,
                 device_api=36,
                 page_size=16384,
                 ks=None,

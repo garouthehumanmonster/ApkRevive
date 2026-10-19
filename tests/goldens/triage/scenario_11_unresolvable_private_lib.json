@@ -1,0 +1,9 @@
+{
+  "details": "Blocked private platform libraries: ['libgui.so'] (targetSdk=26)",
+  "page_size_compat_verified": true,
+  "reason": "UNRESOLVABLE_SYSTEM_LIBRARY",
+  "required_transforms": [],
+  "transform_risks": {},
+  "verdict": "RED",
+  "warnings": []
+}

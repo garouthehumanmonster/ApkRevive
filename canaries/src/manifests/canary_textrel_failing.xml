@@ -1,0 +1,15 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.apkrevive.canary.textrel.failing"
+    android:versionCode="100"
+    android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="28"/>
+    <application android:hasCode="true" android:label="CanaryTextrelFailing">
+        <activity android:name="com.apkrevive.canary.textrel.CanaryTextrelActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,10 @@
+{
+  "details": "No transforms needed. Install method: BYPASS_LOW_TARGET_SDK_BLOCK (targetSdk=22, floor=24)",
+  "install_method": "BYPASS_LOW_TARGET_SDK_BLOCK",
+  "page_size_compat_verified": true,
+  "reason": "RUNNABLE_UNMODIFIED",
+  "required_transforms": [],
+  "transform_risks": {},
+  "verdict": "GREEN",
+  "warnings": []
+}

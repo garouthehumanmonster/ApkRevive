@@ -12,6 +12,13 @@
     UNSAFE: "UNSAFE"
   };
 
+  const PUBLIC_SYSTEM_LIBRARIES = new Set([
+    "libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so",
+    "libandroid.so", "libjnigraphics.so", "libEGL.so", "libGLESv1_CM.so",
+    "libGLESv2.so", "libGLESv3.so", "libOpenSLES.so", "libOpenMAXAL.so",
+    "libvulkan.so", "libmediandk.so", "libaaudio.so", "libstdc++.so"
+  ]);
+
   function checkElf16k(segments) {
     if (!segments || segments.length === 0) {
       return { status: Elf16kStatus.UNSAFE, reasons: ["No PT_LOAD segments found"] };

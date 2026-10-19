@@ -15,7 +15,7 @@ from apkrevive.core.models import DeviceProfile, ApkMetadata, PatchReport
 from apkrevive.core.triage import evaluate_triage
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import align_apk, validate_zip_archive
-from apkrevive.core.signer import sign_apk
+from apkrevive.core.signer import sign_apk, verify_apk_certs
 from apkrevive.core.behavior_changes import TRANSFORM_RISK_LEVELS
 from apkrevive.core.obb import validate_obb_delivery
 from apkrevive.core.extractor import inspect_apk
@@ -38,6 +38,7 @@ VERDICT_EXIT_CODES = {
     "RED": 1,
     "YELLOW": 2,
     "NEEDS_USER_INPUT": 3,
+    "RED_FORCED": 4,
 }
 
 
@@ -166,11 +167,13 @@ def triage_cmd(args):
         dev.is_high_refresh = True
     if getattr(args, "enable_cutout", False):
         dev.is_widescreen = True
+    if getattr(args, "force_page_size_compat", False):
+        apk.force_page_size_compat = True
 
     bump_target_sdk = getattr(args, "bump_target_sdk", None)
     standalone_install = getattr(args, "standalone_install", False)
-    if standalone_install and bump_target_sdk is None:
-        bump_target_sdk = 24
+    if bump_target_sdk == -1 or (standalone_install and bump_target_sdk is None):
+        bump_target_sdk = dev.install_floor
     res = evaluate_triage(apk, dev, bump_target_sdk=bump_target_sdk)
 
     if getattr(args, "sarif", False):
@@ -208,11 +211,26 @@ def revive_cmd(args):
         os_api_level=getattr(args, "device_api", 35),
         page_size_bytes=getattr(args, "page_size", 16384),
     ) if (hasattr(args, "device_api") or hasattr(args, "page_size")) else DeviceProfile()
+    if getattr(args, "force_page_size_compat", False):
+        meta.force_page_size_compat = True
     bump_target_sdk = getattr(args, "bump_target_sdk", None)
     standalone_install = getattr(args, "standalone_install", False)
-    if standalone_install and bump_target_sdk is None:
-        bump_target_sdk = 24
+    if bump_target_sdk == -1 or (standalone_install and bump_target_sdk is None):
+        bump_target_sdk = dev.install_floor
     triage = evaluate_triage(meta, dev, bump_target_sdk=bump_target_sdk)
+    if not getattr(args, "dry_run", False):
+        if triage.get("verdict") == "RED" and not getattr(args, "force", False):
+            sys.stderr.write(
+                f"ERROR: Cannot revive APK: triage verdict is RED ({triage.get('reason', 'BLOCKED')}). "
+                f"Required transforms cannot make this APK safe/compatible without manual intervention. "
+                f"Use --force to override and attempt revive anyway.\n"
+            )
+            return VERDICT_EXIT_CODES["RED"]
+        if triage.get("verdict") == "RED" and getattr(args, "force", False):
+            sys.stderr.write(
+                f"WARNING: Forcing revive on RED triage verdict ({triage.get('reason')}). "
+                f"Output APK may crash or fail to load on target device.\n"
+            )
 
     transforms = list(triage.get("required_transforms", []))
     if getattr(args, "enable_60hz", False) and "LOCK_60HZ_DISPLAY_MODE" not in transforms:
@@ -323,8 +341,10 @@ def revive_cmd(args):
         os.remove(temp_apk)
 
     sys.stderr.write(
-        "WARNING: APK signature has changed. Re-signing requires uninstalling the existing "
-        "application on device, which will permanently delete all existing user data.\n"
+        "WARNING: APK signature has changed. Re-signing breaks Google Play updates, "
+        "signature-based licensing (Google LVL), and anti-tamper DRM checks. "
+        "Installing the revived APK requires uninstalling the existing application on device, "
+        "which will permanently delete all existing user data.\n"
     )
     sys.stderr.flush()
 
@@ -333,6 +353,11 @@ def revive_cmd(args):
     ks_alias = getattr(args, "ks_alias", None)
     key_pass = getattr(args, "key_pass", None)
     if not sign_apk(output_path, keystore_path=ks, keystore_pass=ks_pass, key_alias=ks_alias, key_pass=key_pass):
+        return 1
+
+    ok, cert_details = verify_apk_certs(output_path)
+    if not ok:
+        sys.stderr.write(f"ERROR: Post-revive signature verification failed:\n{cert_details}\n")
         return 1
 
     details = triage.get("details", "")
@@ -370,6 +395,8 @@ def revive_cmd(args):
         print(table)
     else:
         print(format_patch_report(report))
+    if triage.get("verdict") == "RED" and getattr(args, "force", False):
+        return VERDICT_EXIT_CODES["RED_FORCED"]
     return VERDICT_EXIT_CODES.get(triage.get("verdict", "YELLOW"), 0)
 
 
@@ -439,17 +466,20 @@ def main():
     p_triage.add_argument("--uses-apache-http", action="store_true", default=None)
     p_triage.add_argument("--enable-60hz", action="store_true", help="Evaluate fixed physics display lock")
     p_triage.add_argument("--enable-cutout", action="store_true", help="Evaluate display cutout short edges layout")
-    p_triage.add_argument("--bump-target-sdk", type=int, default=None, help="Simulate bumping targetSdkVersion")
-    p_triage.add_argument("--standalone-install", action="store_true", help="Simulate standalone installation mode (defaults targetSdk to 24)")
+    p_triage.add_argument("--bump-target-sdk", nargs="?", const=-1, type=int, default=None, help="Simulate bumping targetSdkVersion (defaults to device install floor)")
+    p_triage.add_argument("--standalone-install", action="store_true", help="Simulate standalone installation mode (defaults targetSdk to device install floor)")
+    p_triage.add_argument("--force-page-size-compat", action="store_true", help="Force PAGE_SIZE_COMPAT transform on API >= 36 16KB kernels")
     p_triage.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     p_triage.add_argument("--sarif", action="store_true", help="Output SARIF v2.1.0 telemetry")
 
     p_revive = sub.add_parser("revive", help="Modernize, patch, align and sign APK")
     p_revive.add_argument("apk", help="Path to APK file")
     p_revive.add_argument("--output", help="Output path")
+    p_revive.add_argument("--force", action="store_true", help="Force revive even when triage verdict is RED")
+    p_revive.add_argument("--force-page-size-compat", action="store_true", help="Force PAGE_SIZE_COMPAT transform on API >= 36 16KB kernels")
     p_revive.add_argument("--dry-run", action="store_true", help="Perform triage and plan transforms without writing files or signing")
-    p_revive.add_argument("--bump-target-sdk", type=int, default=None, help="Bump targetSdkVersion in AndroidManifest.xml")
-    p_revive.add_argument("--standalone-install", action="store_true", help="Prepare APK for standalone install (defaults targetSdk to 24 and injects runtime shim)")
+    p_revive.add_argument("--bump-target-sdk", nargs="?", const=-1, type=int, default=None, help="Bump targetSdkVersion in AndroidManifest.xml (defaults to device install floor)")
+    p_revive.add_argument("--standalone-install", action="store_true", help="Prepare APK for standalone install (defaults targetSdk to device install floor and injects runtime shim)")
     p_revive.add_argument("--enable-60hz", action="store_true")
     p_revive.add_argument("--enable-cutout", action="store_true")
     p_revive.add_argument("--enable-resizable", action="store_true", help="Opt-in: inject resizeableActivity=true (Caution: may distort 2D canvas/HUD scaling)")

@@ -9,6 +9,8 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+uv.lock
+.venv/
 
 # Android / Gradle
 .gradle/
@@ -32,4 +34,10 @@ results/transient/
 results/*.tmp
 *.tmp
 *.apk.tmp
+
+# Corpus test APK binaries (must not be committed)
+tests/corpus/apks/
+tests/corpus/apks/*.apk
+corpus/*.apk
+tests/corpus/emulator_test/
 

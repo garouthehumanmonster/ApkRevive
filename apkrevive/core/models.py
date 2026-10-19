@@ -83,6 +83,12 @@ class ApkMetadata:
     hidden_api_reflections: List[str] = field(default_factory=list)
     accesses_scoped_storage_paths: bool = False
     has_obb: bool = False
+    uses_gles1: bool = False
+    dead_sdks: List[str] = field(default_factory=list)
+    textrel_libs: List[str] = field(default_factory=list)
+    has_textrel: bool = False
+    has_request_legacy_external_storage: bool = False
+    force_page_size_compat: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

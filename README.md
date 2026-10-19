@@ -1,9 +1,9 @@
-# ApkRevive v0.3.3 (Alpha)
+# ApkRevive v0.5.0a1 (Alpha)
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
 [![Android Target](https://img.shields.io/badge/Android%20API-3%20to%2035+-brightgreen.svg)](https://developer.android.com)
 [![Page Alignment](https://img.shields.io/badge/16KB%20Page%20Size-Compat%20Only%20Triage-orange.svg)](https://developer.android.com/guide/practices/page-sizes)
-[![Status](https://img.shields.io/badge/Status-Alpha%20(0.3.3)-yellow.svg)](#)
+[![Status](https://img.shields.io/badge/Status-Alpha%20(0.5.0a1)-yellow.svg)](#)
 [![License](https://img.shields.io/badge/License-Apache%202.0-lightgrey.svg)](LICENSE)
 
 > [!WARNING]
@@ -99,6 +99,9 @@ Inspects modifications between original and modernized APKs:
 - Real-time capability chips (`arm64-v8a`, `16KB-ready`, `60Hz-locked`) and WCAG 2.2 AA accessibility semantics (`LiveRegionMode.Polite`/`Assertive`).
 - One-tap remediation for `INSTALL_FAILED_UPDATE_INCOMPATIBLE` signature mismatch.
 
+> [!WARNING]
+> **Companion App Signing Key Migration:** The companion APK for v0.5.0a1 is signed with a different key than v0.4.0. Upgrading from v0.4.0 requires an explicit uninstall of the existing companion app first (`adb uninstall com.apkrevive`).
+
 ### 9. Client-Side Web APK Triage Hub (`web/`)
 - Zero-upload, browser-based APK triage and diagnostic suite built with pure client-side Web Workers.
 - Interactive 16KB ELF Segment Layout Visualizer with modulo congruence equations.
@@ -148,27 +151,40 @@ In accordance with strict verification discipline, capabilities are classified a
 |---|---|---|---|
 | AXML Manifest Mutation | Binary AST parser & byte rewriter (`AxmlSurgeon`) | `tests/test_axml.py`, `results/local_rig_canary_apache_http.json` | VERIFIED (Unit/Host) |
 | 16KB Page Size Triage | 3-state header & congruence auditor (`elf16k.py`) | `tests/test_elf16k.py`, `tests/test_elf_surgeon.py` | VERIFIED (Host / Clang ELF) |
-| 16KB Kernel dlopen | bionic dynamic linker on 16KB page kernel | Android Emulator API 35 (16KB) | NOT RUN (No Live AVD) |
-| targetSdk Floor Bypass | Package manager `-d --bypass-low-target-sdk-block` | Android Emulator API 34+ / Shizuku IPC | NOT RUN (No Live AVD) |
+| 16KB Kernel dlopen | bionic dynamic linker on 16KB page kernel | Android Emulator API 37 (16KB) | VERIFIED (no measured benefit on API 37; arm64 unverified) |
+| targetSdk Floor Bypass | Package manager `--bypass-low-target-sdk-block` | Android Emulator API 37 (16KB) / Shizuku IPC | VERIFIED (on-device emulator-5554) |
 | Runtime Shim Injection | ContentProvider initialization hook (`ApkReviveInitProvider`) | `tests/test_shim.py` | VERIFIED (Bytecode / Hash) |
-| Zero-Trust Zip Slip Guard | Path canonicalization & ratio thresholds (`zip_guard.py`) | `tests/test_security.py` | VERIFIED (Unit) |
+| Zero-Trust Zip Slip Guard | Path canonicalization & ratio thresholds (`zip_guard.py`) | `tests/test_zip_guard.py` | VERIFIED (Unit) |
 | V2/V3 APK Re-signing | `apksigner` integration & keytool keystore management | `tests/test_signer.py` | VERIFIED (Unit / Toolchain) |
 | Split APK Reassembly | Archive merge & DEX renumbering (`split_merger.py`) | `tests/test_split_merger.py` | VERIFIED (Unit) |
+
+> [!IMPORTANT]
+> **16KB Page-Size Evidence Boundaries (Exact Claims):**
+> - **Verified Evidence**: Validated strictly on Android 17 (API 37) `x86_64` emulator with a 16KB kernel (`sdk_gphone16k_x86_64`, `PAGE_SIZE=16384`). On API 37 x86_64, both original (unrevived) and revived APKs executed with identical platform logcat (`NativeLibraryHelper: Setting page size compat mode PAGE_SIZE_APP_COMPAT_FLAG_LOAD_NOT_ALIGNED`), demonstrating that modern Android runtimes engage OS-level backcompat automatically for 4KB-aligned ELFs.
+> - **Unverified (No Evidence Available)**:
+>   - **Android 15 (API 35)** 16KB: UNVERIFIED (no local API 35 16KB system image; `sdkmanager` unavailable).
+>   - **Android 16 (API 36)**: UNVERIFIED (no image tested; triage emits GREEN (UNVERIFIED) with page_size_compat_verified=false on API 36 with 16KB kernel).
+>   - **Physical `arm64-v8a` hardware execution on 16KB**: UNVERIFIED (tested APKs executed `x86_64` native slices on emulator).
+>   - **Real-display 60Hz rate switching & display cutout rendering**: UNVERIFIED (emulator provides a single 60Hz mode without physical cutout).
 
 ---
 
 ## Installation
 
-### Prerequisites
-- Python 3.9+
-- Android SDK build-tools (for `zipalign` and `apksigner` in PATH, optional if using internal fallback)
-- Android device with USB debugging (for ADB commands) or Shizuku installed (for on-device app)
+### Prerequisites & Dependencies
+- **Python Runtime**: Python 3.9+
+- **Core CLI**: Zero external dependencies (uses standard library exclusively).
+- **Development & Testing Extras**: `pip install -e ".[dev]"` installs pytest, hypothesis, rich, ruff, mypy, and coverage.
+- **Android Tools**: Android SDK build-tools (for `zipalign` and `apksigner` in PATH; fallback to internal signer available).
+- **Device Connectivity**: Android device/emulator with USB/wireless debugging or Shizuku companion app.
 
 ### Install Python CLI
 ```bash
 git clone https://github.com/garouthehumanmonster/ApkRevive.git
 cd ApkRevive
 pip install -e .
+# For testing and dev tools:
+pip install -e ".[dev]"
 ```
 
 ---
@@ -280,6 +296,37 @@ Warnings (2):
 Details: Patched AXML manifest, injected ApkReviveInitProvider, aligned container to 16KB, signed with user keystore.
 ```
 
+### Target SDK Strategy: Bypass vs. Bump Trade-Off
+
+On modern Android runtimes (empirically verified on Android 17 API 37 emulator, with platform floor `targetSdk >= 24`), direct installation of apps targeting below the platform install floor is rejected with `INSTALL_FAILED_DEPRECATED_SDK_VERSION`. ApkRevive provides two distinct strategies:
+
+1. **Privileged Bypass (`BYPASS_LOW_TARGET_SDK_BLOCK`) — Preferred:**
+   - **How it works:** When installing via ADB CLI (`--bypass-low-target-sdk-block`) or the Shizuku companion app (`PackageInstaller` session flag `INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK` = `0x01000000`), the platform restriction is bypassed without altering the APK's manifest `targetSdkVersion`.
+   - **Advantages:** Preserves original cryptographic signature and avoids re-signing. Note that on modern Android runtimes, dangerous permissions still require pre-granting (`adb install -g` or `pm grant`) or user confirmation via the platform permission dialog. (The exact cause of first-pass permission-dialog flakiness on legacy apps is undetermined; pre-granting via `-g` provides deterministic execution).
+   - **Recommended:** Always prefer bypass when Shizuku or ADB is available.
+
+2. **Target SDK Bump (`BUMP_TARGET_SDK`) — Standalone Alternative:**
+   - **How it works:** When using `--bump-target-sdk` or `--standalone-install`, ApkRevive bumps `targetSdkVersion` in `AndroidManifest.xml` ONLY to the minimum install floor for the device profile (`dev.install_floor`, e.g., 24 for Android 15/17), never 35 by default.
+   - **Trade-Off & Breaking Changes:**
+     - **Signature Invalidation:** Modifying the manifest requires re-signing the APK, which breaks original signature fingerprints.
+     - **Runtime Permissions Transition:** On Android >= 23, permissions classified as dangerous (e.g., `CAMERA`, `READ_EXTERNAL_STORAGE`, `ACCESS_FINE_LOCATION`) become **runtime permissions**. Legacy apps targetSdk < 23 expect permissions to be granted at install time and do not call `requestPermissions()`. Operations requiring these permissions will silently fail or be intercepted by the platform permission UI unless pre-granted (`adb install -g` or `pm grant`). (Note: The exact cause of first-pass permission-dialog timing flakiness across launches is undetermined; pass-2 pre-granting via `-g` is the deterministic check).
+     - **Warning Code:** Triage automatically emits `WARN_RUNTIME_PERMISSIONS_ON_BUMP` whenever targetSdk is bumped to >= 23 on an APK declaring dangerous permissions.
+
+### CLI Exit Codes
+
+ApkRevive CLI commands (`triage`, `revive`) return distinct exit codes reflecting the triage and patching outcome:
+
+| Exit Code | Identifier | Meaning |
+| :---: | :--- | :--- |
+| **0** | `GREEN` | Compatible unmodified (`RUNNABLE_UNMODIFIED`). |
+| **1** | `RED` | Blocked / incompatible. Fail-closed: no output APK is written without `--force`. |
+| **2** | `YELLOW` | Modification required; transformations applied and output APK generated. |
+| **3** | `NEEDS_USER_INPUT` | Self-signature check or security anomaly detected; requires operator decision. |
+| **4** | `RED_FORCED` | Forced revival on a RED triage verdict using `--force` (warning: APK may fail or crash on target device). |
+
+
+
+
 ### 5. Probe Connected Device (`apkrevive probe`)
 Detect the connected device's OS version, CPU architectures, page size, and enforce install floor via ADB:
 ```bash
@@ -385,13 +432,14 @@ ApkRevive includes 8 pairs of control and failing canary test vectors (16 APKs t
 | 7 | `canary_has_code` | ART / Zygote | `hasCode="false"` preventing bytecode execution |
 | 8 | `canary_obb_version` | Storage / Expansion | OBB version code mismatch or ahead of APK versionCode |
 
-For the complete OS and device support matrix, refresh rate behaviors, and hardware vs. emulator details, see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+For the complete OS and device support matrix, refresh rate behaviors, and hardware vs. emulator details, see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md), [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md), and [docs/EMULATOR_16KB.md](docs/EMULATOR_16KB.md).
 
 ---
 
 ## Known Limitations & Security Considerations
 
-- **Cryptographic Signature Invalidation:** Re-signing an APK alters its certificate fingerprint. Installing a revived APK over an existing installation causes `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. The companion app provides a one-tap remediation flow to cleanly uninstall the conflicting package and retry.
+- **Cryptographic Signature Invalidation & Data Wipe:** Re-signing an APK alters its certificate fingerprint. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data. The companion app provides a one-tap remediation flow to cleanly uninstall the conflicting package and retry.
+- **Custom Keystore & Signing Key Precedence:** Users can supply custom PKCS12 signing keystores via `--ks <path>`, `--ks-pass <pass>`, `--ks-alias <alias>`, and `--key-pass <pass>`. If `--ks` is not explicitly provided on the CLI, ApkRevive checks the `APKREVIVE_KEYSTORE` environment variable before falling back to the isolated per-user keystore in `~/.apkrevive/` (never a shared or hardcoded secret).
 - **Self-Signature Checks & Anti-Tamper DRM:** Binaries that implement runtime checksum validation against their own signing certificate or employ proprietary DRM wrappers will detect package re-signing and refuse execution.
 - **32-bit ELF Binaries:** 32-bit ELF binaries (`ELFCLASS32`) are exempt from 16KB kernel requirements and are preserved unmodified. Devices with 64-bit-only hardware (e.g., Pixel 7+) require 64-bit native libraries or an OS-level 32-bit translation layer.
 
@@ -423,6 +471,8 @@ python -m unittest discover -s tests
   - [x] [`SECURITY.md`](SECURITY.md) — Security policy, shim provenance & vulnerability disclosure
   - [x] [`CHANGELOG.md`](CHANGELOG.md) — Semantic versioning changelog
   - [x] [`CONTRIBUTING.md`](CONTRIBUTING.md) — Contribution guidelines & development setup
+  - [x] [`docs/DEVICE_TESTING.md`](docs/DEVICE_TESTING.md) — Device testing protocols & compatibility matrix
+  - [x] [`docs/EMULATOR_16KB.md`](docs/EMULATOR_16KB.md) — Android 15+ 16KB-page-size emulator testing guide
   - [x] [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — Multi-version Python & Android CI pipeline
 
 ---

@@ -11,13 +11,13 @@ from typing import Optional, List, Set, Tuple
 
 from apkrevive.core.models import ApkMetadata
 from apkrevive.core.axml import AxmlSurgeon, AxmlAttribute
-from apkrevive.core.elf import inspect_apk_elf_details
+from apkrevive.core.elf import inspect_apk_elf_details, inspect_apk_elf_textrel
 
 PUBLIC_SYSTEM_LIBRARIES = {
     "libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so",
     "libandroid.so", "libjnigraphics.so", "libEGL.so", "libGLESv1_CM.so",
     "libGLESv2.so", "libGLESv3.so", "libOpenSLES.so", "libOpenMAXAL.so",
-    "libvulkan.so", "libmediandk.so", "libaaudio.so"
+    "libvulkan.so", "libmediandk.so", "libaaudio.so", "libstdc++.so"
 }
 
 HIDDEN_FRAMEWORK_APIS = [
@@ -48,6 +48,26 @@ LEGACY_TLS_TOKENS = [
     (b"TLSv1.1", "TLSv1.1"),
     (b"SSLSocketFactory", "SSLSocketFactory"),
     (b"TrustAll", "TrustAll"),
+]
+
+GLES1_DEX_TOKENS = [
+    b"Landroid/opengl/GLES10;",
+    b"Landroid/opengl/GLES11;",
+    b"Ljavax/microedition/khronos/opengles/GL10;",
+    b"android.opengl.GLES10",
+    b"android.opengl.GLES11",
+    b"javax.microedition.khronos.opengles.GL10",
+]
+
+DEAD_SDK_PATTERNS = [
+    ("Google LVL (Licensing)", [b"com/android/vending/licensing", b"com.android.vending.licensing", b"ILicensingService"]),
+    ("Google Maps v1", [b"com/google/android/maps", b"com.google.android.maps"]),
+    ("Legacy In-App Billing", [b"com/android/vending/billing", b"com.android.vending.billing", b"IInAppBillingService", b"IMarketBillingService"]),
+    ("Legacy AdMob (Standalone)", [b"com/google/ads/AdView", b"com.google.ads.AdView"]),
+    ("Millennial Media SDK", [b"com/millennialmedia", b"com.millennialmedia"]),
+    ("Airpush Ad SDK", [b"com/airpush", b"com.airpush"]),
+    ("MoPub Ad SDK", [b"com/mopub", b"com.mopub"]),
+    ("Flurry Legacy Ad SDK", [b"com/flurry/android/ads", b"com.flurry.android.ads"]),
 ]
 
 
@@ -171,6 +191,10 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
     hidden_api_reflections: List[str] = []
     legacy_tls_protocols: List[str] = []
 
+    uses_gles1 = False
+    dead_sdks: Set[str] = set()
+    has_request_legacy_external_storage = False
+
     abis_set: Set[str] = set()
     dex_has_apache_http = False
     bundled_sos: Set[str] = set()
@@ -240,6 +264,11 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                     if uct_attr is not None:
                         uses_cleartext_traffic = _attr_to_bool(uct_attr, default=True)
 
+                    # requestLegacyExternalStorage
+                    rles_attr = app_node.get_attr("requestLegacyExternalStorage") or app_node.get_attr("android:requestLegacyExternalStorage")
+                    if rles_attr is not None:
+                        has_request_legacy_external_storage = _attr_to_bool(rles_attr, default=True)
+
                     # networkSecurityConfig
                     nsc_attr = app_node.get_attr("networkSecurityConfig") or app_node.get_attr("android:networkSecurityConfig")
                     if nsc_attr is not None:
@@ -256,13 +285,18 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                                 if val_str and val_str not in permissions:
                                     permissions.append(val_str)
 
-                        if ch.tag == "uses-library":
+                        if ch.tag in ("uses-library", "android:uses-library"):
                             name_attr = ch.get_attr("name") or ch.get_attr("android:name")
                             if name_attr:
                                 val = name_attr.get_value()
                                 raw = name_attr.raw_value
-                                if val == "org.apache.http.legacy" or raw == "org.apache.http.legacy":
+                                lib_name = str(val if val is not None else (raw or "")).strip()
+                                if lib_name == "org.apache.http.legacy":
                                     has_apache_library_decl = True
+                                if lib_name in ("libGLESv1_CM.so", "libGLESv1_CM"):
+                                    uses_gles1 = True
+                                if lib_name == "com.google.android.maps":
+                                    dead_sdks.add("Google Maps v1")
 
                         if ch.tag == "meta-data":
                             name_attr = ch.get_attr("name") or ch.get_attr("android:name")
@@ -276,6 +310,18 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                     if not has_60hz_lock and ("physicstick" in package_name.lower()):
                         has_fixed_physics = True
 
+                # Check uses-feature in root and application for GLES 1.x
+                manifest_feature_nodes = [ch for ch in root.children if ch.tag in ("uses-feature", "android:uses-feature")]
+                if app_node:
+                    manifest_feature_nodes.extend([ch for ch in app_node.children if ch.tag in ("uses-feature", "android:uses-feature")])
+
+                for f_node in manifest_feature_nodes:
+                    gles_attr = f_node.get_attr("glEsVersion") or f_node.get_attr("android:glEsVersion")
+                    if gles_attr is not None:
+                        v = _attr_to_int(gles_attr, default=0)
+                        if 0 < v < 0x00020000:
+                            uses_gles1 = True
+
             except Exception:
                 pass
 
@@ -286,7 +332,7 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                     has_network_security_config = True
                     break
 
-        # 2. Scan classes*.dex for Apache HTTP, hidden API reflection, scoped storage, legacy TLS
+        # 2. Scan classes*.dex for Apache HTTP, hidden API reflection, scoped storage, legacy TLS, GLES1, dead SDKs, cleartext HTTP
         for name in namelist:
             if re.fullmatch(r"classes\d*\.dex", name):
                 try:
@@ -317,6 +363,17 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                             if token_name not in legacy_tls_protocols:
                                 legacy_tls_protocols.append(token_name)
 
+                    # GLES 1.x tokens
+                    for token in GLES1_DEX_TOKENS:
+                        if token in dex_bytes:
+                            uses_gles1 = True
+                            break
+
+                    # Known dead SDK tokens
+                    for sdk_name, patterns in DEAD_SDK_PATTERNS:
+                        if any(pat in dex_bytes for pat in patterns):
+                            dead_sdks.add(sdk_name)
+
                 except Exception:
                     pass
 
@@ -342,6 +399,10 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
                 except Exception:
                     pass
 
+        # Native lib GLES 1.x check
+        if "libGLESv1_CM.so" in bundled_sos or "libGLESv1_CM.so" in needed_libs:
+            uses_gles1 = True
+
         # 4. Container scan: Check if namelist has any .obb files or references
         for name in namelist:
             name_lower = name.lower()
@@ -352,7 +413,11 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
     # 5. Inspect 64-bit ELF load alignment and layout validity
     elf_load_align_64bit, has_invalid_elf_layout, elf_16kb_status = inspect_apk_elf_details(apk_path)
 
-    # 6. Determine uses_apache_http: True if referenced in DEX and NOT declared in uses-library
+    # 6. TEXTREL detection
+    textrel_libs = inspect_apk_elf_textrel(apk_path)
+    has_textrel = bool(textrel_libs)
+
+    # 7. Determine uses_apache_http: True if referenced in DEX and NOT declared in uses-library
     uses_apache_http = bool(dex_has_apache_http and not has_apache_library_decl)
 
     return ApkMetadata(
@@ -379,4 +444,9 @@ def inspect_apk(apk_path: str) -> ApkMetadata:
         hidden_api_reflections=sorted(list(set(hidden_api_reflections))),
         accesses_scoped_storage_paths=accesses_scoped_storage_paths,
         has_obb=has_obb,
+        uses_gles1=uses_gles1,
+        dead_sdks=sorted(list(set(dead_sdks))),
+        textrel_libs=textrel_libs,
+        has_textrel=has_textrel,
+        has_request_legacy_external_storage=has_request_legacy_external_storage,
     )

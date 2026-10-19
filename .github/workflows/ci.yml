@@ -6,6 +6,7 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,11 +15,14 @@ jobs:
   python-ci:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.12", "3.13"]
+        python-version: ["3.9", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
@@ -32,7 +36,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff mypy coverage pytest hypothesis rich
-          pip install -e .
+          pip install -e ".[dev]"
 
       - name: Lint with ruff
         run: ruff check .
@@ -40,9 +44,24 @@ jobs:
       - name: Type check with mypy
         run: mypy apkrevive --ignore-missing-imports
 
+      - name: Cache F-Droid Corpus APKs
+        uses: actions/cache@v4
+        with:
+          path: tests/corpus/apks
+          key: corpus-${{ hashFiles('tests/corpus/corpus.json') }}
+
+      - name: Download & Verify Corpus APKs
+        run: python scripts/download_corpus.py
+
+      - name: Build Canary Test Suite
+        continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
+        run: python canaries/build_canaries.py
+
       - name: Test suite with coverage and Hypothesis fuzzing
+        env:
+          APKREVIVE_REQUIRE_ARTIFACTS: ${{ matrix.os == 'ubuntu-latest' && '1' || '0' }}
         run: |
-          coverage run -m pytest tests/
+          coverage run -m pytest tests/ -rs
           coverage report --fail-under=80
 
   android-ci:
@@ -58,11 +77,27 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
         with:
           packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
+      - name: Decode Release Keystore (if secret present)
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_B64" ]; then
+            echo "$ANDROID_KEYSTORE_B64" | base64 -d > apkrevive-android/release.keystore
+            echo "RELEASE_KEYSTORE_EXISTS=true" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_KEYSTORE_EXISTS=false" >> "$GITHUB_ENV"
+            echo "::warning::ANDROID_KEYSTORE_B64 secret is not configured. Release APK will be signed with debug keystore."
+          fi
+
       - name: Build, Lint & Test Android Companion
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x apkrevive-android/gradlew
           cd apkrevive-android
@@ -71,8 +106,21 @@ jobs:
       - name: Stage Companion APKs
         run: |
           mkdir -p dist-companion
-          cp apkrevive-android/app/build/outputs/apk/release/app-release.apk dist-companion/ApkRevive-Companion-v0.4.0.apk
-          cp apkrevive-android/app/build/outputs/apk/debug/app-debug.apk dist-companion/ApkRevive-Companion-v0.4.0-debug.apk
+          if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+            RAW_VER="${GITHUB_REF#refs/tags/v}"
+            VERSION_NAME="v${RAW_VER}"
+          else
+            GRADLE_VER=$(grep 'versionName =' apkrevive-android/app/build.gradle.kts | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+            VERSION_NAME="v${GRADLE_VER}"
+          fi
+          echo "Derived Companion APK Version Name: ${VERSION_NAME}"
+          if [ "$RELEASE_KEYSTORE_EXISTS" = "true" ]; then
+            cp apkrevive-android/app/build/outputs/apk/release/app-release.apk dist-companion/ApkRevive-Companion-${VERSION_NAME}.apk
+          else
+            echo "::warning::Naming release APK with -debug-signed suffix because release keystore was absent."
+            cp apkrevive-android/app/build/outputs/apk/release/app-release.apk dist-companion/ApkRevive-Companion-${VERSION_NAME}-debug-signed.apk
+          fi
+          cp apkrevive-android/app/build/outputs/apk/debug/app-debug.apk dist-companion/ApkRevive-Companion-${VERSION_NAME}-debug.apk
 
       - name: Upload Companion APK Artifacts
         uses: actions/upload-artifact@v4
@@ -125,16 +173,102 @@ jobs:
           name: canary-matrix-receipts
           path: results/*.json
 
+  android-16kb-emulator:
+    name: Android 15 (API 35) 16KB Page-Size Emulator
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest hypothesis rich
+          pip install -e .
+
+      - name: Enable KVM Hardware Acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm || true
+
+      - name: Set up Android SDK and 16KB System Image
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+        with:
+          packages: "platform-tools emulator build-tools;35.0.0 system-images;android-35;google_apis_ps16k;x86_64"
+
+      - name: Build Canaries
+        run: |
+          python canaries/build_canaries.py
+
+      - name: Boot Android 15 16KB Emulator & Verify Page Size
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis_ps16k
+          arch: x86_64
+          profile: pixel_8
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -no-audio
+          script: bash scripts/ci_16kb.sh
+
+      - name: Report 16KB Emulator Job Summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### Android 15 (API 35) 16KB Emulator Verification: PASSED :white_check_mark:" >> "$GITHUB_STEP_SUMMARY"
+            echo "Confirmed kernel page size 16384 bytes, doctor diagnostics passed, canary matrix tier 35 passed." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Android 15 (API 35) 16KB Emulator Verification: FAILED :warning:" >> "$GITHUB_STEP_SUMMARY"
+            echo "Warning: API 35 16KB emulator verification failed or timed out. Check job logs for details." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload 16KB Live Verification Receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-16kb-receipts
+          path: results/*35*.json
+          if-no-files-found: ignore
+
   release:
-    name: Publish Release & PyPI Distribution
+    name: Publish GitHub Release
     needs: [python-ci, android-ci, canary-matrix-and-sarif]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
+    outputs:
+      is_prerelease: ${{ steps.tag_check.outputs.is_prerelease }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Inspect Release Tag
+        id: tag_check
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "Tag: $TAG"
+          # PEP 440 prerelease regex: e.g. v0.5.0a1, v1.0.0b2, v2.1.0rc3
+          if echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)[0-9]+$'; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "Detected PEP 440 pre-release tag: $TAG"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "Detected stable release tag: $TAG"
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -144,7 +278,7 @@ jobs:
       - name: Build Source & Binary Wheels
         run: |
           python -m pip install --upgrade pip build
-          python -m build
+          python -m build --outdir pydist/
 
       - name: Download Companion APK Artifacts
         uses: actions/download-artifact@v4
@@ -158,19 +292,40 @@ jobs:
           name: sarif-diagnostics
           path: dist/sarif/
 
-      - name: Publish to PyPI (OIDC Trusted Publishing)
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Upload Wheels for PyPI
+        uses: actions/upload-artifact@v4
         with:
-          packages-dir: dist/
-          skip-existing: true
-        continue-on-error: true
+          name: python-dist-packages
+          path: pydist/*
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: |
-            dist/*.whl
-            dist/*.tar.gz
+            pydist/*.whl
+            pydist/*.tar.gz
             dist/companion/*.apk
             dist/sarif/*
           generate_release_notes: true
+          prerelease: ${{ steps.tag_check.outputs.is_prerelease == 'true' }}
+
+  pypi-publish:
+    name: Publish PyPI Distribution
+    needs: [release]
+    if: startsWith(github.ref, 'refs/tags/v') && needs.release.outputs.is_prerelease != 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download Built Wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist-packages
+          path: pydist/
+
+      - name: Publish to PyPI (OIDC Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1 (v1.14.2)
+        with:
+          packages-dir: pydist/
+          skip-existing: true

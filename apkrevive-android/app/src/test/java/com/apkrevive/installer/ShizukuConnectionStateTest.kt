@@ -91,11 +91,11 @@ class ShizukuConnectionStateTest {
         )
         assertEquals(-7, errStringIncompatible.errorCode)
 
-        // -127 INSTALL_FAILED_DEPRECATED_SDK_VERSION
-        val errDeprecated = ShizukuPackageInstallerBridge.parseInstallError(-127)
-        assertEquals(-127, errDeprecated.errorCode)
+        // -29 INSTALL_FAILED_DEPRECATED_SDK_VERSION (PackageManager.java:2377)
+        val errDeprecated = ShizukuPackageInstallerBridge.parseInstallError(-29)
+        assertEquals(-29, errDeprecated.errorCode)
         assertEquals("Target SDK below device floor.", errDeprecated.humanExplanation)
-        assertEquals("Bypass flag will be used.", errDeprecated.remediation)
+        assertEquals("App targets older Android version than platform minimum. Shizuku bypass flag required.", errDeprecated.remediation)
 
         // CPU ABI error (-16)
         val errAbi = ShizukuPackageInstallerBridge.parseInstallError(-16)

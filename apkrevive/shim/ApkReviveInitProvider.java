@@ -61,6 +61,7 @@ public class ApkReviveInitProvider extends ContentProvider {
         Context appCtx = context.getApplicationContext();
         if (!(appCtx instanceof Application)) return false;
         Application app = (Application) appCtx;
+        android.util.Log.i("ApkRevive", "ApkReviveInitProvider initialized for " + app.getPackageName());
 
         boolean enable60Hz = false;
         boolean enableCutout = false;
@@ -69,8 +70,18 @@ public class ApkReviveInitProvider extends ContentProvider {
             ApplicationInfo ai = app.getPackageManager().getApplicationInfo(
                 app.getPackageName(), PackageManager.GET_META_DATA);
             if (ai != null && ai.metaData != null) {
-                enable60Hz = ai.metaData.getBoolean(META_ENABLE_60HZ, false);
-                enableCutout = ai.metaData.getBoolean(META_ENABLE_CUTOUT, false);
+                Object v60 = ai.metaData.get(META_ENABLE_60HZ);
+                if (v60 instanceof Boolean) {
+                    enable60Hz = (Boolean) v60;
+                } else if (v60 != null) {
+                    enable60Hz = Boolean.parseBoolean(String.valueOf(v60));
+                }
+                Object vCutout = ai.metaData.get(META_ENABLE_CUTOUT);
+                if (vCutout instanceof Boolean) {
+                    enableCutout = (Boolean) vCutout;
+                } else if (vCutout != null) {
+                    enableCutout = Boolean.parseBoolean(String.valueOf(vCutout));
+                }
             }
         } catch (PackageManager.NameNotFoundException ignored) {
         }
@@ -116,6 +127,7 @@ public class ApkReviveInitProvider extends ContentProvider {
             if (lp.layoutInDisplayCutoutMode != WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES) {
                 lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
                 changed = true;
+                android.util.Log.i("ApkRevive", "Applied transform: CUTOUT_SHORT_EDGES on " + activity.getClass().getSimpleName());
             }
         }
 
@@ -134,6 +146,7 @@ public class ApkReviveInitProvider extends ContentProvider {
                                 if (lp.preferredDisplayModeId != mode.getModeId()) {
                                     lp.preferredDisplayModeId = mode.getModeId();
                                     changed = true;
+                                    android.util.Log.i("ApkRevive", "Applied transform: LOCK_60HZ_DISPLAY_MODE on " + activity.getClass().getSimpleName());
                                 }
                                 break;
                             }
@@ -144,6 +157,7 @@ public class ApkReviveInitProvider extends ContentProvider {
                 if (lp.preferredRefreshRate != 60.0f) {
                     lp.preferredRefreshRate = 60.0f;
                     changed = true;
+                    android.util.Log.i("ApkRevive", "Applied transform: LOCK_60HZ_DISPLAY_MODE on " + activity.getClass().getSimpleName());
                 }
             }
         }

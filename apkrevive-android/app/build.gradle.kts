@@ -12,16 +12,41 @@ android {
         applicationId = "com.apkrevive"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.4.0"
+        versionCode = 3
+        versionName = "0.5.0-alpha.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val rootKeystore = rootProject.file("release.keystore")
+            val envKeystore = System.getenv("ANDROID_KEYSTORE_PATH")
+            val targetFile = when {
+                envKeystore != null && file(envKeystore).exists() -> file(envKeystore)
+                rootKeystore.exists() -> rootKeystore
+                else -> null
+            }
+            if (targetFile != null) {
+                storeFile = targetFile
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            val rootKeystore = rootProject.file("release.keystore")
+            val envKeystore = System.getenv("ANDROID_KEYSTORE_PATH")
+            val hasReleaseKeystore = (envKeystore != null && file(envKeystore).exists()) || rootKeystore.exists()
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

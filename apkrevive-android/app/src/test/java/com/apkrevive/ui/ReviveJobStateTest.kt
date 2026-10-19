@@ -85,12 +85,12 @@ class ReviveJobStateTest {
     @Test
     fun testInstallFailedStateDeprecatedSdk() {
         val state = ReviveJobState.InstallFailed(
-            errorCode = -127,
+            errorCode = -29,
             humanExplanation = "Target SDK below device floor.",
             remediation = "Bypass flag will be used."
         )
 
-        assertEquals(-127, state.errorCode)
+        assertEquals(-29, state.errorCode)
         assertEquals("Target SDK below device floor.", state.humanExplanation)
         assertEquals("Bypass flag will be used.", state.remediation)
     }

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -47,8 +48,18 @@ class TestCanaryMatrixRunner(unittest.TestCase):
         hashes_file = Path(__file__).resolve().parent.parent / "canaries" / "canary_hashes.json"
         apks = list(CANARIES_BUILD.glob("*.apk")) if CANARIES_BUILD.exists() else []
         if len(apks) < 16 or not hashes_file.exists():
-            from canaries.build_canaries import build_all
-            build_all()
+            try:
+                from canaries.build_canaries import build_all
+                build_all()
+                apks = list(CANARIES_BUILD.glob("*.apk")) if CANARIES_BUILD.exists() else []
+            except Exception as e:
+                if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+                    raise AssertionError(f"Required artifact failure: canary suite build failed: {e}")
+                raise unittest.SkipTest(f"Canary build tools unavailable: {e}")
+        if len(apks) < 16:
+            if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+                raise AssertionError("Required artifact failure: expected canary APKs in canaries/build")
+            raise unittest.SkipTest("No canary APKs in canaries/build")
 
     # 1. Tier Detection and Mapping
     def test_tier_from_device_profile(self):
@@ -79,7 +90,8 @@ class TestCanaryMatrixRunner(unittest.TestCase):
             }
             return mapping.get(prop, "")
 
-        with patch.object(bridge, "get_prop", side_effect=mock_getprop_19):
+        with patch.object(bridge, "get_prop", side_effect=mock_getprop_19), \
+             patch.object(bridge, "wait_for_device", return_value=True):
             tier_id, prof, props = detect_device_tier(bridge)
             self.assertEqual(tier_id, "19")
             self.assertEqual(prof.os_api_level, 19)
@@ -99,7 +111,8 @@ class TestCanaryMatrixRunner(unittest.TestCase):
             }
             return mapping.get(prop, "")
 
-        with patch.object(bridge, "get_prop", side_effect=mock_getprop_35):
+        with patch.object(bridge, "get_prop", side_effect=mock_getprop_35), \
+             patch.object(bridge, "wait_for_device", return_value=True):
             tier_id, prof, props = detect_device_tier(bridge)
             self.assertEqual(tier_id, "35")
             self.assertEqual(prof.os_api_level, 35)

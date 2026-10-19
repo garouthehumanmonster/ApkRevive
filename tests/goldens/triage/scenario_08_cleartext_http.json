@@ -1,0 +1,12 @@
+{
+  "details": "No transforms needed. Install method: DIRECT_INSTALL (targetSdk=28, floor=24)",
+  "install_method": "DIRECT_INSTALL",
+  "page_size_compat_verified": true,
+  "reason": "RUNNABLE_UNMODIFIED",
+  "required_transforms": [],
+  "transform_risks": {},
+  "verdict": "GREEN",
+  "warnings": [
+    "WARN_CLEARTEXT: Cleartext HTTP traffic is blocked by default on Android 9+ (API 28+) for applications targeting API 28+ or declaring android:usesCleartextTraffic=\"false\". Remediation: Enforce HTTPS using TLS 1.2+, declare android:usesCleartextTraffic=\"true\" in AndroidManifest.xml if unencrypted HTTP is strictly required, or supply a res/xml/network_security_config.xml."
+  ]
+}
