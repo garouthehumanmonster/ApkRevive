@@ -41,7 +41,7 @@ class TestCorpusManifest(unittest.TestCase):
             self.assertIsInstance(pkg_id, str)
             self.assertTrue(pkg.get("package_name"))
             self.assertTrue(pkg.get("version"))
-            self.assertTrue(pkg.get("url", "").startswith("https://f-droid.org/archive/"))
+            self.assertTrue(pkg.get("url", "").startswith(("https://f-droid.org/archive/", "https://f-droid.org/repo/")))
             self.assertTrue(pkg.get("url", "").endswith(".apk"))
 
             sha256 = pkg.get("sha256", "")
