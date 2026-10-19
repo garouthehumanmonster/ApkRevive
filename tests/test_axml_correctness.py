@@ -22,7 +22,10 @@ def test_canary_manifests_unmutated_roundtrip():
     """
     canary_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "canaries", "build")
     canary_apks = glob.glob(os.path.join(canary_dir, "*.apk"))
-    assert len(canary_apks) > 0, "No canary APKs found in canaries/ directory"
+    if not canary_apks:
+        if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+            pytest.fail("Required artifacts missing: no canary APKs found in canaries/build. Run 'python canaries/build_canaries.py'.")
+        pytest.skip("No canary APKs found in canaries/build. Run 'python canaries/build_canaries.py'.")
 
     checked_count = 0
     for apk_path in canary_apks:
@@ -50,6 +53,8 @@ def find_aapt2():
         os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk"),
         os.path.expanduser("~/Library/Android/sdk"),
         os.path.expanduser("~/Android/Sdk"),
+        "/usr/local/lib/android/sdk",
+        "/usr/lib/android-sdk",
     ]
     for root in sdk_roots:
         if not root or not os.path.exists(root):
@@ -73,11 +78,15 @@ def test_mutated_manifest_aapt2_dump():
     """
     aapt2 = find_aapt2()
     if not aapt2:
+        if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+            pytest.fail("Required tool missing: aapt2 not available on PATH or Android SDK build-tools.")
         pytest.skip("aapt2 not available")
 
     canary_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "canaries", "build")
     canary_apks = sorted(glob.glob(os.path.join(canary_dir, "*.apk")))
     if not canary_apks:
+        if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+            pytest.fail("Required artifacts missing: no canary APKs found in canaries/build.")
         pytest.skip("No canary APKs found")
 
     with zipfile.ZipFile(canary_apks[0], "r") as zf:
@@ -157,12 +166,16 @@ def test_corpus_manifest_aapt2_dump_xmltree_diff():
     """
     aapt2 = find_aapt2()
     if not aapt2:
+        if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+            pytest.fail("Required tool missing: aapt2 not available.")
         pytest.skip("aapt2 not available")
 
     corpus_dir = Path(__file__).resolve().parent / "corpus" / "apks"
     corpus_apks = sorted(corpus_dir.glob("*.apk"))
     if not corpus_apks:
-        pytest.skip("No corpus APKs found in tests/corpus/apks")
+        if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+            pytest.fail("Required artifacts missing: no corpus APKs found in tests/corpus/apks. Run 'python scripts/download_corpus.py'.")
+        pytest.skip("No corpus APKs found in tests/corpus/apks. Run 'python scripts/download_corpus.py'.")
 
     for apk_path in corpus_apks:
         with zipfile.ZipFile(apk_path, "r") as zf:
@@ -241,37 +254,7 @@ def test_strictly_ascending_resource_ids_all_corpus_and_canaries_and_resource_on
         for child in node.children:
             check_node_ascending(child, context)
 
-    # 1. Corpus APKs
-    corpus_dir = Path(__file__).resolve().parent / "corpus" / "apks"
-    corpus_apks = list(corpus_dir.glob("*.apk"))
-    assert len(corpus_apks) >= 6, f"Expected at least 6 corpus APKs, found {len(corpus_apks)}"
-    for apk_path in corpus_apks:
-        with zipfile.ZipFile(apk_path, "r") as zf:
-            orig = zf.read("AndroidManifest.xml")
-        patched = AxmlSurgeon.patch_manifest(
-            orig,
-            transforms=["SET_HAS_CODE_TRUE", "PAGE_SIZE_COMPAT"],
-            options={"bump_target_sdk": 24, "enable_60hz": True, "enable_cutout": True},
-        )
-        root = AxmlSurgeon.parse(patched)
-        check_node_ascending(root, f"Corpus {apk_path.name}")
-
-    # 2. Canary APKs
-    canary_dir = Path(__file__).resolve().parent.parent / "canaries" / "build"
-    canary_apks = list(canary_dir.glob("*.apk"))
-    assert len(canary_apks) >= 16, f"Expected at least 16 canary APKs, found {len(canary_apks)}"
-    for apk_path in canary_apks:
-        with zipfile.ZipFile(apk_path, "r") as zf:
-            orig = zf.read("AndroidManifest.xml")
-        patched = AxmlSurgeon.patch_manifest(
-            orig,
-            transforms=["INJECT_USES_LIBRARY_APACHE_HTTP", "PAGE_SIZE_COMPAT"],
-            options={"bump_target_sdk": 24},
-        )
-        root = AxmlSurgeon.parse(patched)
-        check_node_ascending(root, f"Canary {apk_path.name}")
-
-    # 3. Resource-only (hasCode=false) case
+    # 1. Resource-only (hasCode=false) case - pure hermetic execution
     res_manifest = AxmlNode(tag="manifest")
     res_manifest.set_attr("package", "com.resource.only.theme")
     app_node = AxmlNode(tag="application")
@@ -300,5 +283,43 @@ def test_strictly_ascending_resource_ids_all_corpus_and_canaries_and_resource_on
     # theme (0x01010000) must precede hasCode (0x0101000C)
     app_rids = [a.resource_id for a in parsed_app.attributes if a.resource_id > 0]
     assert app_rids.index(0x01010000) < app_rids.index(0x0101000C)
+
+    # 2. Corpus APKs (artifact-dependent)
+    corpus_dir = Path(__file__).resolve().parent / "corpus" / "apks"
+    corpus_apks = list(corpus_dir.glob("*.apk"))
+    if not corpus_apks:
+        if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+            pytest.fail("Required artifacts missing: expected at least 6 corpus APKs in tests/corpus/apks. Run 'python scripts/download_corpus.py'.")
+    else:
+        assert len(corpus_apks) >= 6, f"Expected at least 6 corpus APKs, found {len(corpus_apks)}"
+        for apk_path in corpus_apks:
+            with zipfile.ZipFile(apk_path, "r") as zf:
+                orig = zf.read("AndroidManifest.xml")
+            patched = AxmlSurgeon.patch_manifest(
+                orig,
+                transforms=["SET_HAS_CODE_TRUE", "PAGE_SIZE_COMPAT"],
+                options={"bump_target_sdk": 24, "enable_60hz": True, "enable_cutout": True},
+            )
+            root = AxmlSurgeon.parse(patched)
+            check_node_ascending(root, f"Corpus {apk_path.name}")
+
+    # 3. Canary APKs (artifact-dependent)
+    canary_dir = Path(__file__).resolve().parent.parent / "canaries" / "build"
+    canary_apks = list(canary_dir.glob("*.apk"))
+    if not canary_apks:
+        if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+            pytest.fail("Required artifacts missing: expected at least 16 canary APKs in canaries/build. Run 'python canaries/build_canaries.py'.")
+    else:
+        assert len(canary_apks) >= 16, f"Expected at least 16 canary APKs, found {len(canary_apks)}"
+        for apk_path in canary_apks:
+            with zipfile.ZipFile(apk_path, "r") as zf:
+                orig = zf.read("AndroidManifest.xml")
+            patched = AxmlSurgeon.patch_manifest(
+                orig,
+                transforms=["INJECT_USES_LIBRARY_APACHE_HTTP", "PAGE_SIZE_COMPAT"],
+                options={"bump_target_sdk": 24},
+            )
+            root = AxmlSurgeon.parse(patched)
+            check_node_ascending(root, f"Canary {apk_path.name}")
 
 

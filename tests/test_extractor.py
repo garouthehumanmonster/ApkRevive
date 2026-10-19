@@ -150,7 +150,9 @@ class TestExtractor(unittest.TestCase):
     def test_cli_triage_with_disk_inspection_and_overrides(self):
         apache_fail = CANARIES_BUILD / "canary_apache_http_failing.apk"
         if not apache_fail.exists():
-            self.skipTest("Canaries build directory not present")
+            if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+                self.fail("Required artifacts missing: canary_apache_http_failing.apk not found in canaries/build. Run 'python canaries/build_canaries.py'.")
+            self.skipTest("Canaries build directory not present. Run 'python canaries/build_canaries.py'.")
 
         # 1. Unmodified canary triage should result in YELLOW (code 2 in Milestone 5)
         args = argparse.Namespace(

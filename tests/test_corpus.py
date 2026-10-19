@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -171,12 +172,11 @@ class TestHermeticCorpusTriage(unittest.TestCase):
                 self.assertEqual(res_33["install_method"], "DIRECT_INSTALL")
 
     def test_live_downloaded_apks_if_present(self):
-        if not CORPUS_APKS_DIR.is_dir():
-            self.skipTest("tests/corpus/apks directory does not exist.")
-
-        downloaded_apks = list(CORPUS_APKS_DIR.glob("*.apk"))
+        downloaded_apks = list(CORPUS_APKS_DIR.glob("*.apk")) if CORPUS_APKS_DIR.is_dir() else []
         if not downloaded_apks:
-            self.skipTest("No downloaded corpus APKs present in tests/corpus/apks/.")
+            if os.environ.get("APKREVIVE_REQUIRE_ARTIFACTS") == "1":
+                self.fail("Required artifacts missing: No downloaded corpus APKs present in tests/corpus/apks/. Run 'python scripts/download_corpus.py'.")
+            self.skipTest("No downloaded corpus APKs present in tests/corpus/apks/. Run 'python scripts/download_corpus.py'.")
 
         from apkrevive.core.extractor import inspect_apk
 
