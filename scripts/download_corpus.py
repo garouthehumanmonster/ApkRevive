@@ -41,15 +41,27 @@ def verify_existing_file(filepath: Union[Path, str], expected_hash: str) -> bool
 def download_and_verify(url: str, dest_path: Union[Path, str], expected_sha256: str) -> bool:
     dest = Path(dest_path)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "ApkRevive-Corpus-Runner/1.0"})
-        with urllib.request.urlopen(req, timeout=30) as resp, open(dest, "wb") as out:
-            while chunk := resp.read(65536):
-                out.write(chunk)
-    except Exception as e:
-        sys.stderr.write(f"[-] Download failed for {url}: {e}\n")
-        if dest.exists():
-            dest.unlink()
+    urls_to_try = [url]
+    if "/archive/" in url:
+        urls_to_try.append(url.replace("/archive/", "/repo/"))
+    elif "/repo/" in url:
+        urls_to_try.append(url.replace("/repo/", "/archive/"))
+
+    success = False
+    for candidate_url in urls_to_try:
+        try:
+            req = urllib.request.Request(candidate_url, headers={"User-Agent": "ApkRevive-Corpus-Runner/1.0"})
+            with urllib.request.urlopen(req, timeout=30) as resp, open(dest, "wb") as out:
+                while chunk := resp.read(65536):
+                    out.write(chunk)
+            success = True
+            break
+        except Exception:
+            if dest.exists():
+                dest.unlink()
+
+    if not success:
+        sys.stderr.write(f"[-] Download failed for {url} (all candidate URLs exhausted)\n")
         return False
 
     actual_hash = compute_file_sha256(dest)
