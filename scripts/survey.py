@@ -798,6 +798,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # Build report
     report: Dict[str, Any] = {
+        "schema_version": "1.0.0",
         "device_info": dev_info,
         "total_apks": total_apks,
         "direct_install_stats": {

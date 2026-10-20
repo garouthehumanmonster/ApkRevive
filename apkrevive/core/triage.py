@@ -5,7 +5,7 @@ Adheres strictly to platform behavior table, verified test vectors, and bionic l
 
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
-from apkrevive.core.models import Verdict, TriageSignal, DeviceProfile, ApkMetadata
+from apkrevive.core.models import Verdict, TriageSignal, DeviceProfile, ApkMetadata, SCHEMA_VERSION
 from apkrevive.core.behavior_changes import (
     PUBLIC_SYSTEM_LIBRARIES,
     BIONIC_GREYLIST,
@@ -95,6 +95,7 @@ def evaluate_triage(
     # 0. Split APK Check
     if apk.get("is_split_apk"):
         return {
+            "schema_version": SCHEMA_VERSION,
             "verdict": Verdict.RED.value,
             "reason": TriageSignal.SPLIT_APK_UNSUPPORTED.value,
             "details": "Split APKs cannot be modernized independently. Modernize the base APK.",
@@ -118,6 +119,7 @@ def evaluate_triage(
                     f"Houdini/libndk_translation), or run on a device/emulator supporting 32-bit execution."
                 )
             return {
+                "schema_version": SCHEMA_VERSION,
                 "verdict": Verdict.RED.value,
                 "reason": TriageSignal.INCOMPATIBLE_DEVICE_ABI.value,
                 "details": f"APK ABIs {sorted(list(apk_abis))} do not match device ABIs {sorted(list(device_abis))}",
@@ -229,6 +231,7 @@ def evaluate_triage(
 
         if blocked_libs:
             return {
+                "schema_version": SCHEMA_VERSION,
                 "verdict": Verdict.RED.value,
                 "reason": TriageSignal.UNRESOLVABLE_SYSTEM_LIBRARY.value,
                 "details": f"Blocked private platform libraries: {blocked_libs} (targetSdk={target_sdk})",
@@ -248,6 +251,7 @@ def evaluate_triage(
     if "16KB_PAGE_SIZE_KERNEL" in applicable_ids or (device.get("page_size_bytes") == 16384 and (elf_16kb_status == "UNSAFE" or has_invalid_elf)):
         if elf_16kb_status == "UNSAFE" or has_invalid_elf:
             return {
+                "schema_version": SCHEMA_VERSION,
                 "verdict": Verdict.RED.value,
                 "reason": TriageSignal.INCOMPATIBLE_PAGE_SIZE.value,
                 "details": "64-bit ELF has invalid or <16KB segment alignment: fake header patch with colliding 16KB pages cannot run safely on 16KB kernel",
@@ -259,6 +263,7 @@ def evaluate_triage(
 
         if device_sdk < 36:
             return {
+                "schema_version": SCHEMA_VERSION,
                 "verdict": Verdict.RED.value,
                 "reason": TriageSignal.INCOMPATIBLE_PAGE_SIZE.value,
                 "details": f"64-bit ELF has invalid or <16KB segment alignment on 16KB kernel (OS API={device_sdk} < 36)",
@@ -378,6 +383,7 @@ def evaluate_triage(
         else:
             res["page_size_compat_verified"] = True
 
+        res["schema_version"] = SCHEMA_VERSION
         return res
 
     # 6. Unmodified Path (Green)
@@ -402,6 +408,7 @@ def evaluate_triage(
         verdict_disp = None
 
     green_res: Dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
         "verdict": Verdict.GREEN.value,
         "reason": TriageSignal.RUNNABLE_UNMODIFIED.value,
         "install_method": install_method,

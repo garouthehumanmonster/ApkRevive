@@ -7,6 +7,9 @@ from enum import Enum
 from typing import List, Optional, Dict, Any
 
 
+SCHEMA_VERSION = "1.0.0"
+
+
 class Verdict(str, Enum):
     GREEN = "GREEN"
     YELLOW = "YELLOW"
@@ -114,6 +117,7 @@ class PatchReport:
     transform_risks: Dict[str, str] = field(default_factory=dict)
     page_size_compat_verified: bool = True
     verdict_display: Optional[str] = None
+    schema_version: str = SCHEMA_VERSION
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -1,4 +1,5 @@
 {
+  "schema_version": "1.0.0",
   "device_model": "Local Verification Rig",
   "android_build": "Host Python Harness",
   "kernel_page_size": 16384,
