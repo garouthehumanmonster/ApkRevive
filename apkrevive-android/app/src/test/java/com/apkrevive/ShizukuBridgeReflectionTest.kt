@@ -69,6 +69,19 @@ class ShizukuBridgeReflectionTest {
     }
 
     @Test
+    fun testApplyBypassGuardsOldSdkInt() {
+        val fake = FakeSessionParams()
+        // API 33 does not have INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK in PackageManager
+        val success = ShizukuPackageInstallerBridge.applyBypassLowTargetSdkFlag(fake, sdkInt = 33)
+        assertFalse("Should return false on API 33 when flag unsupported", success)
+        assertEquals(0, fake.installFlags)
+
+        val success34 = ShizukuPackageInstallerBridge.applyBypassLowTargetSdkFlag(fake, sdkInt = 34)
+        assertTrue("Should return true on API 34", success34)
+        assertEquals(0x01000000, fake.installFlags)
+    }
+
+    @Test
     fun testApplyBypassLowTargetSdkFlagSetsBitwiseFlag() {
         val fake = FakeSessionParams()
         assertEquals(0, fake.installFlags)

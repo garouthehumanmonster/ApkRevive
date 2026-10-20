@@ -85,6 +85,16 @@ class InstallResultReceiver : BroadcastReceiver() {
                 .build()
 
             val notificationManager = NotificationManagerCompat.from(context)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                if (androidx.core.content.ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.POST_NOTIFICATIONS
+                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    Log.w(TAG, "POST_NOTIFICATIONS permission not granted on API 33+, skipping notification")
+                    return
+                }
+            }
             if (notificationManager.areNotificationsEnabled()) {
                 val notificationId = if (sessionId > 0) sessionId else System.currentTimeMillis().toInt()
                 notificationManager.notify(notificationId, notification)

@@ -425,8 +425,28 @@ object ShizukuPackageInstallerBridge {
     /**
      * Reflectively sets params.installFlags |= 0x01000000 (INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK).
      * Accepts Any to enable clean unit testing on JVM without Android framework stubs.
+     * Verifies constant against PackageManager or checks API >= 34 to avoid colliding with
+     * future/OEM flags on API 31-33.
      */
-    fun applyBypassLowTargetSdkFlag(params: Any): Boolean {
+    fun applyBypassLowTargetSdkFlag(params: Any, sdkInt: Int = Build.VERSION.SDK_INT): Boolean {
+        val flagValue = try {
+            val pmClass = Class.forName("android.content.pm.PackageManager")
+            val constField = pmClass.getField("INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK")
+            constField.getInt(null)
+        } catch (_: Throwable) {
+            null
+        }
+
+        val effectiveFlag = flagValue ?: if (sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK
+        } else if (sdkInt == 0) {
+            // JVM unit test execution fallback
+            INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK
+        } else {
+            Log.w(TAG, "device too old / flag unsupported: API $sdkInt < 34 lacks INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK")
+            return false
+        }
+
         return try {
             var clazz: Class<*>? = params.javaClass
             var field = clazz?.declaredFields?.firstOrNull { it.name == "installFlags" }
@@ -437,7 +457,7 @@ object ShizukuPackageInstallerBridge {
             if (field != null) {
                 field.isAccessible = true
                 val current = field.getInt(params)
-                field.setInt(params, current or INSTALL_BYPASS_LOW_TARGET_SDK_BLOCK)
+                field.setInt(params, current or effectiveFlag)
                 true
             } else {
                 Log.w(TAG, "Field installFlags not found on ${params.javaClass.name}")
@@ -553,6 +573,11 @@ object ShizukuPackageInstallerBridge {
                     action = ACTION_INSTALL_RESULT
                     putExtra("SESSION_ID", sessionId)
                 }
+                // API 31+ (Android 12 S) requires explicit mutability on PendingIntents.
+                // FLAG_MUTABLE is mandatory here because the system PackageInstaller service
+                // needs to fill in EXTRA_STATUS and EXTRA_STATUS_MESSAGE extras into the
+                // returned Intent before dispatching to InstallResultReceiver.
+                // On API < 31, FLAG_UPDATE_CURRENT is used without FLAG_MUTABLE.
                 val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
                 } else {
