@@ -21,6 +21,9 @@ Modern ARM processors (ARMv9 architecture, including Google Tensor G2+, Snapdrag
 - **Recompile from Source**: The application maintainer must recompile native C/C++ components using a modern Android NDK targeting `arm64-v8a`.
 - **Hardware Selection**: Run the application on devices or emulators that implement hardware or software 32-bit support (e.g., standard 32-bit-capable Android emulators, or x86_64 emulators equipped with `libndk_translation` / Houdini).
 
+### 16KB Kernel Page Alignment Exemption
+32-bit ELF binaries (`ELFCLASS32`, e.g., `armeabi-v7a`, `x86`) are strictly exempt from 16KB kernel page alignment checks and are preserved byte-for-byte unmodified. Android kernels that support 32-bit execution manage 32-bit tasks via 4KB page compatibility mappings; 16KB ELF alignment constraints apply exclusively to 64-bit architectures (`ELFCLASS64`, `arm64-v8a`, `x86_64`).
+
 ---
 
 ## 2. Dead Google SDKs & Sunset Cloud Services
@@ -116,3 +119,44 @@ ApkRevive supports bumping `targetSdkVersion` to the device floor via `--bump-ta
   adb install -g -r bumped_app.revived.apk
   ```
   Or execute `adb shell pm grant <package> <permission>` for each dangerous permission declared in the manifest.
+
+---
+
+## 6. Zip64 Archives Unsupported by In-Place Aligner
+
+### The Constraint
+Zip64 extensions (`PK\x06\x06` EOCD64 record, `PK\x06\x07` EOCD64 locator, `0xFFFF` entry counts, or `0xFFFFFFFF` 64-bit size/offset fields) allow ZIP containers exceeding 4GB or 65,535 entries. Standard Android APKs are limited by platform package manager specifications and do not use Zip64.
+
+### What ApkRevive Refuses
+The in-place ZIP aligner (`apkrevive.core.align`) explicitly fails closed upon encountering any Zip64 structure, raising `UnsupportedZip64Error`:
+```python
+raise UnsupportedZip64Error("Zip64 APKs are not supported by the in-place aligner; use build-tools zipalign")
+```
+ApkRevive will **never** silently corrupt Zip64 archives or attempt partial in-place rewrites of 64-bit offsets. Users handling Zip64 archives must use Android SDK `zipalign`.
+
+---
+
+## 7. Split APK Resource Table Merging Unsupported Without Explicit Opt-In
+
+### The Constraint
+Android App Bundles / Split APKs often contain distinct localized or screen-density resource tables (`resources.arsc`) in split configurations (e.g. `split_config.xxhdpi.apk`). Merging compiled binary resource tables requires de-indexing, deduplicating type specs, and rebuilding the `ResTable` chunk hierarchy, which cannot be done soundly without a full AAPT2 compilation pass.
+
+### What ApkRevive Refuses
+By default, `apkrevive.core.split_merger.merge_split_apks` fails closed if a secondary split APK contains a `resources.arsc` file, raising:
+```python
+raise UnsupportedSplitMerge("Secondary split contains resources.arsc which cannot be soundly merged without resource table recompilation")
+```
+To proceed when resource table loss is acceptable (e.g. relying solely on base APK resources), callers must pass `allow_resource_table_loss=True` (or CLI `--allow-resource-table-loss`). In this mode, secondary resource tables are dropped and `WARN_SPLIT_RESOURCE_TABLE_LOSS` is emitted, cataloging the dropped split qualifiers.
+
+---
+
+## 8. Non-Invasive ELF Handling: Relinking & PIE Refused with Byte Preservation
+
+### The Constraint
+Legacy 4KB-linked 64-bit shared libraries (`p_align == 0x1000`) or non-PIE executables cannot be realigned to 16KB boundaries (`0x4000`) purely through in-place binary header patching. Changing virtual segment alignments shifts segment relative virtual addresses, invalidating relative function calls, GOT/PLT offsets, string tables, dynamic symbols, and internal relocation entries.
+
+### Refusal Policy & Byte Preservation
+ApkRevive strictly follows the `elf16k.fix()` refusal policy:
+1. **Never "patch headers and hope"**: Altering `p_align` without moving load segments causes memory mapping collisions (`s2_page_start < s1_page_end`) and dynamic linker `SIGSEGV` crashes.
+2. **Byte Preservation**: If an ELF cannot be proven safe, ApkRevive preserves the original binary bytes unchanged and reports `Elf16kStatus.COMPAT_ONLY` or `Elf16kStatus.UNSAFE`.
+3. **Android 15+ Page Size Compat**: On Android 16+ runtimes, ApkRevive leverages platform `android:pageSizeCompat="enabled"` rather than corrupting native libraries.

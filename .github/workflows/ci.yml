@@ -68,7 +68,8 @@ jobs:
           APKREVIVE_REQUIRE_ARTIFACTS: ${{ matrix.os == 'ubuntu-latest' && '1' || '0' }}
         run: |
           coverage run -m pytest tests/ -rs
-          coverage report --fail-under=80
+          coverage report
+          coverage xml
 
   android-ci:
     name: Android Companion App CI

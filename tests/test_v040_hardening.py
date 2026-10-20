@@ -14,7 +14,7 @@ from unittest.mock import patch
 from apkrevive.core.axml import AxmlSurgeon, AxmlNode, KNOWN_RESOURCE_IDS
 from apkrevive.core.align import align_apk, verify_apk_alignment
 from apkrevive.core.signer import verify_signing_block_padding
-from apkrevive.core.split_merger import merge_split_apks
+from apkrevive.core.split_merger import merge_split_apks, UnsupportedSplitMerge
 from apkrevive.core.models import DeviceProfile, ApkMetadata
 from apkrevive.core.triage import evaluate_triage
 from apkrevive.cli import main
@@ -419,17 +419,22 @@ class TestV040Hardening(unittest.TestCase):
                 zf.writestr("res/drawable-xxhdpi/icon.png", b"PNG_DATA")
 
             warnings = []
-            merge_split_apks([base_apk, split_arm64, split_res], output_apk, warnings=warnings)
+            with self.assertRaises(UnsupportedSplitMerge):
+                merge_split_apks([base_apk, split_arm64, split_res], output_apk, warnings=warnings)
+
+            merge_split_apks(
+                [base_apk, split_arm64, split_res],
+                output_apk,
+                warnings=warnings,
+                allow_resource_table_loss=True,
+            )
 
             self.assertTrue(os.path.exists(output_apk))
 
             # Verify resource split warning
-            self.assertEqual(len(warnings), 1)
-            expected_warn = (
-                "WARN_SPLIT_RESOURCE_TABLE_MERGE: Split APK contains separate resources.arsc "
-                "(split_config.xxhdpi.apk); non-colliding res/ files merged without deep table unification."
-            )
-            self.assertEqual(warnings[0], expected_warn)
+            loss_warnings = [w for w in warnings if "WARN_SPLIT_RESOURCE_TABLE_LOSS" in w]
+            self.assertEqual(len(loss_warnings), 1)
+            self.assertIn("split_config.xxhdpi.apk", loss_warnings[0])
 
             # Verify native library written ZIP_STORED and extractNativeLibs=False synchronized
             with zipfile.ZipFile(output_apk, "r") as zout:

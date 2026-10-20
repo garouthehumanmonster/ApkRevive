@@ -123,7 +123,7 @@ ApkRevive/
 ├── apkrevive-android/          # On-device companion app (Kotlin, Compose, Shizuku)
 │   ├── app/src/main/           # Android app source & installer bridge
 │   └── build.gradle.kts        # Gradle build configuration
-├── canaries/                   # 8 pairs of control & failing verification canaries
+├── canaries/                   # 14 pairs (28 canaries) of control & failing verification canaries
 │   ├── src/                    # C/Java sources and canary manifests
 │   ├── build_canaries.py       # Deterministic canary test harness
 │   └── canary_hashes.json      # Cryptographic SHA256 hashes of all 16 built canary APKs
@@ -213,7 +213,7 @@ ApkRevive maintains a strictly evidence-driven record of verified execution acro
 | `sdk_gphone16k_x86_64` | Android 17 (API 37) | `x86_64` | 16 KB | [`receipt_survey_sdk_gphone16k_x86_64_api37_x86_64.json`](receipts/receipt_survey_sdk_gphone16k_x86_64_api37_x86_64.json) | 35-APK Legacy Compatibility Survey (`scripts/survey.py`) | VERIFIED |
 | `sdk_gphone16k_x86_64` | Android 17 (API 37) | `x86_64` | 16 KB | [`device_api37_x86_64_16kb.json`](receipts/device_api37_x86_64_16kb.json) | Corpus Execution (`scripts/run_emulator_corpus.py`) | VERIFIED |
 | `sdk_gphone16k_x86_64` | Android 15 (API 35) | `x86_64` | 16 KB | [`device_api35_x86_64_16kb.json`](receipts/device_api35_x86_64_16kb.json) | 16KB CI Runner (`scripts/ci_16kb.sh`) | VERIFIED |
-| Local Rig Harness | Host OS | N/A | 16 KB | [`local_rig_canary_*.json`](results/) | 8 Dual Canary Pairs (`scripts/verify_canary_matrix.py`) | VERIFIED (Host AST/ELF) |
+| Local Rig Harness | Host OS | N/A | 16 KB | [`local_rig_canary_*.json`](results/) | 14 Dual Canary Pairs (`scripts/verify_canary_matrix.py`) | VERIFIED (Host AST/ELF) |
 | Physical Hardware | Any | `arm64-v8a` | 16 KB | None | N/A | UNVERIFIED |
 | Real Display Panel | Any | N/A | N/A | None | Variable Refresh Rate / Cutout | UNVERIFIED |
 
@@ -470,7 +470,7 @@ For rootless, PC-free installations on modern Android devices, ApkRevive include
 
 ## Canary Verification Suite
 
-ApkRevive includes 8 pairs of control and failing canary test vectors (16 APKs total) validating every failure mode:
+ApkRevive includes 14 pairs of control and failing canary test vectors (28 canary APKs total, recorded in `canary_hashes.json`) validating every failure mode:
 
 | # | Canary Name | Focus Area | Failure Trigger Tested |
 |---|---|---|---|
@@ -482,6 +482,12 @@ ApkRevive includes 8 pairs of control and failing canary test vectors (16 APKs t
 | 6 | `canary_bionic_greylist` | Bionic Linker | Direct dependency on private system `.so` (e.g. `libgui.so`) |
 | 7 | `canary_has_code` | ART / Zygote | `hasCode="false"` preventing bytecode execution |
 | 8 | `canary_obb_version` | Storage / Expansion | OBB version code mismatch or ahead of APK versionCode |
+| 9 | `canary_cleartext_tls` | Network Security | Cleartext HTTP traffic blocked by default on Android 9+ (API 28+) |
+| 10 | `canary_dead_sdks` | System Libraries | Obsolete Google APIs (e.g. Maps v1, legacy billing) absent on modern OS |
+| 11 | `canary_gles1` | Graphics / EGL | Legacy OpenGL ES 1.x context creation failure |
+| 12 | `canary_hidden_api` | ART Runtime | Non-SDK greylist/blacklist reflection blocked on Android 9+ |
+| 13 | `canary_scoped_storage` | Storage Access | Direct `/sdcard` filesystem access restricted under Scoped Storage (API 29+) |
+| 14 | `canary_textrel` | Native Linker | Text relocations (`DT_TEXTREL`) in native libraries rejected on API 23+ |
 
 For the complete OS and device support matrix, refresh rate behaviors, and hardware vs. emulator details, see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md), [docs/DEVICE_TESTING.md](docs/DEVICE_TESTING.md), and [docs/EMULATOR_16KB.md](docs/EMULATOR_16KB.md).
 
