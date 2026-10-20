@@ -77,6 +77,53 @@
     };
   }
 
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function evaluateTriage(model) {
+    const elfReport = checkElf16k(model.elfSegments);
+    const targetSdkFault = (model.targetSdk || 1) < 24;
+
+    let verdict = "GREEN";
+    let reason = "RUNNABLE_UNMODIFIED";
+    const transforms = [];
+
+    if (elfReport.status === Elf16kStatus.UNSAFE) {
+      verdict = "RED";
+      reason = "FATAL_16KB_INCOMPATIBILITY";
+      transforms.push("RECOMPILE_ELF_NATIVE_16KB");
+    } else if (elfReport.status === Elf16kStatus.COMPAT_ONLY) {
+      verdict = "YELLOW";
+      reason = "MODIFICATION_REQUIRED";
+      transforms.push("INJECT_PAGE_SIZE_COMPAT");
+    }
+
+    if (targetSdkFault) {
+      transforms.push("BYPASS_LOW_TARGET_SDK_BLOCK");
+    }
+    if (model.hasCode === false) {
+      if (verdict !== "RED") verdict = "YELLOW";
+      transforms.push("SET_HAS_CODE_TRUE");
+    }
+    if (model.usesApacheHttp) {
+      if (verdict !== "RED") verdict = "YELLOW";
+      transforms.push("INJECT_USES_LIBRARY_APACHE_HTTP");
+    }
+    if (model.isNonResizeable) {
+      if (verdict !== "RED") verdict = "YELLOW";
+      transforms.push("EXPAND_ASPECT_RATIO");
+    }
+
+    return { verdict, reason, transforms, elfReport };
+  }
+
   const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
   // DOM Elements
@@ -281,36 +328,7 @@
     currentAnalysis = model;
     if (workbench) workbench.classList.remove('hidden');
 
-    // 1. Triage Verdict Evaluation via elf16k 3-state logic
-    const elfReport = checkElf16k(model.elfSegments);
-    const targetSdkFault = model.targetSdk < 24;
-
-    let verdict = "GREEN";
-    let reason = "RUNNABLE_UNMODIFIED";
-    let transforms = [];
-
-    if (elfReport.status === Elf16kStatus.UNSAFE) {
-      verdict = "RED";
-      reason = "FATAL_16KB_INCOMPATIBILITY";
-      transforms.push("RECOMPILE_ELF_NATIVE_16KB");
-    } else if (elfReport.status === Elf16kStatus.COMPAT_ONLY) {
-      verdict = "YELLOW";
-      reason = "MODIFICATION_REQUIRED";
-      transforms.push("INJECT_PAGE_SIZE_COMPAT");
-    }
-
-    if (targetSdkFault) {
-      if (verdict === "GREEN") verdict = "GREEN";
-      transforms.push("BYPASS_LOW_TARGET_SDK_BLOCK");
-    }
-    if (!model.hasCode) {
-      if (verdict !== "RED") verdict = "YELLOW";
-      transforms.push("SET_HAS_CODE_TRUE");
-    }
-    if (model.usesApacheHttp) {
-      if (verdict !== "RED") verdict = "YELLOW";
-      transforms.push("INJECT_USES_LIBRARY_APACHE_HTTP");
-    }
+    const { verdict, reason, transforms, elfReport } = evaluateTriage(model);
 
     // Render Verdict Banner
     if (verdictBanner) {
@@ -326,16 +344,16 @@
             <div class="flex items-center space-x-2">
               <span class="font-mono text-xs px-2 py-0.5 rounded font-bold ${
                 verdict === "GREEN" ? "badge-emerald" : verdict === "YELLOW" ? "badge-amber" : "badge-crimson"
-              }">VERDICT: ${verdict}</span>
-              <span class="text-xs font-mono text-slate-400">• ${reason}</span>
+              }">VERDICT: ${escapeHtml(verdict)}</span>
+              <span class="text-xs font-mono text-slate-400">• ${escapeHtml(reason)}</span>
             </div>
-            <h3 class="text-lg font-bold text-white">${model.name} (${model.packageName})</h3>
+            <h3 class="text-lg font-bold text-white">${escapeHtml(model.name)} (${escapeHtml(model.packageName)})</h3>
             <p class="text-xs font-mono text-slate-300">
-              TargetSDK: <span class="text-cyan-400">${model.targetSdk}</span> • MinSDK: <span class="text-slate-200">${model.minSdk}</span> • Native 64-bit: <span class="text-emerald-400">${model.elfSegments.length} Segments</span> • 16KB Status: <span class="${elfReport.status === Elf16kStatus.ALIGNED ? 'text-emerald-400 font-bold' : elfReport.status === Elf16kStatus.COMPAT_ONLY ? 'text-amber-400 font-bold' : 'text-crimson-400 font-bold'}">${elfReport.status}</span>
+              TargetSDK: <span class="text-cyan-400">${escapeHtml(model.targetSdk)}</span> • MinSDK: <span class="text-slate-200">${escapeHtml(model.minSdk)}</span> • Native 64-bit: <span class="text-emerald-400">${model.elfSegments.length} Segments</span> • 16KB Status: <span class="${elfReport.status === Elf16kStatus.ALIGNED ? 'text-emerald-400 font-bold' : elfReport.status === Elf16kStatus.COMPAT_ONLY ? 'text-amber-400 font-bold' : 'text-crimson-400 font-bold'}">${escapeHtml(elfReport.status)}</span>
             </p>
           </div>
           <div class="flex flex-wrap gap-1.5 sm:max-w-md justify-start sm:justify-end">
-            ${transforms.map(t => `<span class="badge-cyan text-xs font-mono px-2 py-0.5 rounded">${t}</span>`).join('')}
+            ${transforms.map(t => `<span class="badge-cyan text-xs font-mono px-2 py-0.5 rounded">${escapeHtml(t)}</span>`).join('')}
           </div>
         </div>
       `;
@@ -370,7 +388,7 @@
 
       segCard.innerHTML = `
         <div class="flex items-center justify-between border-b border-obsidian-700 pb-2">
-          <span class="font-bold text-slate-200">${seg.name || `PT_LOAD ${idx}`}</span>
+          <span class="font-bold text-slate-200">${escapeHtml(seg.name || `PT_LOAD ${idx}`)}</span>
           <span class="px-2 py-0.5 rounded ${valid ? "badge-emerald" : "badge-crimson"}">${valid ? "16KB PASS" : "ALIGN FAULT"}</span>
         </div>
 
@@ -425,11 +443,18 @@
   }
 
   function renderManifestDiff(model, transforms) {
+    if (!manifestBefore || !manifestAfter) return;
+
+    const safePkg = escapeHtml(model.packageName);
+    const safeMin = escapeHtml(model.minSdk);
+    const safeTarget = escapeHtml(model.targetSdk);
+    const safeHasCode = escapeHtml(model.hasCode);
+
     const beforeLines = [
-      `&lt;manifest package="${model.packageName}"&gt;`,
-      `  &lt;uses-sdk minSdkVersion="${model.minSdk}" targetSdkVersion="${model.targetSdk}" /&gt;`,
+      `&lt;manifest package="${safePkg}"&gt;`,
+      `  &lt;uses-sdk minSdkVersion="${safeMin}" targetSdkVersion="${safeTarget}" /&gt;`,
       `  &lt;application`,
-      `      android:hasCode="${model.hasCode}"`,
+      `      android:hasCode="${safeHasCode}"`,
       `      android:resizeableActivity="false"&gt;`,
       `      &lt;!-- Original Activities &amp; Components --&gt;`,
       `  &lt;/application&gt;`,
@@ -437,8 +462,8 @@
     ];
 
     const afterLines = [
-      `&lt;manifest package="${model.packageName}"&gt;`,
-      `  &lt;uses-sdk minSdkVersion="${model.minSdk}" targetSdkVersion="${model.targetSdk}" /&gt;`,
+      `&lt;manifest package="${safePkg}"&gt;`,
+      `  &lt;uses-sdk minSdkVersion="${safeMin}" targetSdkVersion="${safeTarget}" /&gt;`,
       `  &lt;application`,
       `      <span class="text-emerald-400 font-bold">android:hasCode="true"</span>`,
       `      <span class="text-cyan-400 font-bold">android:resizeableActivity="true"</span>`,
@@ -446,7 +471,7 @@
       model.usesApacheHttp ? `      <span class="text-amber-400 font-bold">&lt;uses-library android:name="org.apache.http.legacy" android:required="false" /&gt;</span>` : ``,
       `      <span class="text-emerald-400 font-bold">&lt;provider</span>`,
       `          <span class="text-emerald-400 font-bold">android:name="apkrevive.shim.ApkReviveInitProvider"</span>`,
-      `          <span class="text-emerald-400 font-bold">android:authorities="${model.packageName}.apkrevive.init"</span>`,
+      `          <span class="text-emerald-400 font-bold">android:authorities="${safePkg}.apkrevive.init"</span>`,
       `          <span class="text-emerald-400 font-bold">android:exported="false"</span>`,
       `          <span class="text-emerald-400 font-bold">android:initOrder="9999" /&gt;</span>`,
       `  &lt;/application&gt;`,
@@ -533,7 +558,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { checkElf16k, Elf16kStatus, PRESETS };
+    module.exports = { checkElf16k, Elf16kStatus, PRESETS, evaluateTriage, escapeHtml };
   }
 
 })();

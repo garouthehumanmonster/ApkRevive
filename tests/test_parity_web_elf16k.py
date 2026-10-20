@@ -132,6 +132,66 @@ class TestParityWebElf16k(unittest.TestCase):
                 js_status = evaluate_js_vector(v["segments"])
                 self.assertEqual(js_status, py_status, f"Mismatch on {v['id']}: JS={js_status} vs PY={py_status}")
 
+    def test_rules_json_matches_core_signals(self):
+        rules_path = PROJECT_ROOT / "web" / "rules.json"
+        self.assertTrue(rules_path.exists())
+        with open(rules_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        signals = data.get("signals", {})
+        self.assertIn("FATAL_16KB_INCOMPATIBILITY", signals)
+        self.assertEqual(signals["FATAL_16KB_INCOMPATIBILITY"]["verdict"], "RED")
+        self.assertIn("MODIFICATION_REQUIRED", signals)
+        self.assertEqual(signals["MODIFICATION_REQUIRED"]["verdict"], "YELLOW")
+        self.assertIn("RUNNABLE_UNMODIFIED", signals)
+        self.assertEqual(signals["RUNNABLE_UNMODIFIED"]["verdict"], "GREEN")
+
+    @pytest.mark.integration
+    def test_js_escape_html_xss_protection(self):
+        js_path_str = str(WEB_APP_JS).replace("\\", "/")
+        app_path_json = json.dumps(js_path_str)
+        payload = "<script>alert('xss')</script>\"&"
+        node_script = f"""
+        const app = require({app_path_json});
+        console.log(app.escapeHtml({json.dumps(payload)}));
+        """
+        proc = subprocess.run(["node", "-e", node_script], capture_output=True, text=True, check=True)
+        escaped = proc.stdout.strip()
+        self.assertEqual(escaped, "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;&quot;&amp;")
+        self.assertNotIn("<", escaped)
+        self.assertNotIn(">", escaped)
+
+    @pytest.mark.integration
+    def test_js_triage_parity_with_python_on_presets(self):
+        from apkrevive.core.triage import evaluate_triage
+        from apkrevive.core.models import ApkMetadata, DeviceProfile
+
+        js_path_str = str(WEB_APP_JS).replace("\\", "/")
+        app_path_json = json.dumps(js_path_str)
+        node_script = f"""
+        const app = require({app_path_json});
+        const results = {{}};
+        for (const [k, preset] of Object.entries(app.PRESETS)) {{
+            results[k] = app.evaluateTriage(preset).verdict;
+        }}
+        console.log(JSON.stringify(results));
+        """
+        proc = subprocess.run(["node", "-e", node_script], capture_output=True, text=True, check=True)
+        js_results = json.loads(proc.stdout)
+
+        device = DeviceProfile(os_api_level=36, install_floor=24, page_size_bytes=16384, is_widescreen=True)
+        preset_metadata = {
+            "arcade4k": ApkMetadata(package_name="com.legacy.arcade4k", target_sdk=22, min_sdk=16, has_code=False, uses_apache_http=False, elf_16kb_status="COMPAT_ONLY", force_page_size_compat=True, abis=["arm64-v8a"]),
+            "enterprise34": ApkMetadata(package_name="com.corp.crm", target_sdk=28, min_sdk=21, has_code=True, uses_apache_http=True, elf_16kb_status="COMPAT_ONLY", force_page_size_compat=True, abis=["arm64-v8a"]),
+            "congruenceFault": ApkMetadata(package_name="com.example.misaligned", target_sdk=33, min_sdk=24, has_code=True, uses_apache_http=False, elf_16kb_status="UNSAFE", abis=["arm64-v8a"]),
+            "modern16k": ApkMetadata(package_name="com.modern.app", target_sdk=35, min_sdk=26, has_code=True, uses_apache_http=False, elf_16kb_status="ALIGNED", abis=["arm64-v8a"]),
+        }
+
+        for preset_name, apk_meta in preset_metadata.items():
+            py_res = evaluate_triage(apk_meta, device)
+            py_verdict = py_res["verdict"]
+            js_verdict = js_results[preset_name]
+            self.assertEqual(js_verdict, py_verdict, f"Mismatch on preset {preset_name}: JS={js_verdict} vs PY={py_verdict}")
+
 
 if __name__ == "__main__":
     unittest.main()
