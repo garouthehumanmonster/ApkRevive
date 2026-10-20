@@ -25,7 +25,7 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   python -c "
 import glob, json, os, sys
 
-result_files = glob.glob('results/survey_*.json')
+result_files = glob.glob('results/survey/*.json') + glob.glob('results/survey_*.json')
 if not result_files:
     sys.exit(0)
 

@@ -1,0 +1,9 @@
+{
+  "device_model": "sdk_gphone16k_x86_64",
+  "api_level": 37,
+  "abi": "x86_64",
+  "page_size": 16384,
+  "date": "2026-10-20",
+  "script": "scripts/survey.py",
+  "simulated": false
+}

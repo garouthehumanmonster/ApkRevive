@@ -611,7 +611,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         "-o",
-        help="Output results JSON path (default: results/survey_<device_model>_api<sdk>_<abi>.json)",
+        help="Output results JSON path (default: results/survey/survey_<device_model>_api<sdk>_<abi>.json)",
     )
     parser.add_argument(
         "--receipt-dir",
@@ -702,7 +702,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     model_slug = re.sub(r"[^a-zA-Z0-9._-]", "_", model).strip("_") or "device"
 
     # Default paths
-    output_path = Path(args.output) if args.output else Path(f"results/survey_{model_slug}_api{sdk}_{abi}.json")
+    output_path = Path(args.output) if args.output else Path(f"results/survey/survey_{model_slug}_api{sdk}_{abi}.json")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     screenshots_dir = (
         Path(args.screenshots_dir)
         if args.screenshots_dir
