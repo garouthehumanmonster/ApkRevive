@@ -182,6 +182,7 @@ def run_corpus_on_device(
     extra_flags: Optional[List[str]] = None,
     filter_pkg: Optional[str] = None,
     manifest_path: Optional[Path] = None,
+    update_docs: bool = False,
 ) -> Dict[str, Any]:
     adb = adb_path or find_adb()
     if not shutil.which(adb) and not Path(adb).exists():
@@ -358,14 +359,20 @@ def run_corpus_on_device(
         )
         print(f"    Liveness pid: '{pid}' (alive={is_alive}) | Top Activity: '{resumed_match}' (is_top={is_top})")
 
-        # Capture screenshot to docs/device_runs/<pkg>.png
-        screenshots_dir = REPO_ROOT / "docs" / "device_runs"
+        # Capture screenshot to build/device_runs/<pkg>.png by default
+        screenshots_dir = REPO_ROOT / "build" / "device_runs"
         screenshots_dir.mkdir(parents=True, exist_ok=True)
         screenshot_path = screenshots_dir / f"{pkg}.png"
+        screenshot_record = f"build/device_runs/{pkg}.png"
         try:
             with open(screenshot_path, "wb") as f_img:
                 subprocess.run(adb_prefix + ["exec-out", "screencap", "-p"], stdout=f_img, timeout=15)
-            print(f"    Screenshot saved -> docs/device_runs/{pkg}.png")
+            print(f"    Screenshot saved -> build/device_runs/{pkg}.png")
+            if update_docs:
+                docs_dir = REPO_ROOT / "docs" / "device_runs"
+                docs_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(screenshot_path, docs_dir / f"{pkg}.png")
+                print(f"    Screenshot copied -> docs/device_runs/{pkg}.png")
         except Exception as e:
             print(f"    Screenshot capture failed: {e}")
 
@@ -396,7 +403,7 @@ def run_corpus_on_device(
             "top_window": resumed_match,
             "is_top": is_top,
             "is_perm_blocked": is_perm_blocked,
-            "screenshot": f"docs/device_runs/{pkg}.png",
+            "screenshot": screenshot_record,
         }
 
         # Step 7: Pass 2 (-g)
@@ -492,6 +499,7 @@ def main() -> int:
     parser.add_argument("--flags", default="", help="Extra flags string to pass to apkrevive revive (e.g. '--enable-60hz --enable-cutout').")
     parser.add_argument("--package", help="Only run for a specific package.")
     parser.add_argument("--manifest", type=Path, help="Custom corpus manifest JSON path.")
+    parser.add_argument("--update-docs", action="store_true", help="Copy runner screenshots to docs/device_runs/.")
 
     args = parser.parse_args()
     bump_sdk = None if args.bump_target_sdk == -1 else args.bump_target_sdk
@@ -508,6 +516,7 @@ def main() -> int:
             extra_flags=extra_flags,
             filter_pkg=args.package,
             manifest_path=args.manifest,
+            update_docs=args.update_docs,
         )
         return 0
     except Exception as e:
