@@ -57,6 +57,27 @@ KNOWN_RESOURCE_IDS = {
 }
 
 
+class UnsupportedAxmlChunk(ValueError):
+    pass
+
+
+__all__ = [
+    "AxmlSurgeon",
+    "AxmlNode",
+    "AxmlAttribute",
+    "UnsupportedAxmlChunk",
+    "CHUNK_XML",
+    "CHUNK_STRING_POOL",
+    "CHUNK_RESOURCE_MAP",
+    "CHUNK_START_NS",
+    "CHUNK_END_NS",
+    "CHUNK_START_ELEMENT",
+    "CHUNK_END_ELEMENT",
+    "ANDROID_NS",
+    "KNOWN_RESOURCE_IDS",
+]
+
+
 @dataclass
 class AxmlAttribute:
     ns: str
@@ -83,6 +104,7 @@ class AxmlNode:
     _raw_source_bytes: Optional[bytes] = field(default=None, repr=False, compare=False)
     _ast_signature: Optional[Tuple[Any, ...]] = field(default=None, repr=False, compare=False)
     _orig_resource_map: Dict[str, int] = field(default_factory=dict, repr=False, compare=False)
+    _orig_namespaces: List[Tuple[str, str]] = field(default_factory=list, repr=False, compare=False)
 
     def tree_signature(self) -> Tuple[Any, ...]:
         return (
@@ -160,31 +182,38 @@ class AxmlSurgeon:
             raise ValueError(f"Invalid AXML magic chunk: 0x{chunk_type:04x}")
         if header_size < 8 or header_size > len(data):
             raise ValueError(f"Invalid AXML root header size: {header_size}")
+        if file_size > len(data):
+            raise ValueError(f"AXML declared size {file_size} exceeds buffer {len(data)}")
+        if file_size < header_size:
+            raise ValueError(f"Invalid AXML file size: {file_size} is smaller than header size {header_size}")
 
         offset = 8
         strings: List[str] = []
         _resource_map: List[int] = []
         root_nodes: List[AxmlNode] = []
         element_stack: List[AxmlNode] = []
+        orig_namespaces: List[Tuple[str, str]] = []
         chunk_count = 0
         MAX_CHUNKS = 100_000
 
-        while offset < len(data):
+        while offset < file_size:
             chunk_count += 1
             if chunk_count > MAX_CHUNKS:
                 raise ValueError("AXML chunk count exceeded limit (cyclic chunk loop detected)")
 
-            if offset + 8 > len(data):
+            if offset + 8 > file_size:
                 raise ValueError("Invalid AXML: unexpected EOF reading chunk header")
 
             c_type, c_hsize, c_size = struct.unpack_from("<HHI", data, offset)
             if c_hsize < 8:
                 raise ValueError(f"Invalid AXML chunk header size: {c_hsize}")
-            if c_size < c_hsize or offset + c_size > len(data):
-                raise ValueError(f"Invalid AXML chunk size: {c_size} (offset {offset}, total {len(data)})")
+            if c_size < c_hsize:
+                raise ValueError(f"Invalid AXML chunk size: {c_size}")
+            if offset + c_size > file_size:
+                raise ValueError("Invalid AXML chunk size exceeds declared file_size")
 
             if c_type == CHUNK_STRING_POOL:
-                if offset + 28 > len(data):
+                if offset + 28 > offset + c_size:
                     raise ValueError("String pool header truncated")
                 str_count, style_count, flags, str_start, styles_start = struct.unpack_from("<IIIII", data, offset + 8)
                 is_utf8 = bool(flags & 0x0100)
@@ -243,8 +272,19 @@ class AxmlSurgeon:
                 if offset + 8 + (res_count * 4) <= offset + c_size:
                     _resource_map = [struct.unpack_from("<I", data, offset + 8 + (i * 4))[0] for i in range(res_count)]
 
+            elif c_type == CHUNK_START_NS:
+                if offset + 24 > offset + c_size:
+                    raise ValueError("Start namespace chunk truncated")
+                line_no, comment, prefix_idx, uri_idx = struct.unpack_from("<IIII", data, offset + 8)
+                prefix = strings[prefix_idx] if 0 <= prefix_idx < len(strings) else ""
+                uri = strings[uri_idx] if 0 <= uri_idx < len(strings) else ""
+                orig_namespaces.append((prefix, uri))
+
+            elif c_type == CHUNK_END_NS:
+                pass
+
             elif c_type == CHUNK_START_ELEMENT:
-                if offset + 28 > len(data):
+                if offset + 28 > offset + c_size:
                     raise ValueError("Start element header truncated")
                 line_no, comment, ns_idx, name_idx, attr_start, attr_size, attr_count, id_idx, cl_idx, st_idx = struct.unpack_from(
                     "<IIIIHHHHHH", data, offset + 8
@@ -256,7 +296,7 @@ class AxmlSurgeon:
                 attr_offset = offset + c_hsize + attr_start
                 for _ in range(attr_count):
                     if attr_offset + 20 > offset + c_size:
-                        break
+                        raise ValueError("Truncated AXML attribute list")
                     a_ns, a_name, a_raw, a_sz, a_res0, a_type, a_data = struct.unpack_from("<IIIHBB I", data, attr_offset)
                     ans_str = strings[a_ns] if 0 <= a_ns < len(strings) else ""
                     aname_str = strings[a_name] if 0 <= a_name < len(strings) else ""
@@ -282,6 +322,9 @@ class AxmlSurgeon:
                 if element_stack:
                     element_stack.pop()
 
+            else:
+                raise UnsupportedAxmlChunk(f"Unsupported AXML chunk type: 0x{c_type:04x} at offset {offset}")
+
             offset += c_size
 
         if not root_nodes:
@@ -294,6 +337,7 @@ class AxmlSurgeon:
             for i in range(len(_resource_map))
             if i < len(strings) and _resource_map[i] != 0
         }
+        root._orig_namespaces = orig_namespaces
         return root
 
     @classmethod
@@ -492,11 +536,54 @@ class AxmlSurgeon:
                 string_list.append(s)
             return string_map[s]
 
-        add_str(ANDROID_NS)
-        add_str("android")
+        # Collect distinct namespaces, keeping xmlns:android ("android", ANDROID_NS) first
+        declared_namespaces: List[Tuple[str, str]] = [("android", ANDROID_NS)]
+        seen_ns = {("android", ANDROID_NS)}
+        seen_uris = {ANDROID_NS}
+        for pfx, uri in getattr(root, "_orig_namespaces", []):
+            if uri and (pfx, uri) not in seen_ns and uri not in seen_uris:
+                declared_namespaces.append((pfx, uri))
+                seen_ns.add((pfx, uri))
+                seen_uris.add(uri)
 
-        for k in res_map:
-            add_str(k)
+        def collect_referenced_ns(node: AxmlNode):
+            if node.ns and node.ns not in seen_uris:
+                pfx = ""
+                if ":" in node.tag:
+                    pfx = node.tag.split(":")[0]
+                elif node.ns == "http://schemas.android.com/tools":
+                    pfx = "tools"
+                elif node.ns == "http://schemas.android.com/apk/res-auto":
+                    pfx = "app"
+                else:
+                    pfx = f"ns{len(declared_namespaces)}"
+                declared_namespaces.append((pfx, node.ns))
+                seen_ns.add((pfx, node.ns))
+                seen_uris.add(node.ns)
+            for a in node.attributes:
+                if a.ns and a.ns not in seen_uris:
+                    pfx = ""
+                    if ":" in a.name:
+                        pfx = a.name.split(":")[0]
+                    elif a.ns == "http://schemas.android.com/tools":
+                        pfx = "tools"
+                    elif a.ns == "http://schemas.android.com/apk/res-auto":
+                        pfx = "app"
+                    else:
+                        pfx = f"ns{len(declared_namespaces)}"
+                    declared_namespaces.append((pfx, a.ns))
+                    seen_ns.add((pfx, a.ns))
+                    seen_uris.add(a.ns)
+                elif ":" in a.name:
+                    pfx, _ = a.name.split(":", 1)
+                    if pfx == "tools" and "http://schemas.android.com/tools" not in seen_uris:
+                        declared_namespaces.append(("tools", "http://schemas.android.com/tools"))
+                        seen_ns.add(("tools", "http://schemas.android.com/tools"))
+                        seen_uris.add("http://schemas.android.com/tools")
+            for ch in node.children:
+                collect_referenced_ns(ch)
+
+        collect_referenced_ns(root)
 
         def attr_sort_key(attr: AxmlAttribute):
             attr_base_name = attr.name.split(":")[-1]
@@ -505,11 +592,24 @@ class AxmlSurgeon:
                 return (0, res_id)
             return (1, 0)
 
+        # Pass 1: Collect all strings
+        add_str(ANDROID_NS)
+        add_str("android")
+
+        for pfx, uri in declared_namespaces:
+            add_str(pfx)
+            add_str(uri)
+
+        for k in res_map:
+            add_str(k)
+
         def walk_collect(node: AxmlNode):
-            if node.ns: add_str(node.ns)
+            if node.ns:
+                add_str(node.ns)
             add_str(node.tag)
             for a in sorted(node.attributes, key=attr_sort_key):
-                if a.ns: add_str(a.ns)
+                if a.ns:
+                    add_str(a.ns)
                 add_str(a.name)
                 if a.raw_value is not None:
                     add_str(a.raw_value)
@@ -517,6 +617,8 @@ class AxmlSurgeon:
                 walk_collect(ch)
 
         walk_collect(root)
+
+        initial_count = len(string_list)
 
         encoded_strings = []
         offsets = []
@@ -547,11 +649,19 @@ class AxmlSurgeon:
         rm_size = 8 + (len(res_ids) * 4)
         rm_chunk = struct.pack("<HHI", CHUNK_RESOURCE_MAP, 8, rm_size) + struct.pack(f"<{len(res_ids)}I", *res_ids)
 
-        ns_prefix_idx = string_map["android"]
-        ns_uri_idx = string_map[ANDROID_NS]
-        start_ns = struct.pack("<HHI II II", CHUNK_START_NS, 16, 24, 1, 0xFFFFFFFF, ns_prefix_idx, ns_uri_idx)
-        end_ns = struct.pack("<HHI II II", CHUNK_END_NS, 16, 24, 1, 0xFFFFFFFF, ns_prefix_idx, ns_uri_idx)
+        start_ns_chunks = bytearray()
+        for pfx, uri in declared_namespaces:
+            start_ns_chunks.extend(
+                struct.pack("<HHI II II", CHUNK_START_NS, 16, 24, 1, 0xFFFFFFFF, string_map[pfx], string_map[uri])
+            )
 
+        end_ns_chunks = bytearray()
+        for pfx, uri in reversed(declared_namespaces):
+            end_ns_chunks.extend(
+                struct.pack("<HHI II II", CHUNK_END_NS, 16, 24, 1, 0xFFFFFFFF, string_map[pfx], string_map[uri])
+            )
+
+        # Pass 2: Serialize nodes and emit indices
         body_bytes = bytearray()
 
         def serialize_node(node: AxmlNode, line: int):
@@ -584,9 +694,10 @@ class AxmlSurgeon:
                 a_ns = add_str(a.ns) if a.ns else 0xFFFFFFFF
                 a_name = add_str(a.name)
                 a_raw = add_str(a.raw_value) if a.raw_value is not None else 0xFFFFFFFF
-                data_val = a.data
-                if a.data_type == 0x03 and a.raw_value is not None:
-                    data_val = a_raw
+                if a.data_type == 0x03:
+                    data_val = a_raw if a.raw_value is not None else 0xFFFFFFFF
+                else:
+                    data_val = a.data
                 attr_record = struct.pack("<III HBB I", a_ns, a_name, a_raw, 8, 0, a.data_type, data_val)
                 body_bytes.extend(attr_record)
 
@@ -598,9 +709,13 @@ class AxmlSurgeon:
 
         serialize_node(root, 1)
 
-        total_size = 8 + len(sp_chunk) + len(rm_chunk) + len(start_ns) + len(body_bytes) + len(end_ns)
+        if len(string_list) > initial_count:
+            raise AssertionError("String pool grew during node serialization")
+        assert len(string_list) == initial_count
+
+        total_size = 8 + len(sp_chunk) + len(rm_chunk) + len(start_ns_chunks) + len(body_bytes) + len(end_ns_chunks)
         xml_header = struct.pack("<HHI", CHUNK_XML, 8, total_size)
-        return xml_header + sp_chunk + rm_chunk + start_ns + bytes(body_bytes) + end_ns
+        return xml_header + sp_chunk + rm_chunk + bytes(start_ns_chunks) + bytes(body_bytes) + bytes(end_ns_chunks)
 
     @classmethod
     def patch_manifest(cls, data: bytes, transforms: List[str], options: Optional[Dict[str, Any]] = None) -> bytes:
@@ -618,7 +733,19 @@ class AxmlSurgeon:
 
         app_node = root.find_child("application")
         if not app_node:
-            return cls.serialize(root)
+            out_bytes = cls.serialize(root)
+            check_root = cls.parse(out_bytes)
+            def check_no_dup(node: AxmlNode):
+                seen = set()
+                for a in node.attributes:
+                    key = (a.ns, a.name)
+                    if key in seen:
+                        raise AssertionError(f"Duplicate attribute {key} on node <{node.tag}>")
+                    seen.add(key)
+                for ch in node.children:
+                    check_no_dup(ch)
+            check_no_dup(check_root)
+            return out_bytes
 
         # 1. SET_HAS_CODE_TRUE
         if "SET_HAS_CODE_TRUE" in transforms or options.get("force_has_code"):
@@ -636,8 +763,11 @@ class AxmlSurgeon:
         # 3. EXPAND_ASPECT_RATIO
         if "EXPAND_ASPECT_RATIO" in transforms:
             app_node.set_attr("resizeableActivity", True)
+            app_node.set_attr("maxAspectRatio", "2.5")
             existing_aspect = app_node.find_child("meta-data", "name", "android.max_aspect")
-            if not existing_aspect:
+            if existing_aspect:
+                existing_aspect.set_attr("value", "2.5")
+            else:
                 aspect_node = AxmlNode(tag="meta-data")
                 aspect_node.set_attr("name", "android.max_aspect")
                 aspect_node.set_attr("value", "2.5")
@@ -680,4 +810,54 @@ class AxmlSurgeon:
             prov_node.set_attr("exported", False)
             prov_node.set_attr("initOrder", 2147483647)
 
-        return cls.serialize(root)
+        out_bytes = cls.serialize(root)
+        check_root = cls.parse(out_bytes)
+
+        if inject_shim:
+            check_app = check_root.find_child("application")
+            if not check_app:
+                raise AssertionError("inject_shim active but application element missing in serialized manifest")
+            providers = [
+                ch for ch in check_app.children
+                if (ch.tag == "provider" or ch.tag.split(":")[-1] == "provider")
+                and any(
+                    (a.name == "name" or a.name.split(":")[-1] == "name")
+                    and (a.raw_value == "apkrevive.shim.ApkReviveInitProvider" or a.get_value() == "apkrevive.shim.ApkReviveInitProvider")
+                    for a in ch.attributes
+                )
+            ]
+            if len(providers) != 1:
+                raise AssertionError(f"Expected provider apkrevive.shim.ApkReviveInitProvider present exactly once, found {len(providers)}")
+            has_code_attr = check_app.get_attr("hasCode")
+            if not has_code_attr or not has_code_attr.get_value():
+                raise AssertionError("Expected hasCode to be True when inject_shim is active")
+
+        if "INJECT_USES_LIBRARY_APACHE_HTTP" in transforms:
+            check_app = check_root.find_child("application")
+            if not check_app:
+                raise AssertionError("INJECT_USES_LIBRARY_APACHE_HTTP active but application element missing in serialized manifest")
+            libs = [
+                ch for ch in check_app.children
+                if (ch.tag == "uses-library" or ch.tag.split(":")[-1] == "uses-library")
+                and any(
+                    (a.name == "name" or a.name.split(":")[-1] == "name")
+                    and (a.raw_value == "org.apache.http.legacy" or a.get_value() == "org.apache.http.legacy")
+                    for a in ch.attributes
+                )
+            ]
+            if len(libs) != 1:
+                raise AssertionError(f"Expected uses-library org.apache.http.legacy present exactly once, found {len(libs)}")
+
+        def check_no_duplicate_attrs(node: AxmlNode):
+            seen = set()
+            for a in node.attributes:
+                key = (a.ns, a.name)
+                if key in seen:
+                    raise AssertionError(f"Duplicate attribute {key} on node <{node.tag}>")
+                seen.add(key)
+            for ch in node.children:
+                check_no_duplicate_attrs(ch)
+
+        check_no_duplicate_attrs(check_root)
+
+        return out_bytes
