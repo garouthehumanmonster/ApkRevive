@@ -58,3 +58,7 @@ show_missing = true
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+addopts = "-m 'not integration'"
+markers = [
+    "integration: marks tests requiring external binaries/tools (deselect with '-m \"not integration\"')",
+]

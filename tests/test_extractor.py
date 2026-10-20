@@ -9,6 +9,7 @@ import struct
 import tempfile
 import unittest
 import zipfile
+import pytest
 from pathlib import Path
 from unittest.mock import patch
 import argparse
@@ -147,6 +148,7 @@ class TestExtractor(unittest.TestCase):
             meta = inspect_apk(str(code_fail))
             self.assertFalse(meta.has_code)
 
+    @pytest.mark.integration
     def test_cli_triage_with_disk_inspection_and_overrides(self):
         apache_fail = CANARIES_BUILD / "canary_apache_http_failing.apk"
         if not apache_fail.exists():

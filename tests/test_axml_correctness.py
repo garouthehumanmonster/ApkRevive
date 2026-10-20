@@ -14,6 +14,7 @@ import pytest
 from apkrevive.core.axml import AxmlSurgeon, AxmlNode, AxmlAttribute
 
 
+@pytest.mark.integration
 def test_canary_manifests_unmutated_roundtrip():
     """
     Test that for every canary APK manifest in canaries/*.apk,
@@ -70,6 +71,7 @@ def find_aapt2():
     return None
 
 
+@pytest.mark.integration
 def test_mutated_manifest_aapt2_dump():
     """
     Test comparing mutated output against aapt2 dump xmltree:
@@ -159,6 +161,7 @@ def parse_aapt2_tree(lines):
     return root
 
 
+@pytest.mark.integration
 def test_corpus_manifest_aapt2_dump_xmltree_diff():
     """
     Diffs aapt2 dump xmltree of original vs revived manifest for every corpus APK.

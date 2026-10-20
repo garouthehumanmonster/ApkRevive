@@ -4,6 +4,7 @@ test_shim.py - Tests canonical shim.dex byte compilation and cryptographic hash 
 
 import hashlib
 import unittest
+import pytest
 from apkrevive.shim.build_shim import build_shim, CANONICAL_SHIM_SHA256, SHIM_DEX_PATH
 
 
@@ -18,6 +19,7 @@ class TestShim(unittest.TestCase):
             f"Committed shim.dex SHA256 mismatch. Expected {CANONICAL_SHIM_SHA256}, got {actual_hash}"
         )
 
+    @pytest.mark.integration
     def test_build_shim_deterministic(self):
         import shutil
         from pathlib import Path

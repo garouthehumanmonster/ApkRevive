@@ -12,6 +12,7 @@ import struct
 import subprocess
 import tempfile
 import unittest
+import pytest
 
 from apkrevive.core.elf16k import check, fix, Elf16kStatus, Elf16kReport
 from apkrevive.core.elf_surgeon import rewrite_elf_16kb
@@ -162,6 +163,7 @@ class TestElf16k(unittest.TestCase):
         fixed, problems = fix(elf32)
         self.assertEqual(fixed, elf32)
 
+    @pytest.mark.integration
     def test_real_compiled_4k_so_if_compiler_available(self):
         compiler = find_c_compiler()
         if not compiler:

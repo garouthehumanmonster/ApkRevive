@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 import subprocess
 import unittest
+import pytest
 
 from apkrevive.core.elf16k import Elf16kStatus, LoadSegment
 
@@ -123,6 +124,7 @@ class TestParityWebElf16k(unittest.TestCase):
                 py_status = evaluate_python_vector(v["segments"])
                 self.assertEqual(py_status, v["expected_status"])
 
+    @pytest.mark.integration
     def test_js_verdicts_match_python_parity(self):
         for v in TEST_VECTORS:
             with self.subTest(vector_id=v["id"]):

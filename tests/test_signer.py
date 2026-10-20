@@ -13,6 +13,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 import argparse
+import pytest
 
 from apkrevive.core.signer import (
     get_default_user_keystore,
@@ -93,6 +94,7 @@ class TestSigner(unittest.TestCase):
             if os.path.exists(custom_path):
                 os.remove(custom_path)
 
+    @pytest.mark.integration
     def test_sign_and_verify_synthetic_apk(self):
         """Tests signing a synthetic APK and verifying it with verify_apk(verbose=True)."""
         with tempfile.TemporaryDirectory() as tmp_dir:

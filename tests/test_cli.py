@@ -173,7 +173,9 @@ class TestCli(unittest.TestCase):
                 ks_pass=None,
                 ks_alias=None,
             )
-            with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
+            with patch("apkrevive.cli.sign_apk", return_value=True), \
+                 patch("apkrevive.cli.verify_apk_certs", return_value=(False, "Failed cert verification")), \
+                 patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
                 code = revive_cmd(args)
             self.assertEqual(code, 1)
             self.assertFalse(os.path.exists(out_apk))
@@ -210,7 +212,9 @@ class TestCli(unittest.TestCase):
                 ks_pass=None,
                 ks_alias=None,
             )
-            with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr, patch("sys.stdout", new_callable=io.StringIO):
+            with patch("apkrevive.cli.sign_apk", return_value=True), \
+                 patch("apkrevive.cli.verify_apk_certs", return_value=(True, "mocked")), \
+                 patch("sys.stderr", new_callable=io.StringIO) as mock_stderr, patch("sys.stdout", new_callable=io.StringIO):
                 code = revive_cmd(args)
             self.assertEqual(code, 4)
             self.assertTrue(os.path.exists(out_apk))
@@ -377,7 +381,9 @@ class TestCli(unittest.TestCase):
                 key_pass=None,
             )
 
-            with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
+            with patch("apkrevive.cli.sign_apk", return_value=True), \
+                 patch("apkrevive.cli.verify_apk_certs", return_value=(False, "Failed cert verification")), \
+                 patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
                 code = revive_cmd(args)
 
             self.assertEqual(code, 1)

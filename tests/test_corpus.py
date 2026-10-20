@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+import pytest
 from unittest.mock import patch, MagicMock
 
 from apkrevive.core.models import ApkMetadata, DeviceProfile, Verdict
@@ -171,6 +172,7 @@ class TestHermeticCorpusTriage(unittest.TestCase):
                 self.assertEqual(res_33["reason"], "RUNNABLE_UNMODIFIED")
                 self.assertEqual(res_33["install_method"], "DIRECT_INSTALL")
 
+    @pytest.mark.integration
     def test_live_downloaded_apks_if_present(self):
         downloaded_apks = list(CORPUS_APKS_DIR.glob("*.apk")) if CORPUS_APKS_DIR.is_dir() else []
         if not downloaded_apks:
