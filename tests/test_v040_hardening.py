@@ -419,6 +419,10 @@ class TestV040Hardening(unittest.TestCase):
                 zf.writestr("res/drawable-xxhdpi/icon.png", b"PNG_DATA")
 
             warnings = []
+            # AOSP platform invariant: AssetManager loads split APK resources via distinct AssetCookies.
+            # Merging multiple resources.arsc files into one standalone APK without aapt2 link table unification
+            # corrupts chunk offsets and type specs (AOSP frameworks/base/libs/androidfw/ResourceTypes.cpp).
+            # Defect 5.3 strictly mandates fail-closed UnsupportedSplitMerge unless allow_resource_table_loss=True.
             with self.assertRaises(UnsupportedSplitMerge):
                 merge_split_apks([base_apk, split_arm64, split_res], output_apk, warnings=warnings)
 

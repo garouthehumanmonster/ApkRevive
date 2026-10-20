@@ -192,6 +192,77 @@ class TestParityWebElf16k(unittest.TestCase):
             js_verdict = js_results[preset_name]
             self.assertEqual(js_verdict, py_verdict, f"Mismatch on preset {preset_name}: JS={js_verdict} vs PY={py_verdict}")
 
+    @pytest.mark.integration
+    def test_js_triage_parity_across_fixture_matrix(self):
+        from apkrevive.core.triage import evaluate_triage
+        from apkrevive.core.models import ApkMetadata, DeviceProfile
+
+        js_path_str = str(WEB_APP_JS).replace("\\", "/")
+        app_path_json = json.dumps(js_path_str)
+
+        device = DeviceProfile(os_api_level=36, install_floor=24, page_size_bytes=16384, is_widescreen=True)
+
+        fixtures = []
+        for target_sdk in [21, 28, 35]:
+            for has_code in [True, False]:
+                for uses_apache in [True, False]:
+                    for non_resize in [True, False]:
+                        for elf_status in ["ALIGNED", "COMPAT_ONLY", "UNSAFE"]:
+                            fixtures.append({
+                                "targetSdk": target_sdk,
+                                "hasCode": has_code,
+                                "usesApacheHttp": uses_apache,
+                                "isNonResizeable": non_resize,
+                                "elfStatus": elf_status,
+                            })
+
+        node_script = f"""
+        const app = require({app_path_json});
+        const matrix = {json.dumps(fixtures)};
+        const results = matrix.map(m => {{
+            let elfSegments = [];
+            if (m.elfStatus === 'ALIGNED') {{
+                elfSegments = [
+                    {{ index: 0, p_offset: 0x0, p_vaddr: 0x0, p_filesz: 0x3000, p_memsz: 0x3000, p_align: 16384, p_flags: 5 }},
+                    {{ index: 1, p_offset: 0x4000, p_vaddr: 0x4000, p_filesz: 0x2000, p_memsz: 0x2000, p_align: 16384, p_flags: 6 }}
+                ];
+            }} else if (m.elfStatus === 'COMPAT_ONLY') {{
+                elfSegments = [
+                    {{ index: 0, p_offset: 0x1000, p_vaddr: 0x10000, p_filesz: 0x24000, p_memsz: 0x24000, p_align: 4096, p_flags: 5 }}
+                ];
+            }} else if (m.elfStatus === 'UNSAFE') {{
+                elfSegments = [
+                    {{ index: 0, p_offset: 0x1200, p_vaddr: 0x10000, p_filesz: 0x14000, p_memsz: 0x14000, p_align: 16384, p_flags: 5 }}
+                ];
+            }}
+            return app.evaluateTriage({{
+                targetSdk: m.targetSdk,
+                hasCode: m.hasCode,
+                usesApacheHttp: m.usesApacheHttp,
+                isNonResizeable: m.isNonResizeable,
+                elfSegments
+            }}).verdict;
+        }});
+        console.log(JSON.stringify(results));
+        """
+        proc = subprocess.run(["node", "-e", node_script], capture_output=True, text=True, check=True)
+        js_verdicts = json.loads(proc.stdout)
+
+        for i, m in enumerate(fixtures):
+            apk_meta = ApkMetadata(
+                package_name="com.test.matrix",
+                target_sdk=m["targetSdk"],
+                min_sdk=16,
+                has_code=m["hasCode"],
+                uses_apache_http=m["usesApacheHttp"],
+                is_non_resizeable=m["isNonResizeable"],
+                elf_16kb_status=m["elfStatus"],
+                force_page_size_compat=(m["elfStatus"] == "COMPAT_ONLY"),
+                abis=["arm64-v8a"],
+            )
+            py_verdict = evaluate_triage(apk_meta, device)["verdict"]
+            self.assertEqual(js_verdicts[i], py_verdict, f"Matrix mismatch at index {i}: {m}")
+
 
 if __name__ == "__main__":
     unittest.main()

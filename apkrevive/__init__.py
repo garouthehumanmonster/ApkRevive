@@ -27,4 +27,4 @@ if not __version__:
 if not __version__:
     __version__ = "0.5.0a1"
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"

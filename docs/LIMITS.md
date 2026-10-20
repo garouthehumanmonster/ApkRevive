@@ -160,3 +160,25 @@ ApkRevive strictly follows the `elf16k.fix()` refusal policy:
 1. **Never "patch headers and hope"**: Altering `p_align` without moving load segments causes memory mapping collisions (`s2_page_start < s1_page_end`) and dynamic linker `SIGSEGV` crashes.
 2. **Byte Preservation**: If an ELF cannot be proven safe, ApkRevive preserves the original binary bytes unchanged and reports `Elf16kStatus.COMPAT_ONLY` or `Elf16kStatus.UNSAFE`.
 3. **Android 15+ Page Size Compat**: On Android 16+ runtimes, ApkRevive leverages platform `android:pageSizeCompat="enabled"` rather than corrupting native libraries.
+
+---
+
+## 9. Unsupported AXML Chunks & Manifest Content Preservation
+
+### The Constraint
+Android binary XML (`AndroidManifest.xml`) comprises chunk streams structured per `ResXMLTree_node`. Certain specialized or non-standard chunk types (such as `RES_XML_CDATA_TYPE` `0x0104`) are unsupported by the surgical in-memory AST serializer.
+
+### Refusal Policy & Escape Hatch
+`AxmlSurgeon` fails closed with `UnsupportedAxmlChunk(ValueError)` whenever an unsupported chunk type is encountered, preventing silent corruption or dropping of manifest data.
+- **Escape Hatch**: When manifest CDATA or text node loss is acceptable, callers can pass `--allow-axml-content-loss` (or catch `UnsupportedAxmlChunk` in custom tooling).
+
+---
+
+## 10. Aspect Ratio Rewriting Defaults
+
+### The Constraint
+Modern tall displays (18:9, 19.5:9, 20:9) pillarbox legacy applications that do not declare `android:resizeableActivity="true"`. By default, the `EXPAND_ASPECT_RATIO` transform injects or updates `<meta-data android:name="android.max_aspect" android:value="2.5" />`.
+
+### Semantic Overwrite & Opt-Out
+When `EXPAND_ASPECT_RATIO` is executed, any existing `max_aspect` value is overwritten to `2.5` to ensure consistent full-screen rendering across modern devices.
+- **Escape Hatch**: Applications wishing to preserve an explicitly pinned legacy aspect ratio can exclude `EXPAND_ASPECT_RATIO` or pass `--no-aspect-ratio-expansion`.

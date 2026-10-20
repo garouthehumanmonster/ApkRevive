@@ -5,6 +5,19 @@ All notable changes to ApkRevive will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Breaking
+- **AXML Unknown Chunk Refusal:** `AxmlSurgeon` now strictly raises `UnsupportedAxmlChunk(ValueError)` when encountering unsupported chunk types (such as `RES_XML_CDATA_TYPE` `0x0104`) instead of silently dropping chunks. Manifests containing text/CDATA nodes fail closed to prevent silent manifest truncation.
+  - *Escape hatch:* Pass `--allow-axml-content-loss` or handle `UnsupportedAxmlChunk` if CDATA/text loss is explicitly tolerated.
+- **Split Resource Table Refusal:** `merge_split_apks` now refuses split APK sets containing secondary `resources.arsc` tables by raising `UnsupportedSplitMerge(ValueError)` by default, preventing runtime `Resources$NotFoundException`.
+  - *Escape hatch:* Pass `--allow-resource-table-loss` (or `allow_resource_table_loss=True`) to merge non-colliding assets while discarding secondary resource tables.
+
+### Changed
+- **Aspect Ratio Rewriting:** `EXPAND_ASPECT_RATIO` transform unconditionally rewrites `android.max_aspect` to `2.5` even when an existing `<meta-data android:name="android.max_aspect">` tag is present in the application.
+  - *Escape hatch:* Omit `EXPAND_ASPECT_RATIO` or pass `--no-aspect-ratio-expansion` to preserve the application's declared aspect ratio.
+- **16KB ELF Exemption Schema Bump:** Emitted JSON schema version bumped to `1.1.0` to support `Elf16kStatus.EXEMPT` for 32-bit binaries (`armeabi-v7a`, `x86`) and non-target architectures.
+
 ## [0.5.0a1] - 2026-10-18
 
 ### Added

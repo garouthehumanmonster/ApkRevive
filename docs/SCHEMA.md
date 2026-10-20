@@ -14,9 +14,12 @@ All JSON outputs in ApkRevive version 0.5.0a1+ conform to Semantic Versioning an
 
 ## 1. Schema Versioning Policy
 
-- **Current Specification**: `1.0.0`
+- **Current Specification**: `1.1.0`
 - **Backwards Compatibility**: Adding non-breaking, optional fields increments the minor version (`1.1.0`). Existing consumers can safely ignore unrecognized fields.
 - **Breaking Changes**: Modifying or removing existing mandatory fields, changing types, or altering enum meanings increments the major version (`2.0.0`).
+
+### Migration Notes: 1.0.0 -> 1.1.0
+- **Added `Elf16kStatus.EXEMPT` enum value**: Used in `elf_16kb_status` across triage outputs, reports, and SARIF telemetry. Indicates that 32-bit ELF binaries (`armeabi-v7a`, `x86`) and non-target architectures are exempt from 16KB kernel alignment constraints. Consumers parsing `elf_16kb_status` must accept `"EXEMPT"` alongside `"ALIGNED"`, `"COMPAT_ONLY"`, and `"UNSAFE"`.
 
 ---
 

@@ -1,36 +1,50 @@
 {
   "signals": {
+    "APACHE_HTTP_LEGACY": {
+      "required_transforms": [
+        "INJECT_USES_LIBRARY_APACHE_HTTP"
+      ],
+      "verdict": "YELLOW"
+    },
     "FATAL_16KB_INCOMPATIBILITY": {
-      "verdict": "RED",
-      "required_transforms": ["RECOMPILE_ELF_NATIVE_16KB"]
-    },
-    "INCOMPATIBLE_PAGE_SIZE": {
-      "verdict": "RED",
-      "required_transforms": ["RECOMPILE_ELF_NATIVE_16KB"]
-    },
-    "MODIFICATION_REQUIRED": {
-      "verdict": "YELLOW",
-      "required_transforms": ["INJECT_PAGE_SIZE_COMPAT"]
-    },
-    "LOW_TARGET_SDK": {
-      "verdict": "GREEN",
-      "required_transforms": ["BYPASS_LOW_TARGET_SDK_BLOCK"]
+      "required_transforms": [
+        "RECOMPILE_ELF_NATIVE_16KB"
+      ],
+      "verdict": "RED"
     },
     "HAS_CODE_FALSE": {
-      "verdict": "YELLOW",
-      "required_transforms": ["SET_HAS_CODE_TRUE"]
+      "required_transforms": [
+        "SET_HAS_CODE_TRUE"
+      ],
+      "verdict": "YELLOW"
     },
-    "APACHE_HTTP_LEGACY": {
-      "verdict": "YELLOW",
-      "required_transforms": ["INJECT_USES_LIBRARY_APACHE_HTTP"]
+    "INCOMPATIBLE_PAGE_SIZE": {
+      "required_transforms": [
+        "RECOMPILE_ELF_NATIVE_16KB"
+      ],
+      "verdict": "RED"
+    },
+    "LOW_TARGET_SDK": {
+      "required_transforms": [
+        "BYPASS_LOW_TARGET_SDK_BLOCK"
+      ],
+      "verdict": "GREEN"
+    },
+    "MODIFICATION_REQUIRED": {
+      "required_transforms": [
+        "INJECT_PAGE_SIZE_COMPAT"
+      ],
+      "verdict": "YELLOW"
     },
     "RESTRICTIVE_ASPECT_RATIO": {
-      "verdict": "YELLOW",
-      "required_transforms": ["EXPAND_ASPECT_RATIO"]
+      "required_transforms": [
+        "EXPAND_ASPECT_RATIO"
+      ],
+      "verdict": "YELLOW"
     },
     "RUNNABLE_UNMODIFIED": {
-      "verdict": "GREEN",
-      "required_transforms": []
+      "required_transforms": [],
+      "verdict": "GREEN"
     }
   }
 }

@@ -44,6 +44,12 @@ jobs:
       - name: Type check with mypy
         run: mypy apkrevive --ignore-missing-imports
 
+      - name: Verify Web Rules are Up to Date
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: |
+          python scripts/gen_web_rules.py
+          git diff --exit-code web/rules.json
+
       - name: Security Audit Dependencies with pip-audit
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         run: |
@@ -135,6 +141,26 @@ jobs:
           name: apkrevive-android-companion
           path: dist-companion/*.apk
           if-no-files-found: error
+
+  integration-suite:
+    name: Integration suite (toolchain + network)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with: { distribution: zulu, java-version: "17" }
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+        with: { packages: "platform-tools platforms;android-35 build-tools;35.0.0" }
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with: { node-version: "20" }
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: { python-version: "3.12" }
+      - run: |
+          pip install -e ".[dev]"
+          python canaries/build_canaries.py
+          python scripts/download_corpus.py
+          pytest -m integration -q -rs
 
   canary-matrix-and-sarif:
     name: Multi-Tier Canary Matrix & SARIF Telemetry

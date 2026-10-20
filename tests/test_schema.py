@@ -28,35 +28,35 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 class TestSchemaVersion(unittest.TestCase):
     def test_schema_version_constant(self):
-        """Root SCHEMA_VERSION constant is semantic version 1.0.0."""
-        self.assertEqual(SCHEMA_VERSION, "1.0.0")
+        """Root SCHEMA_VERSION constant is semantic version 1.1.0."""
+        self.assertEqual(SCHEMA_VERSION, "1.1.0")
 
     def test_triage_schema_version(self):
-        """evaluate_triage outputs schema_version 1.0.0 on all decision branches."""
+        """evaluate_triage outputs schema_version 1.1.0 on all decision branches."""
         dev = DeviceProfile()
 
         # Branch 1: GREEN runnable unmodified
         apk_green = ApkMetadata(target_sdk=28)
         res_green = evaluate_triage(apk_green, dev)
-        self.assertEqual(res_green.get("schema_version"), "1.0.0")
+        self.assertEqual(res_green.get("schema_version"), "1.1.0")
 
         # Branch 2: RED split apk
         apk_split = ApkMetadata(target_sdk=28, is_split_apk=True)
         res_split = evaluate_triage(apk_split, dev)
-        self.assertEqual(res_split.get("schema_version"), "1.0.0")
+        self.assertEqual(res_split.get("schema_version"), "1.1.0")
 
         # Branch 3: RED incompatible ABI
         apk_abi = ApkMetadata(target_sdk=28, abis=["mips"])
         res_abi = evaluate_triage(apk_abi, dev)
-        self.assertEqual(res_abi.get("schema_version"), "1.0.0")
+        self.assertEqual(res_abi.get("schema_version"), "1.1.0")
 
         # Branch 4: YELLOW modification required
         apk_yellow = ApkMetadata(target_sdk=28, uses_apache_http=True)
         res_yellow = evaluate_triage(apk_yellow, dev)
-        self.assertEqual(res_yellow.get("schema_version"), "1.0.0")
+        self.assertEqual(res_yellow.get("schema_version"), "1.1.0")
 
     def test_patch_report_schema_version(self):
-        """PatchReport dataclass to_dict() contains schema_version 1.0.0."""
+        """PatchReport dataclass to_dict() contains schema_version 1.1.0."""
         report = PatchReport(
             timestamp="2026-10-20T00:00:00Z",
             apk_path="test.apk",
@@ -66,35 +66,35 @@ class TestSchemaVersion(unittest.TestCase):
             reason="MODIFICATION_REQUIRED",
         )
         report_dict = report.to_dict()
-        self.assertEqual(report_dict.get("schema_version"), "1.0.0")
+        self.assertEqual(report_dict.get("schema_version"), "1.1.0")
 
     def test_diff_schema_version(self):
-        """compute_apk_diff emits schema_version 1.0.0."""
+        """compute_apk_diff emits schema_version 1.1.0."""
         res = compute_apk_diff("nonexistent1.apk", "nonexistent2.apk")
-        self.assertEqual(res.get("schema_version"), "1.0.0")
+        self.assertEqual(res.get("schema_version"), "1.1.0")
 
     def test_doctor_schema_version(self):
-        """run_doctor emits schema_version 1.0.0."""
+        """run_doctor emits schema_version 1.1.0."""
         res = run_doctor()
-        self.assertEqual(res.get("schema_version"), "1.0.0")
+        self.assertEqual(res.get("schema_version"), "1.1.0")
 
     def test_probe_schema_version(self):
-        """probe_install_floor emits schema_version 1.0.0."""
+        """probe_install_floor emits schema_version 1.1.0."""
         bridge = MagicMock()
         bridge.get_prop.side_effect = lambda prop: "35" if prop == "ro.build.version.sdk" else "24"
         res = probe_install_floor(bridge)
-        self.assertEqual(res.get("schema_version"), "1.0.0")
+        self.assertEqual(res.get("schema_version"), "1.1.0")
 
     def test_obb_schema_version(self):
-        """validate_obb_delivery emits schema_version 1.0.0."""
+        """validate_obb_delivery emits schema_version 1.1.0."""
         res_valid = validate_obb_delivery("main.10.com.example.app.obb", "com.example.app", 10)
-        self.assertEqual(res_valid.get("schema_version"), "1.0.0")
+        self.assertEqual(res_valid.get("schema_version"), "1.1.0")
 
         res_invalid = validate_obb_delivery("invalid_name.obb", "com.example.app", 10)
-        self.assertEqual(res_invalid.get("schema_version"), "1.0.0")
+        self.assertEqual(res_invalid.get("schema_version"), "1.1.0")
 
     def test_make_receipt_schema_version(self):
-        """create_receipt generates receipts with schema_version 1.0.0."""
+        """create_receipt generates receipts with schema_version 1.1.0."""
         receipt = create_receipt(
             model="sdk_gphone16k_x86_64",
             api=37,
@@ -103,35 +103,35 @@ class TestSchemaVersion(unittest.TestCase):
             script="scripts/survey.py",
             date="2026-10-20",
         )
-        self.assertEqual(receipt.get("schema_version"), "1.0.0")
+        self.assertEqual(receipt.get("schema_version"), "1.1.0")
         validate_receipt(receipt)
 
     def test_receipt_files_on_disk(self):
-        """All *.json files in receipts/ contain schema_version == '1.0.0'."""
+        """All *.json files in receipts/ contain schema_version == '1.0.0' or '1.1.0'."""
         receipts_dir = REPO_ROOT / "receipts"
         self.assertTrue(receipts_dir.exists())
         receipt_files = list(receipts_dir.glob("*.json"))
         self.assertGreater(len(receipt_files), 0, "No receipt files found in receipts/")
         for rf in receipt_files:
             data = json.loads(rf.read_text(encoding="utf-8"))
-            self.assertEqual(
+            self.assertIn(
                 data.get("schema_version"),
-                "1.0.0",
-                f"Receipt {rf.name} missing schema_version 1.0.0",
+                ("1.0.0", "1.1.0"),
+                f"Receipt {rf.name} missing valid schema_version",
             )
 
     def test_result_files_on_disk(self):
-        """All *.json files in results/ (including survey/) contain schema_version == '1.0.0'."""
+        """All *.json files in results/ (including survey/) contain schema_version == '1.0.0' or '1.1.0'."""
         results_dir = REPO_ROOT / "results"
         self.assertTrue(results_dir.exists())
         result_files = list(results_dir.rglob("*.json"))
         self.assertGreater(len(result_files), 0, "No result files found in results/")
         for rf in result_files:
             data = json.loads(rf.read_text(encoding="utf-8"))
-            self.assertEqual(
+            self.assertIn(
                 data.get("schema_version"),
-                "1.0.0",
-                f"Result file {rf.relative_to(REPO_ROOT)} missing schema_version 1.0.0",
+                ("1.0.0", "1.1.0"),
+                f"Result file {rf.relative_to(REPO_ROOT)} missing valid schema_version",
             )
 
     def test_docs_exist_and_complete(self):

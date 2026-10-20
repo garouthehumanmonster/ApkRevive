@@ -7,7 +7,7 @@
     "SET_HAS_CODE_TRUE",
     "LOCK_60HZ_DISPLAY_MODE"
   ],
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "transform_risks": {
     "LOCK_60HZ_DISPLAY_MODE": "MEDIUM",
     "SET_HAS_CODE_TRUE": "MEDIUM"

@@ -25,6 +25,8 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+from apkrevive.core.models import SCHEMA_VERSION
 from typing import Any, Dict, List, Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -175,7 +177,7 @@ def create_receipt(
     final_script = strip_identifying_info(final_script, device)
 
     receipt = {
-        "schema_version": "1.0.0",
+        "schema_version": SCHEMA_VERSION,
         "device_model": final_model,
         "api_level": int(final_api),
         "abi": final_abi,

@@ -108,17 +108,17 @@
     if (targetSdkFault) {
       transforms.push("BYPASS_LOW_TARGET_SDK_BLOCK");
     }
-    if (model.hasCode === false) {
-      if (verdict !== "RED") verdict = "YELLOW";
-      transforms.push("SET_HAS_CODE_TRUE");
-    }
-    if (model.usesApacheHttp) {
+    if ((model.targetSdk || 1) >= 28 && model.usesApacheHttp) {
       if (verdict !== "RED") verdict = "YELLOW";
       transforms.push("INJECT_USES_LIBRARY_APACHE_HTTP");
     }
     if (model.isNonResizeable) {
       if (verdict !== "RED") verdict = "YELLOW";
       transforms.push("EXPAND_ASPECT_RATIO");
+    }
+    if (model.hasCode === false && (transforms.includes("INJECT_PAGE_SIZE_COMPAT") || transforms.includes("EXPAND_ASPECT_RATIO"))) {
+      if (verdict !== "RED") verdict = "YELLOW";
+      transforms.push("SET_HAS_CODE_TRUE");
     }
 
     return { verdict, reason, transforms, elfReport };
