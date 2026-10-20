@@ -3,6 +3,7 @@ cli.py - Main entrypoint for ApkRevive modernizer CLI.
 """
 
 import argparse
+import hashlib
 import json
 import sys
 import os
@@ -19,7 +20,8 @@ from apkrevive.core.signer import sign_apk, verify_apk_certs
 from apkrevive.core.behavior_changes import TRANSFORM_RISK_LEVELS
 from apkrevive.core.obb import validate_obb_delivery
 from apkrevive.core.extractor import inspect_apk
-from apkrevive.core.doctor import run_doctor, format_doctor_report
+from apkrevive.core.doctor import run_doctor, format_doctor_report, check_shim_dex
+from apkrevive.shim.build_shim import CANONICAL_SHIM_SHA256
 from apkrevive.adb.bridge import AdbBridge
 from apkrevive.adb.probe import probe_install_floor
 from apkrevive import __version__
@@ -304,61 +306,116 @@ def revive_cmd(args):
     dex_indices = []
     has_shim_provider = False
     temp_apk = output_path + ".tmp"
-    with zipfile.ZipFile(input_path, "r") as zin, zipfile.ZipFile(temp_apk, "w") as zout:
-        for item in zin.infolist():
-            if item.filename.startswith("META-INF/") and (
-                item.filename.endswith(".SF") or item.filename.endswith(".RSA") or
-                item.filename.endswith(".DSA") or item.filename.endswith(".EC") or
-                item.filename.endswith(".MF")
-            ):
-                continue
+    success = False
+    try:
+        input_items = []
+        stripped_sig_count = 0
+        entries_written = 0
+        with zipfile.ZipFile(input_path, "r") as zin, zipfile.ZipFile(temp_apk, "w") as zout:
+            input_items = zin.infolist()
+            for item in input_items:
+                if item.filename.startswith("META-INF/") and (
+                    item.filename.endswith(".SF") or item.filename.endswith(".RSA") or
+                    item.filename.endswith(".DSA") or item.filename.endswith(".EC") or
+                    item.filename.endswith(".MF")
+                ):
+                    stripped_sig_count += 1
+                    continue
 
-            data = zin.read(item.filename)
+                data = zin.read(item.filename)
 
-            m = re.fullmatch(r"classes(\d*)\.dex", item.filename)
-            if m:
-                idx_str = m.group(1)
-                idx = int(idx_str) if idx_str else 1
-                dex_indices.append(idx)
-                if b"ApkReviveInitProvider" in data:
-                    has_shim_provider = True
+                m = re.fullmatch(r"classes(\d*)\.dex", item.filename)
+                if m:
+                    idx_str = m.group(1)
+                    idx = int(idx_str) if idx_str else 1
+                    dex_indices.append(idx)
+                    if b"ApkReviveInitProvider" in data:
+                        has_shim_provider = True
 
-            if item.filename == "AndroidManifest.xml":
-                zout.writestr(item, patched_axml)
-            else:
-                zout.writestr(item, data)
+                if item.filename == "AndroidManifest.xml":
+                    zout.writestr(item, patched_axml)
+                else:
+                    zout.writestr(item, data)
+                entries_written += 1
 
-        if inject_shim and not has_shim_provider:
-            shim_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "shim", "shim.dex")
-            if os.path.exists(shim_path):
+            if inject_shim and not has_shim_provider:
+                shim_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "shim", "shim.dex")
+                if not os.path.exists(shim_path):
+                    sys.stderr.write("ERROR: runtime shim (shim.dex) is missing; refusing to register "
+                                     "ApkReviveInitProvider without its class. Run python -m "
+                                     "apkrevive.shim.build_shim or reinstall the package.\n")
+                    return 1
+                shim_res = check_shim_dex()
+                if shim_res.get("status") != "PASS":
+                    sys.stderr.write("ERROR: runtime shim (shim.dex) is missing; refusing to register "
+                                     "ApkReviveInitProvider without its class. Run python -m "
+                                     "apkrevive.shim.build_shim or reinstall the package.\n")
+                    return 1
+                with open(shim_path, "rb") as sf:
+                    actual_hash = hashlib.sha256(sf.read()).hexdigest()
+                if actual_hash != CANONICAL_SHIM_SHA256:
+                    sys.stderr.write(f"ERROR: runtime shim (shim.dex) SHA256 mismatch ({actual_hash} != {CANONICAL_SHIM_SHA256}).\n")
+                    return 1
+
                 next_idx = max(dex_indices) + 1 if dex_indices else 1
                 shim_dex_name = f"classes{next_idx}.dex" if next_idx > 1 else "classes.dex"
                 with open(shim_path, "rb") as sf:
                     zout.writestr(shim_dex_name, sf.read())
+                entries_written += 1
 
-    align_apk(temp_apk, output_path)
-    if os.path.exists(temp_apk):
-        os.remove(temp_apk)
+        with zipfile.ZipFile(temp_apk, "r") as zcheck:
+            names = set(zcheck.namelist())
+            expected_count = len(input_items) - stripped_sig_count + (1 if (inject_shim and not has_shim_provider) else 0)
+            if len(names) != expected_count:
+                raise ValueError(f"Output entry count mismatch: expected {expected_count}, got {len(names)}")
+            if "AndroidManifest.xml" not in names:
+                raise ValueError("AndroidManifest.xml missing from output APK")
+            if not any(re.fullmatch(r"classes\d*\.dex", n) for n in names):
+                raise ValueError("No classes*.dex found in output APK")
 
-    sys.stderr.write(
-        "WARNING: APK signature has changed. Re-signing breaks Google Play updates, "
-        "signature-based licensing (Google LVL), and anti-tamper DRM checks. "
-        "Installing the revived APK requires uninstalling the existing application on device, "
-        "which will permanently delete all existing user data.\n"
-    )
-    sys.stderr.flush()
+        align_apk(temp_apk, output_path)
+        if os.path.exists(temp_apk):
+            try:
+                os.remove(temp_apk)
+            except OSError:
+                pass
 
-    ks = getattr(args, "ks", None)
-    ks_pass = getattr(args, "ks_pass", None)
-    ks_alias = getattr(args, "ks_alias", None)
-    key_pass = getattr(args, "key_pass", None)
-    if not sign_apk(output_path, keystore_path=ks, keystore_pass=ks_pass, key_alias=ks_alias, key_pass=key_pass):
+        sys.stderr.write(
+            "WARNING: APK signature has changed. Re-signing breaks Google Play updates, "
+            "signature-based licensing (Google LVL), and anti-tamper DRM checks. "
+            "Installing the revived APK requires uninstalling the existing application on device, "
+            "which will permanently delete all existing user data.\n"
+        )
+        sys.stderr.flush()
+
+        ks = getattr(args, "ks", None)
+        ks_pass = getattr(args, "ks_pass", None)
+        ks_alias = getattr(args, "ks_alias", None)
+        key_pass = getattr(args, "key_pass", None)
+        if not sign_apk(output_path, keystore_path=ks, keystore_pass=ks_pass, key_alias=ks_alias, key_pass=key_pass):
+            return 1
+
+        ok, cert_details = verify_apk_certs(output_path)
+        if not ok:
+            sys.stderr.write(f"ERROR: Post-revive signature verification failed:\n{cert_details}\n")
+            return 1
+
+        success = True
+    except Exception as e:
+        sys.stderr.write(f"ERROR: {e}\n")
         return 1
-
-    ok, cert_details = verify_apk_certs(output_path)
-    if not ok:
-        sys.stderr.write(f"ERROR: Post-revive signature verification failed:\n{cert_details}\n")
-        return 1
+    finally:
+        if not success:
+            if os.path.exists(temp_apk):
+                try:
+                    os.remove(temp_apk)
+                except OSError:
+                    pass
+            if os.path.exists(output_path):
+                try:
+                    os.remove(output_path)
+                except OSError:
+                    pass
 
     details = triage.get("details", "")
     if skipped_aspect:
@@ -423,6 +480,14 @@ def diff_cmd(args):
 
 def probe_cmd(args):
     bridge = AdbBridge(serial=args.device)
+    serial = bridge.get_serial()
+    if not serial or serial == "unknown":
+        sys.stderr.write("ERROR: No Android device detected via ADB.\n")
+        return 1
+    sdk_str = bridge.get_prop("ro.build.version.sdk")
+    if not sdk_str.isdigit():
+        sys.stderr.write("ERROR: Failed to query SDK version from connected ADB device.\n")
+        return 1
     res = probe_install_floor(bridge)
     if getattr(args, "json", False):
         print(json.dumps(res, indent=2))
@@ -452,7 +517,6 @@ def doctor_cmd(args):
 def main():
     parser = argparse.ArgumentParser(description="ApkRevive Modernizer CLI")
     parser.add_argument("--version", "-v", action="version", version=f"%(prog)s {__version__}")
-    parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     sub = parser.add_subparsers(dest="command")
 
     p_triage = sub.add_parser("triage", help="Triage APK compatibility")

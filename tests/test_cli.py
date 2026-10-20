@@ -39,12 +39,37 @@ class TestCli(unittest.TestCase):
         self.assertEqual(code, 1)
 
     @patch("apkrevive.cli.probe_install_floor")
-    def test_cli_probe(self, mock_probe):
+    @patch("apkrevive.cli.AdbBridge")
+    def test_cli_probe(self, mock_bridge_cls, mock_probe):
+        mock_bridge = mock_bridge_cls.return_value
+        mock_bridge.get_serial.return_value = "emulator-5554"
+        mock_bridge.get_prop.return_value = "35"
         mock_probe.return_value = {"floor": 24, "status": "CONFIRMED_VIA_PROP", "sdk": 35}
         args = argparse.Namespace(device=None)
         with patch("sys.stdout", new_callable=io.StringIO):
             code = probe_cmd(args)
         self.assertEqual(code, 0)
+
+    @patch("apkrevive.cli.AdbBridge")
+    def test_probe_cmd_fails_when_no_device(self, mock_bridge_cls):
+        mock_bridge = mock_bridge_cls.return_value
+        mock_bridge.get_serial.return_value = ""
+        args = argparse.Namespace(device=None)
+        with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
+            code = probe_cmd(args)
+        self.assertEqual(code, 1)
+        self.assertIn("No Android device detected via ADB", mock_stderr.getvalue())
+
+    @patch("apkrevive.cli.AdbBridge")
+    def test_probe_cmd_fails_when_sdk_query_fails(self, mock_bridge_cls):
+        mock_bridge = mock_bridge_cls.return_value
+        mock_bridge.get_serial.return_value = "emulator-5554"
+        mock_bridge.get_prop.return_value = "unknown"
+        args = argparse.Namespace(device=None)
+        with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
+            code = probe_cmd(args)
+        self.assertEqual(code, 1)
+        self.assertIn("Failed to query SDK version", mock_stderr.getvalue())
 
     @patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK"))
     @patch("apkrevive.cli.sign_apk")
@@ -195,6 +220,177 @@ class TestCli(unittest.TestCase):
                 os.remove(in_apk)
             if os.path.exists(out_apk):
                 os.remove(out_apk)
+
+    def test_revive_fails_closed_when_shim_missing(self):
+        manifest = AxmlNode(tag="manifest")
+        manifest.set_attr("package", "com.test.noshim", ns="")
+        app = AxmlNode(tag="application")
+        manifest.children.append(app)
+        raw_manifest = AxmlSurgeon.serialize(manifest)
+
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_in, tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            in_apk = f_in.name
+            out_apk = f_out.name
+        f_in.close()
+        f_out.close()
+
+        try:
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            with zipfile.ZipFile(in_apk, "w") as zf:
+                zf.writestr("AndroidManifest.xml", raw_manifest)
+                zf.writestr("classes.dex", b"DEX\n035\x00")
+
+            args = argparse.Namespace(
+                apk=in_apk,
+                output=out_apk,
+                device_api=35,
+                page_size=16384,
+                force=False,
+                dry_run=False,
+                bump_target_sdk=None,
+                standalone_install=True,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+                key_pass=None,
+            )
+
+            real_exists = os.path.exists
+
+            def mock_exists(path):
+                if "shim.dex" in str(path):
+                    return False
+                return real_exists(path)
+
+            with patch("apkrevive.cli.os.path.exists", side_effect=mock_exists), \
+                 patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
+                code = revive_cmd(args)
+
+            self.assertEqual(code, 1)
+            self.assertIn("runtime shim (shim.dex) is missing", mock_stderr.getvalue())
+            self.assertFalse(os.path.exists(out_apk))
+            self.assertFalse(os.path.exists(out_apk + ".tmp"))
+        finally:
+            if os.path.exists(in_apk):
+                os.remove(in_apk)
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            if os.path.exists(out_apk + ".tmp"):
+                os.remove(out_apk + ".tmp")
+
+    @patch("apkrevive.cli.sign_apk", return_value=False)
+    def test_revive_cleans_up_on_sign_failure(self, mock_sign):
+        manifest = AxmlNode(tag="manifest")
+        manifest.set_attr("package", "com.test.signfail", ns="")
+        app = AxmlNode(tag="application")
+        manifest.children.append(app)
+        raw_manifest = AxmlSurgeon.serialize(manifest)
+
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_in, tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            in_apk = f_in.name
+            out_apk = f_out.name
+        f_in.close()
+        f_out.close()
+
+        try:
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            with zipfile.ZipFile(in_apk, "w") as zf:
+                zf.writestr("AndroidManifest.xml", raw_manifest)
+                zf.writestr("classes.dex", b"DEX\n035\x00")
+
+            temp_apk = out_apk + ".tmp"
+            args = argparse.Namespace(
+                apk=in_apk,
+                output=out_apk,
+                device_api=35,
+                page_size=16384,
+                force=False,
+                dry_run=False,
+                bump_target_sdk=None,
+                standalone_install=False,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+                key_pass=None,
+            )
+
+            with patch("sys.stderr", new_callable=io.StringIO):
+                code = revive_cmd(args)
+
+            self.assertEqual(code, 1)
+            self.assertFalse(os.path.exists(out_apk))
+            self.assertFalse(os.path.exists(temp_apk))
+        finally:
+            if os.path.exists(in_apk):
+                os.remove(in_apk)
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            if os.path.exists(out_apk + ".tmp"):
+                os.remove(out_apk + ".tmp")
+
+    @patch("apkrevive.cli.verify_apk_certs", return_value=(False, "Failed cert verification"))
+    @patch("apkrevive.cli.sign_apk", return_value=True)
+    def test_revive_cleans_up_on_verify_failure(self, mock_sign, mock_verify):
+        manifest = AxmlNode(tag="manifest")
+        manifest.set_attr("package", "com.test.verifyfail", ns="")
+        app = AxmlNode(tag="application")
+        manifest.children.append(app)
+        raw_manifest = AxmlSurgeon.serialize(manifest)
+
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_in, tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            in_apk = f_in.name
+            out_apk = f_out.name
+        f_in.close()
+        f_out.close()
+
+        try:
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            with zipfile.ZipFile(in_apk, "w") as zf:
+                zf.writestr("AndroidManifest.xml", raw_manifest)
+                zf.writestr("classes.dex", b"DEX\n035\x00")
+
+            temp_apk = out_apk + ".tmp"
+            args = argparse.Namespace(
+                apk=in_apk,
+                output=out_apk,
+                device_api=35,
+                page_size=16384,
+                force=False,
+                dry_run=False,
+                bump_target_sdk=None,
+                standalone_install=False,
+                enable_60hz=False,
+                enable_cutout=False,
+                enable_resizable=False,
+                ks=None,
+                ks_pass=None,
+                ks_alias=None,
+                key_pass=None,
+            )
+
+            with patch("sys.stderr", new_callable=io.StringIO) as mock_stderr:
+                code = revive_cmd(args)
+
+            self.assertEqual(code, 1)
+            self.assertIn("Post-revive signature verification failed", mock_stderr.getvalue())
+            self.assertFalse(os.path.exists(out_apk))
+            self.assertFalse(os.path.exists(temp_apk))
+        finally:
+            if os.path.exists(in_apk):
+                os.remove(in_apk)
+            if os.path.exists(out_apk):
+                os.remove(out_apk)
+            if os.path.exists(out_apk + ".tmp"):
+                os.remove(out_apk + ".tmp")
 
 
 if __name__ == "__main__":
