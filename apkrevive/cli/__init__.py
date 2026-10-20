@@ -389,7 +389,9 @@ def revive_cmd(args):
         sys.stderr.flush()
 
         ks = getattr(args, "ks", None)
-        ks_pass = getattr(args, "ks_pass", None)
+        ks_pass = getattr(args, "ks_pass", None) or os.environ.get("APKREVIVE_KEYSTORE_PASS")
+        if ks and not ks_pass:
+            sys.stderr.write("WARNING: --ks provided without --ks-pass or APKREVIVE_KEYSTORE_PASS.\n")
         ks_alias = getattr(args, "ks_alias", None)
         key_pass = getattr(args, "key_pass", None)
         if not sign_apk(output_path, keystore_path=ks, keystore_pass=ks_pass, key_alias=ks_alias, key_pass=key_pass):

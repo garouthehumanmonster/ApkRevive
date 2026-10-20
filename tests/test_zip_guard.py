@@ -76,6 +76,38 @@ class TestZipGuard(unittest.TestCase):
                 validate_zip_archive(apk_path)
             self.assertIn("Zip-slip path traversal detected", str(ctx.exception))
 
+    def test_zip_guard_refined_colon_rules(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # 1. Valid entry with colon in filename only (allowed)
+            valid_apk = os.path.join(tmp_dir, "valid_colon.apk")
+            with zipfile.ZipFile(valid_apk, "w") as zf:
+                zf.writestr("res/raw/data:info.txt", b"safe content")
+            validate_zip_archive(valid_apk)
+
+            # 2. Drive letter path (rejected)
+            drive_apk = os.path.join(tmp_dir, "drive_colon.apk")
+            with zipfile.ZipFile(drive_apk, "w") as zf:
+                zf.writestr("D:/secret/file.txt", b"evil")
+            with self.assertRaises(ValueError) as ctx:
+                validate_zip_archive(drive_apk)
+            self.assertIn("Zip-slip path traversal detected", str(ctx.exception))
+
+            # 3. Colon before last slash (stream on directory component, rejected)
+            dir_stream_apk = os.path.join(tmp_dir, "dir_stream.apk")
+            with zipfile.ZipFile(dir_stream_apk, "w") as zf:
+                zf.writestr("res:stream/icon.png", b"evil")
+            with self.assertRaises(ValueError) as ctx:
+                validate_zip_archive(dir_stream_apk)
+            self.assertIn("Zip-slip path traversal detected", str(ctx.exception))
+
+            # 4. Explicit NTFS stream type (:$DATA, rejected)
+            explicit_stream_apk = os.path.join(tmp_dir, "explicit_stream.apk")
+            with zipfile.ZipFile(explicit_stream_apk, "w") as zf:
+                zf.writestr("assets/file.txt::$DATA", b"evil")
+            with self.assertRaises(ValueError) as ctx:
+                validate_zip_archive(explicit_stream_apk)
+            self.assertIn("Zip-slip path traversal detected", str(ctx.exception))
+
     def test_zip_slip_null_byte(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             apk_path = os.path.join(tmp_dir, "slip_null.apk")

@@ -4,8 +4,22 @@ Enforces strict anti-path-traversal (Zip-Slip), anti-symlink, and anti-compressi
 """
 
 import os
+import re
 import struct
 import zipfile
+
+
+def _is_ntfs_ads_or_drive(name: str) -> bool:
+    # Reject drive letters (^[A-Za-z]:)
+    if bool(re.match(r"^[A-Za-z]:", name)):
+        return True
+    # Reject colon before the last / (stream on a directory component)
+    if "/" in name and ":" in name.rsplit("/", 1)[0]:
+        return True
+    # Reject explicit NTFS stream type (:$ or ::$DATA)
+    if ":$" in name:
+        return True
+    return False
 
 
 def validate_zip_archive(
@@ -38,7 +52,7 @@ def validate_zip_archive(
                     ".." in name
                     or name.startswith("/")
                     or name.startswith("\\")
-                    or ":" in name
+                    or _is_ntfs_ads_or_drive(name)
                     or "\0" in name
                 ):
                     raise ValueError(f"Zip-slip path traversal detected: {name}")

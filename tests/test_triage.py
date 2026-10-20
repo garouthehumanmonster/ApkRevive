@@ -43,6 +43,23 @@ class TestTriage(unittest.TestCase):
                     self.assertEqual(sorted(res.get("required_transforms", [])), sorted(exp["required_transforms"]))
 
 
+    def test_elf_16kb_exempt_returns_green_with_advisory(self):
+        apk = ApkMetadata(
+            package_name="com.example.arm32",
+            target_sdk=28,
+            abis=["armeabi-v7a"],
+            elf_16kb_status="EXEMPT",
+        )
+        dev = DeviceProfile(
+            os_api_level=35,
+            install_floor=24,
+            supported_abis=["arm64-v8a", "armeabi-v7a"],
+            page_size_bytes=16384,
+        )
+        res = evaluate_triage(apk, dev)
+        self.assertEqual(res["verdict"], "GREEN")
+        self.assertTrue(any("WARN_ELF_EXEMPT" in w for w in res["warnings"]))
+
     def test_verified_flag_api37_x86_64_only(self):
         """Verifies that 16KB page_size_compat_verified is True ONLY when API == 37 AND device ABI is x86_64."""
         apk = ApkMetadata(

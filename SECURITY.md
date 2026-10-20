@@ -25,7 +25,7 @@ Reports will be acknowledged within 48 hours, followed by a proposed fix or reme
 
 ## Security Posture & Invariants
 
-- **Signing Keys:** Never reuse shared debug keystores in production environments. Always specify a private, protected keystore using `--ks`.
+- **Signing Keys & Keystore Password Handling:** Never reuse shared debug keystores in production environments. Always specify a private, protected keystore using `--ks`. If no custom keystore is supplied, ApkRevive generates an isolated per-user keystore at `~/.apkrevive/user_<username>.p12` with a randomly generated 128-bit hex password saved to `~/.apkrevive/user_<username>.pwd` with `0600` permissions. If `chmod` fails, a warning is raised. Custom keystore passwords can be provided via `--ks-pass` or the `APKREVIVE_KEYSTORE_PASS` environment variable; if `--ks` is passed without a password, a warning is emitted.
 - **Untrusted Archives:** Treat all third-party APK files as potentially untrusted. ApkRevive performs boundary checks to prevent zip-slip and traversal attacks during extraction and realignment.
 - **Legal Compliance:** Users are solely responsible for ensuring they have authorization and lawful rights to decompile, mutate, and re-sign target applications.
 

@@ -1,5 +1,5 @@
 """
-models.py - Domain models for ApkRevive v3.3 modernizer pipeline.
+models.py - Domain models for ApkRevive v0.5.0a1 modernizer pipeline.
 """
 
 from dataclasses import dataclass, field, asdict

@@ -9,6 +9,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 
@@ -65,8 +66,8 @@ def get_default_user_keystore() -> Tuple[Path, str, str]:
             pass
         try:
             os.chmod(pwd_path, 0o600)
-        except Exception:
-            pass
+        except Exception as e:
+            warnings.warn(f"Failed to set 0o600 permissions on password file {pwd_path}: {e}")
 
     return ks_path, password, alias
 
@@ -81,6 +82,9 @@ def ensure_keystore(
     If keystore_path is provided, checks it exists (raises FileNotFoundError if missing).
     If keystore_path is None, generates per-user keystore via keytool if missing (raises RuntimeError on failure).
     """
+    if keystore_pass is None:
+        keystore_pass = os.environ.get("APKREVIVE_KEYSTORE_PASS")
+
     if keystore_path is None:
         env_ks = os.environ.get("APKREVIVE_KEYSTORE")
         if env_ks and Path(env_ks).is_file():
@@ -90,9 +94,14 @@ def ensure_keystore(
         path = Path(keystore_path)
         if not path.is_file():
             raise FileNotFoundError(f"Keystore file not found: {keystore_path}")
-        password = keystore_pass or "android"
+        if not keystore_pass:
+            warnings.warn(
+                f"Custom keystore '{keystore_path}' specified without password; "
+                "set via --ks-pass or APKREVIVE_KEYSTORE_PASS. Defaulting to 'android'."
+            )
+            keystore_pass = "android"
         alias = key_alias or "apkrevive"
-        return str(path), password, alias
+        return str(path), keystore_pass, alias
 
     default_ks, default_pwd, default_alias = get_default_user_keystore()
     password = keystore_pass or default_pwd

@@ -158,10 +158,26 @@ class TestElf16k(unittest.TestCase):
         rep = check(so_incongruent)
         self.assertEqual(rep.status, Elf16kStatus.UNSAFE)
 
-    def test_32bit_elf_untouched(self):
-        elf32 = b"\x7fELF\x01\x01\x01\x00" + (b"\x00" * 40)
+    def test_32bit_elf_classified_as_exempt(self):
+        elf32 = b"\x7fELF\x01\x01\x01\x00" + (b"\x00" * 60)
+        rep = check(elf32)
+        self.assertEqual(rep.status, Elf16kStatus.EXEMPT)
+        self.assertIn("32-bit ELF", rep.reasons[0])
         fixed, problems = fix(elf32)
         self.assertEqual(fixed, elf32)
+        self.assertEqual(problems, [])
+
+    def test_non_targeted_architecture_classified_as_exempt(self):
+        # EM_MIPS (8)
+        so_mips = build_synthetic_elf([
+            {"p_offset": 0x1000, "p_vaddr": 0x10000, "p_filesz": 0x1000, "p_memsz": 0x1000, "p_align": 4096}
+        ], machine=8)
+        rep = check(so_mips)
+        self.assertEqual(rep.status, Elf16kStatus.EXEMPT)
+        self.assertIn("Non-targeted", rep.reasons[0])
+        fixed, problems = fix(so_mips)
+        self.assertEqual(fixed, so_mips)
+        self.assertEqual(problems, [])
 
     @pytest.mark.integration
     def test_real_compiled_4k_so_if_compiler_available(self):

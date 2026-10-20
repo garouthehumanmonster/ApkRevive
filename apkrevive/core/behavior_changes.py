@@ -106,7 +106,7 @@ def _cond_16kb_page_size(apk: ApkMetadata, dev: DeviceProfile) -> bool:
         return False
     if dev.os_api_level < 35 or dev.page_size_bytes != 16384:
         return False
-    if apk.elf_16kb_status == "ALIGNED":
+    if apk.elf_16kb_status in ("ALIGNED", "EXEMPT"):
         return False
     unaligned_or_invalid = (
         apk.elf_16kb_status in ("COMPAT_ONLY", "UNSAFE")

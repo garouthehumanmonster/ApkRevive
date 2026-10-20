@@ -118,6 +118,10 @@ def inspect_apk_elf_details(apk_path: str) -> Tuple[Optional[int], bool, Optiona
         overall_status = "UNSAFE"
     elif "COMPAT_ONLY" in statuses:
         overall_status = "COMPAT_ONLY"
+    elif "ALIGNED" in statuses:
+        overall_status = "ALIGNED"
+    elif "EXEMPT" in statuses:
+        overall_status = "EXEMPT"
     else:
         overall_status = "ALIGNED"
 

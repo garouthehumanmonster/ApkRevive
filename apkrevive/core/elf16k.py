@@ -28,6 +28,7 @@ class Elf16kStatus(str, Enum):
     ALIGNED = "ALIGNED"
     COMPAT_ONLY = "COMPAT_ONLY"
     UNSAFE = "UNSAFE"
+    EXEMPT = "EXEMPT"
 
 
 @dataclass(frozen=True)
@@ -65,12 +66,11 @@ def check(data: bytes) -> Elf16kReport:
 
     ei_class = data[4]
     if ei_class == ELFCLASS32:
-        # 32-bit binaries do not run on 64-bit 16KB kernels directly
         return Elf16kReport(
-            status=Elf16kStatus.COMPAT_ONLY,
+            status=Elf16kStatus.EXEMPT,
             min_align=4096,
             is_64bit=False,
-            reasons=["32-bit ELF (ELFCLASS32) exempt from 64-bit 16KB kernel alignment"],
+            reasons=["32-bit ELF; 16KB page alignment checks apply only to 64-bit binaries"],
         )
 
     if ei_class != ELFCLASS64:
@@ -87,10 +87,10 @@ def check(data: bytes) -> Elf16kReport:
     e_machine = struct.unpack_from(f"{endian}H", data, 0x12)[0]
     if e_machine not in (EM_AARCH64, EM_X86_64):
         return Elf16kReport(
-            status=Elf16kStatus.COMPAT_ONLY,
+            status=Elf16kStatus.EXEMPT,
             min_align=4096,
             is_64bit=True,
-            reasons=[f"Non-targeted 64-bit ELF machine architecture: {e_machine}"],
+            reasons=[f"Non-targeted 64-bit ELF machine architecture: {e_machine}; 16KB page alignment checks apply only to 64-bit binaries"],
         )
 
     e_phoff = struct.unpack_from(f"{endian}Q", data, 0x20)[0]
@@ -221,12 +221,11 @@ def fix(data: bytes) -> Tuple[bytes, List[str]]:
     and returns the remaining problems explaining why.
     """
     report = check(data)
-    if report.status == Elf16kStatus.ALIGNED:
+    if report.status in (Elf16kStatus.ALIGNED, Elf16kStatus.EXEMPT):
         return data, []
 
     if report.status == Elf16kStatus.COMPAT_ONLY:
-        # # ponytail: 4KB-linked ELFs require relocation of virtual addresses and patching of
-        # cross-segment PC-relative references (ADRP, .eh_frame, jump tables). That is a relink.
+        # 4KB-linked ELFs require relocation of virtual addresses and patching of cross-segment references.
         # Android 15+ provides pageSizeCompat backcompat mode; leave lib byte-identical.
         return data, [
             "4KB-linked ELF cannot have virtual addresses shifted without binary relinking; "

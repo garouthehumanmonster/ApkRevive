@@ -30,7 +30,7 @@ def rewrite_elf_16kb(data: bytes) -> bytes:
     """
     fixed, problems = elf16k.fix(data)
     if problems:
-        # # ponytail: in-place 16KB vaddr shifting is impossible without relink; preserve bytes
+        # In-place 16KB vaddr shifting is impossible without relink; preserve bytes
         return data
     return fixed
 

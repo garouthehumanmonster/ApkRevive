@@ -282,6 +282,11 @@ def evaluate_triage(
                 "platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation."
             )
 
+    if elf_16kb_status == "EXEMPT":
+        warnings.append(
+            "WARN_ELF_EXEMPT: 32-bit ELF binaries or non-target machines are exempt from 16KB page alignment checks."
+        )
+
     # 4. Modification Requirements Analysis
     if "APACHE_HTTP_LEGACY_REMOVAL" in applicable_ids:
         required_transforms.append("INJECT_USES_LIBRARY_APACHE_HTTP")

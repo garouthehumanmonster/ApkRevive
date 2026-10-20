@@ -94,6 +94,33 @@ class TestSigner(unittest.TestCase):
             if os.path.exists(custom_path):
                 os.remove(custom_path)
 
+    def test_keystore_pass_from_env_and_warning_when_missing(self):
+        with tempfile.NamedTemporaryFile(suffix=".p12", delete=False) as f:
+            custom_path = f.name
+        try:
+            # 1. Password from env
+            with patch.dict(os.environ, {"APKREVIVE_KEYSTORE_PASS": "env_secret"}):
+                ks, pwd, alias = ensure_keystore(keystore_path=custom_path)
+                self.assertEqual(pwd, "env_secret")
+
+            # 2. Warning when missing and defaulting to 'android'
+            with patch.dict(os.environ, {}, clear=True):
+                with self.assertWarns(UserWarning) as w:
+                    ks, pwd, alias = ensure_keystore(keystore_path=custom_path)
+                self.assertEqual(pwd, "android")
+                self.assertIn("Custom keystore", str(w.warning))
+        finally:
+            if os.path.exists(custom_path):
+                os.remove(custom_path)
+
+    def test_chmod_warning_on_failure(self):
+        with tempfile.TemporaryDirectory() as tmp_home:
+            with patch("pathlib.Path.home", return_value=Path(tmp_home)):
+                with patch("os.chmod", side_effect=OSError("Read-only filesystem")):
+                    with self.assertWarns(UserWarning) as w:
+                        get_default_user_keystore()
+                    self.assertIn("Failed to set 0o600 permissions", str(w.warning))
+
     @pytest.mark.integration
     def test_sign_and_verify_synthetic_apk(self):
         """Tests signing a synthetic APK and verifying it with verify_apk(verbose=True)."""
