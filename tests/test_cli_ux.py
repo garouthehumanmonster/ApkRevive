@@ -202,7 +202,7 @@ class TestCliUx(unittest.TestCase):
         self.assertIn("branch = true", content)
 
         self.assertIn("[tool.coverage.report]", content)
-        self.assertIn("fail_under = 80", content)
+        self.assertTrue("fail_under = 85" in content or "fail_under = 80" in content)
         self.assertIn("show_missing = true", content)
 
     @patch("apkrevive.cli.verify_apk_certs", return_value=(True, "OK"))

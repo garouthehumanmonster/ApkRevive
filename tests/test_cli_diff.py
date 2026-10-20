@@ -60,6 +60,10 @@ def build_synthetic_apk_pair():
     rev_prov = AxmlNode(tag="provider")
     rev_prov.set_attr("name", "apkrevive.shim.ApkReviveInitProvider")
     rev_app.children.append(rev_prov)
+    rev_meta = AxmlNode(tag="meta-data")
+    rev_meta.set_attr("name", "custom_meta")
+    rev_meta.set_attr("value", "true")
+    rev_app.children.append(rev_meta)
     rev_manifest.children.append(rev_app)
     rev_raw_manifest = AxmlSurgeon.serialize(rev_manifest)
 
