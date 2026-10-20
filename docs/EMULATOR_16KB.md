@@ -51,7 +51,7 @@ Create the virtual device using `avdmanager`. We recommend the Pixel 8 device pr
 avdmanager create avd \
   -n android15_16kb \
   -k "system-images;android-35;google_apis_ps16k;x86_64" \
-  --device "pixel_8" \
+  --device "pixel_6" \
   --force
 ```
 
