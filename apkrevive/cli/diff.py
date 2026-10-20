@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 from apkrevive.cli.tui import render_alignment_ladder
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.elf import parse_elf_load_align
+from apkrevive.core.models import SCHEMA_VERSION
 
 
 def _parse_manifest_ast(manifest_bytes: bytes) -> Dict[str, Any]:
@@ -334,6 +335,7 @@ def compute_apk_diff(orig_apk: str, revived_apk: str) -> Dict[str, Any]:
         })
 
     return {
+        "schema_version": SCHEMA_VERSION,
         "original_apk": orig_apk,
         "revived_apk": revived_apk,
         "manifest_diff": manifest_diff,

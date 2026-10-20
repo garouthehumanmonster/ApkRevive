@@ -64,6 +64,9 @@ def validate_receipt(receipt: Dict[str, Any]) -> None:
                 f"Field '{key}' expected {expected_type.__name__}, got {type(val).__name__}"
             )
 
+    if "schema_version" in receipt and not isinstance(receipt["schema_version"], str):
+        raise ValueError("Field 'schema_version' must be a str")
+
     if receipt["simulated"] is not False:
         raise ValueError("Field 'simulated' must be strictly False")
 
@@ -172,6 +175,7 @@ def create_receipt(
     final_script = strip_identifying_info(final_script, device)
 
     receipt = {
+        "schema_version": "1.0.0",
         "device_model": final_model,
         "api_level": int(final_api),
         "abi": final_abi,

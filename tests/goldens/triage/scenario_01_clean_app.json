@@ -4,6 +4,7 @@
   "page_size_compat_verified": true,
   "reason": "RUNNABLE_UNMODIFIED",
   "required_transforms": [],
+  "schema_version": "1.0.0",
   "transform_risks": {},
   "verdict": "GREEN",
   "warnings": []

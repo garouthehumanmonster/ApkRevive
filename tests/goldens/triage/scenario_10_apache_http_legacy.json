@@ -6,6 +6,7 @@
   "required_transforms": [
     "INJECT_USES_LIBRARY_APACHE_HTTP"
   ],
+  "schema_version": "1.0.0",
   "transform_risks": {
     "INJECT_USES_LIBRARY_APACHE_HTTP": "LOW"
   },

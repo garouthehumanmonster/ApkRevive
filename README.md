@@ -169,6 +169,57 @@ In accordance with strict verification discipline, capabilities are classified a
 
 ---
 
+## Quickstart
+
+> [!CAUTION]
+> **Use only on applications you own or are authorized/licensed to modify.**
+> Modifying, decompiling, patching, and re-signing third-party application binaries may infringe on copyright laws, software licenses, and terms of service. ApkRevive is provided strictly for educational research, legitimate interoperability analysis, and archival preservation of software for which you hold appropriate rights or explicit owner authorization.
+
+Get started in 4 simple steps:
+
+### 1. Install
+```bash
+git clone https://github.com/garouthehumanmonster/ApkRevive.git
+cd ApkRevive
+pip install -e .
+```
+
+### 2. Triage
+Analyze compatibility against target device profiles:
+```bash
+apkrevive triage legacy_app.apk --device-api 35 --page-size 16384
+```
+
+### 3. Revive
+Modernize manifest, inject runtime shims, 16KB-align, and sign:
+```bash
+apkrevive revive legacy_app.apk --output legacy_app.revived.apk --enable-60hz --enable-cutout
+```
+
+### 4. Verify
+Inspect structural differences and alignment ladders before deploying:
+```bash
+apkrevive diff legacy_app.apk legacy_app.revived.apk
+```
+
+---
+
+### Authoritative Verification Evidence Table
+
+ApkRevive maintains a strictly evidence-driven record of verified execution across Android platforms. Evidence is backed by un-simulated JSON receipts in `receipts/` and survey results in `results/survey/`:
+
+| Device / Rig | OS API | ABI | Page Size | Verification Receipt | Executed Test Suite | Status |
+|---|---|---|---|---|---|---|
+| `sdk_gphone16k_x86_64` | Android 17 (API 37) | `x86_64` | 16 KB | [`receipt_survey_sdk_gphone16k_x86_64_api37_x86_64.json`](receipts/receipt_survey_sdk_gphone16k_x86_64_api37_x86_64.json) | 35-APK Legacy Compatibility Survey (`scripts/survey.py`) | VERIFIED |
+| `sdk_gphone16k_x86_64` | Android 17 (API 37) | `x86_64` | 16 KB | [`device_api37_x86_64_16kb.json`](receipts/device_api37_x86_64_16kb.json) | Corpus Execution (`scripts/run_emulator_corpus.py`) | VERIFIED |
+| `sdk_gphone16k_x86_64` | Android 15 (API 35) | `x86_64` | 16 KB | [`device_api35_x86_64_16kb.json`](receipts/device_api35_x86_64_16kb.json) | 16KB CI Runner (`scripts/ci_16kb.sh`) | VERIFIED |
+| Local Rig Harness | Host OS | N/A | 16 KB | [`local_rig_canary_*.json`](results/) | 8 Dual Canary Pairs (`scripts/verify_canary_matrix.py`) | VERIFIED (Host AST/ELF) |
+| Physical Hardware | Any | `arm64-v8a` | 16 KB | None | N/A | UNVERIFIED |
+| Real Display Panel | Any | N/A | N/A | None | Variable Refresh Rate / Cutout | UNVERIFIED |
+
+For comprehensive survey telemetry and failure classification, see [docs/SURVEY.md](docs/SURVEY.md). For operational boundaries, see [docs/LIMITS.md](docs/LIMITS.md). For JSON schema specifications, see [docs/SCHEMA.md](docs/SCHEMA.md).
+
+
 ## Installation
 
 ### Prerequisites & Dependencies

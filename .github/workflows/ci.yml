@@ -24,10 +24,10 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -44,8 +44,14 @@ jobs:
       - name: Type check with mypy
         run: mypy apkrevive --ignore-missing-imports
 
+      - name: Security Audit Dependencies with pip-audit
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: |
+          python -m pip install --upgrade pip-audit "urllib3>=2.8.0"
+          pip-audit .
+
       - name: Cache F-Droid Corpus APKs
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: tests/corpus/apks
           key: corpus-${{ hashFiles('tests/corpus/corpus.json') }}
@@ -68,10 +74,10 @@ jobs:
     name: Android Companion App CI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: "zulu"
           java-version: "17"
@@ -123,7 +129,7 @@ jobs:
           cp apkrevive-android/app/build/outputs/apk/debug/app-debug.apk dist-companion/ApkRevive-Companion-${VERSION_NAME}-debug.apk
 
       - name: Upload Companion APK Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: apkrevive-android-companion
           path: dist-companion/*.apk
@@ -133,10 +139,10 @@ jobs:
     name: Multi-Tier Canary Matrix & SARIF Telemetry
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
           cache: "pip"
@@ -162,13 +168,13 @@ jobs:
           apkrevive diff canaries/build/canary_page_size_failing.apk canaries/build/canary_page_size_control.apk --sarif > sarif-reports/diff_page_size.sarif || true
 
       - name: Upload SARIF Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: sarif-diagnostics
           path: sarif-reports/*.sarif
 
       - name: Upload Canary Verification Receipts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: canary-matrix-receipts
           path: results/*.json
@@ -179,16 +185,16 @@ jobs:
     continue-on-error: true
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: "zulu"
           java-version: "17"
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
           cache: "pip"
@@ -238,7 +244,7 @@ jobs:
           fi
 
       - name: Upload 16KB Live Verification Receipts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: emulator-16kb-receipts
           path: results/*35*.json
@@ -251,10 +257,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     outputs:
       is_prerelease: ${{ steps.tag_check.outputs.is_prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Inspect Release Tag
         id: tag_check
@@ -271,7 +279,7 @@ jobs:
           fi
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
@@ -281,19 +289,29 @@ jobs:
           python -m build --outdir pydist/
 
       - name: Download Companion APK Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: apkrevive-android-companion
           path: dist/companion/
 
       - name: Download SARIF Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: sarif-diagnostics
           path: dist/sarif/
 
+      - name: Attest Python Distribution Provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "pydist/*"
+
+      - name: Attest Companion APK Provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: "dist/companion/*.apk"
+
       - name: Upload Wheels for PyPI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: python-dist-packages
           path: pydist/*
@@ -319,7 +337,7 @@ jobs:
       id-token: write
     steps:
       - name: Download Built Wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: python-dist-packages
           path: pydist/

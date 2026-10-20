@@ -8,6 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Dict, Any, List
+from apkrevive.core.models import SCHEMA_VERSION
 
 
 EXPECTED_SHIM_SOURCE_SHA256 = "b17f18674d4516a9aedd7f9a11f92358985910104fd10906e567e0ac4a3c1b28"
@@ -192,6 +193,7 @@ def run_doctor() -> Dict[str, Any]:
     fail_list = [name for name, c in checks.items() if c["status"] == "FAIL"]
 
     res: Dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
         "status": overall,
         "pass": pass_list,
         "warn": warn_list,
