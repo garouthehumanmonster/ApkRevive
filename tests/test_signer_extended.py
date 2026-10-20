@@ -36,10 +36,11 @@ class TestSignerExtended(unittest.TestCase):
                     self.assertIn("35.0.0", cmd)
 
         # 2. Complete fallback
-        with patch("shutil.which", return_value=None):
-            with patch.dict(os.environ, {"ANDROID_HOME": "", "ANDROID_SDK_ROOT": "", "LOCALAPPDATA": ""}):
-                cmd = get_apksigner_cmd()
-                self.assertEqual(cmd, "apksigner")
+        with patch("shutil.which", return_value=None), \
+             patch("os.path.expanduser", return_value="/nonexistent/sdk"), \
+             patch.dict(os.environ, {"ANDROID_HOME": "", "ANDROID_SDK_ROOT": "", "LOCALAPPDATA": ""}):
+            cmd = get_apksigner_cmd()
+            self.assertEqual(cmd, "apksigner")
 
     def test_ensure_keystore_with_env(self):
         with tempfile.NamedTemporaryFile(suffix=".p12", delete=False) as f:

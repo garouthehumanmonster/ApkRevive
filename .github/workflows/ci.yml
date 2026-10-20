@@ -46,8 +46,8 @@ jobs:
 
       - name: Security Audit Dependencies with pip-audit
         run: |
-          pip install pip-audit
-          pip-audit --desc
+          python -m pip install --upgrade pip-audit "urllib3>=2.8.0"
+          pip-audit .
 
       - name: Cache F-Droid Corpus APKs
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
