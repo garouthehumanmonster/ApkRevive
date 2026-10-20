@@ -289,90 +289,116 @@ def get_applicable_behavior_changes(
     return applicable
 
 
+def _abi_matches(receipt_abi: Optional[str], target_abi: str) -> bool:
+    if not receipt_abi:
+        return False
+    r = receipt_abi.lower().strip()
+    t = target_abi.lower().strip()
+    if r == t:
+        return True
+    arm64_aliases = {"arm64", "arm64-v8a", "aarch64"}
+    if r in arm64_aliases and t in arm64_aliases:
+        return True
+    x86_64_aliases = {"x86_64", "x86-64", "amd64"}
+    if r in x86_64_aliases and t in x86_64_aliases:
+        return True
+    x86_aliases = {"x86", "i386", "i686"}
+    if r in x86_aliases and t in x86_aliases:
+        return True
+    arm32_aliases = {"armeabi-v7a", "armv7", "armeabi"}
+    if r in arm32_aliases and t in arm32_aliases:
+        return True
+    return False
+
+
 def is_page_size_compat_verified(
     results_dir: Optional[Union[str, Path]] = None,
     target_api: Optional[int] = None,
     target_abi: Optional[str] = None,
 ) -> bool:
     """
-    Scans results/*.json (defaulting to the repository's results/ directory or Path.cwd() / "results").
-    Looks for any result dictionary with:
-      - pass_fail == "PASS"
-      - kernel_page_size == 16384
-      - Matching target_api environment (defaulting to API 37 if target_api is None or 37).
-      - Matching target_abi environment (defaulting to x86_64 if target_abi is None or "x86_64").
-    Returns True if such a PASS result exists, False otherwise.
+    Scans receipts/ (and results/ as fallback) or results_dir if specified.
+    Reads receipts using structured fields:
+      - api_val = entry.get("api_level") or entry.get("os_api_level")
+      - abi_val = entry.get("abi") or entry.get("arch") or entry.get("device_abi")
+      - page_size = entry.get("page_size") or entry.get("kernel_page_size")
+    Strictly ignores simulated entries (simulated=True).
+    If target_api is None, returns False (unspecified API is unverified).
+    Requires api_val == target_api.
+    If target_abi is provided, requires abi_val == target_abi (or matching standard aliases).
+    No fuzzy string heuristics on android_build or device_model.
     """
-    if results_dir is not None:
-        target_dir = Path(results_dir)
-    else:
-        repo_results = Path(__file__).resolve().parent.parent.parent / "results"
-        if repo_results.is_dir():
-            target_dir = repo_results
-        else:
-            target_dir = Path.cwd() / "results"
-
-    if not target_dir.is_dir():
+    if target_api is None:
         return False
 
-    expected_api = 37 if (target_api is None or target_api == 37) else target_api
-    expected_api_str = str(expected_api)
+    search_dirs: list[Path] = []
+    if results_dir is not None:
+        search_dirs.append(Path(results_dir))
+    else:
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        repo_receipts = repo_root / "receipts"
+        cwd_receipts = Path.cwd() / "receipts"
+        repo_results = repo_root / "results"
+        cwd_results = Path.cwd() / "results"
 
-    expected_abi = "x86_64" if (target_abi is None or target_abi == "x86_64") else target_abi
-    expected_abi_str = str(expected_abi)
+        for d in (repo_receipts, cwd_receipts):
+            if d.is_dir() and d not in search_dirs:
+                search_dirs.append(d)
 
-    for json_file in sorted(target_dir.glob("*.json")):
-        try:
-            with open(json_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception:
+        for d in (repo_results, cwd_results):
+            if d.is_dir() and d not in search_dirs:
+                search_dirs.append(d)
+
+    for directory in search_dirs:
+        if not directory.is_dir():
             continue
 
-        entries = [data] if isinstance(data, dict) else (data if isinstance(data, list) else [])
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
-            if entry.get("pass_fail") != "PASS":
-                continue
-
+        for json_file in sorted(directory.glob("*.json")):
             try:
-                page_size = int(entry.get("kernel_page_size", 0))
-            except (ValueError, TypeError):
-                page_size = 0
-            if page_size != 16384:
+                with open(json_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
                 continue
 
-            api_level = None
-            for key in ("os_api_level", "api_level", "device_api"):
-                val = entry.get(key)
-                if val is not None:
-                    try:
-                        api_level = int(val)
-                        break
-                    except (ValueError, TypeError):
-                        pass
+            entries = [data] if isinstance(data, dict) else (data if isinstance(data, list) else [])
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
 
-            matches_api = (
-                api_level == expected_api
-                or expected_api_str in str(entry.get("android_build", ""))
-                or expected_api_str in str(entry.get("device_model", ""))
-                or expected_api_str in str(entry.get("environment", ""))
-            )
-            if not matches_api:
-                continue
+                if entry.get("simulated", False) is True or str(entry.get("simulated", "")).lower() == "true":
+                    continue
 
-            matches_abi = (
-                entry.get("abi") == expected_abi
-                or entry.get("device_abi") == expected_abi
-                or entry.get("arch") == expected_abi
-                or expected_abi_str in str(entry.get("android_build", ""))
-                or expected_abi_str in str(entry.get("device_model", ""))
-                or expected_abi_str in str(entry.get("environment", ""))
-                or (expected_abi in ("arm64-v8a", "arm64") and "arm64" in str(entry.get("android_build", "")))
-                or (expected_abi in ("x86_64", "x86-64") and "x86_64" in str(entry.get("android_build", "")))
-            )
-            if matches_abi:
+                if entry.get("pass_fail") == "FAIL":
+                    continue
+
+                raw_page_size = entry.get("page_size")
+                if raw_page_size is None:
+                    raw_page_size = entry.get("kernel_page_size")
+                if isinstance(raw_page_size, bool):
+                    continue
+                try:
+                    page_size = int(raw_page_size) if raw_page_size is not None else 0
+                except (ValueError, TypeError):
+                    page_size = 0
+                if page_size != 16384:
+                    continue
+
+                raw_api = entry.get("api_level") or entry.get("os_api_level")
+                if isinstance(raw_api, bool):
+                    continue
+                try:
+                    api_val = int(raw_api) if raw_api is not None else None
+                except (ValueError, TypeError):
+                    api_val = None
+
+                if api_val != target_api:
+                    continue
+
+                if target_abi is not None:
+                    abi_val = entry.get("abi") or entry.get("arch") or entry.get("device_abi")
+                    if not _abi_matches(abi_val, target_abi):
+                        continue
+
                 return True
 
     return False
-

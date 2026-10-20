@@ -1,0 +1,3125 @@
+{
+  "device_info": {
+    "model": "sdk_gphone16k_x86_64",
+    "sdk": "37",
+    "release": "17",
+    "build_id": "CP31.260623.009",
+    "abi": "x86_64",
+    "page_size": "16384"
+  },
+  "total_apks": 35,
+  "direct_install_stats": {
+    "total": 35,
+    "success": 1,
+    "failed": 34
+  },
+  "bypass_install_stats": {
+    "total": 35,
+    "success": 21,
+    "failed": 14
+  },
+  "revive_install_stats": {
+    "total": 35,
+    "revive_success": 21,
+    "install_success": 21,
+    "failed": 14
+  },
+  "liveness_stats": {
+    "total": 35,
+    "alive": 14,
+    "crash": 2,
+    "dead": 5,
+    "skipped": 14
+  },
+  "failure_category_counts": {
+    "ABI": 14,
+    "GREYLIST": 0,
+    "GLES1": 0,
+    "DEAD_SDK": 0,
+    "CRASH": 2,
+    "INSTALL_FLOOR_BLOCKED": 0,
+    "NONE": 14,
+    "OTHER": 5
+  },
+  "per_apk_records": [
+    {
+      "package_name": "ch.hsr.eyecam",
+      "apk_name": "ch.hsr.eyecam_81.apk",
+      "target_sdk": 18,
+      "abis": [
+        "armeabi",
+        "armeabi-v7a"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ch.hsr.eyecam_81.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ch.hsr.eyecam_81.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "ch.nexuscomputing.android.osciprimeics",
+      "apk_name": "ch.nexuscomputing.android.osciprimeics_16.apk",
+      "target_sdk": 19,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ch.nexuscomputing.android.osciprimeics_16.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ch.nexuscomputing.android.osciprimeics_16.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "a2dp.Vol",
+      "apk_name": "a2dp.Vol_126.apk",
+      "target_sdk": 19,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\a2dp.Vol_126.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 19]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:40:15.919500\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\a2dp.Vol_126.apk\",\n  \"package_name\": \"a2dp.Vol\",\n  \"target_sdk\": 19,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.READ_PHONE_STATE', 'android.permission.WRITE_EXTERNAL_STORAGE']. Remediation: android.permission.READ_PHONE_STATE: Restricted hardware ID access; use Android ID or app-generated UUID.; android.permission.WRITE_EXTERNAL_STORAGE: Use MediaStore API or Storage Access Framework (SAF).\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.ACCESS_COARSE_LOCATION', 'android.permission.ACCESS_FINE_LOCATION', 'android.permission.GET_ACCOUNTS', 'android.permission.READ_CONTACTS', 'android.permission.READ_PHONE_STATE', 'android.permission.RECEIVE_SMS', 'android.permission.WRITE_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_a2dp.Vol_126.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "3039",
+        "top_activity": "topResumedActivity=ActivityRecord{30756310 u0 a2dp.Vol/.main t58}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\a2dp.Vol.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "acr.browser.barebones",
+      "apk_name": "acr.browser.barebones_67.apk",
+      "target_sdk": 19,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\acr.browser.barebones_67.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 19]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:40:44.218152\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\acr.browser.barebones_67.apk\",\n  \"package_name\": \"acr.browser.barebones\",\n  \"target_sdk\": 19,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.WRITE_EXTERNAL_STORAGE']. Remediation: android.permission.WRITE_EXTERNAL_STORAGE: Use MediaStore API or Storage Access Framework (SAF).\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.ACCESS_FINE_LOCATION', 'android.permission.READ_EXTERNAL_STORAGE', 'android.permission.WRITE_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_acr.browser.barebones_67.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "3715",
+        "top_activity": "topResumedActivity=ActivityRecord{154534396 u0 acr.browser.barebones/.activities.BrowserActivity t59}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\acr.browser.barebones.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "akk.astro.droid.moonphase",
+      "apk_name": "akk.astro.droid.moonphase_2.apk",
+      "target_sdk": 18,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\akk.astro.droid.moonphase_2.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 18]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:41:10.546333\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\akk.astro.droid.moonphase_2.apk\",\n  \"package_name\": \"akk.astro.droid.moonphase\",\n  \"target_sdk\": 18,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_akk.astro.droid.moonphase_2.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "4180",
+        "top_activity": "topResumedActivity=ActivityRecord{118224844 u0 akk.astro.droid.moonphase/.MoonActivity t60}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\akk.astro.droid.moonphase.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "android.androidVNC",
+      "apk_name": "android.androidVNC_13.apk",
+      "target_sdk": 4,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\android.androidVNC_13.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 4]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:42:21.107754\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\android.androidVNC_13.apk\",\n  \"package_name\": \"android.androidVNC\",\n  \"target_sdk\": 4,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.WRITE_EXTERNAL_STORAGE']. Remediation: android.permission.WRITE_EXTERNAL_STORAGE: Use MediaStore API or Storage Access Framework (SAF).\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.WRITE_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_android.androidVNC_13.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "5940",
+        "top_activity": "topResumedActivity=ActivityRecord{137854691 u0 android.androidVNC/.androidVNC t61}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\android.androidVNC.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "atm.rocketguardian",
+      "apk_name": "atm.rocketguardian_1.apk",
+      "target_sdk": 25,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "direct_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:42:59.931736\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\atm.rocketguardian_1.apk\",\n  \"package_name\": \"atm.rocketguardian\",\n  \"target_sdk\": 25,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_GLES1_DEPRECATED: Application depends on legacy OpenGL ES 1.x APIs or libraries (libGLESv1_CM). Modern Android devices and 64-bit environments deprecate GLES 1.x in favor of GLES 2.0/3.x or Vulkan. Remediation: Migrate rendering pipeline to OpenGL ES 2.0+ / Vulkan, or bundle a software GLES 1.x translation layer.\",\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_atm.rocketguardian_1.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "GLES1"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "6908",
+        "top_activity": "topResumedActivity=ActivityRecord{166511703 u0 atm.rocketguardian/.AndroidLauncher t62}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\atm.rocketguardian.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "atm.starun.game",
+      "apk_name": "atm.starun.game_121.apk",
+      "target_sdk": 20,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\atm.starun.game_121.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 20]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:43:40.718041\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\atm.starun.game_121.apk\",\n  \"package_name\": \"atm.starun.game\",\n  \"target_sdk\": 20,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_GLES1_DEPRECATED: Application depends on legacy OpenGL ES 1.x APIs or libraries (libGLESv1_CM). Modern Android devices and 64-bit environments deprecate GLES 1.x in favor of GLES 2.0/3.x or Vulkan. Remediation: Migrate rendering pipeline to OpenGL ES 2.0+ / Vulkan, or bundle a software GLES 1.x translation layer.\",\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_atm.starun.game_121.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "GLES1"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "7525",
+        "top_activity": "topResumedActivity=ActivityRecord{41557017 u0 atm.starun.game/.AndroidLauncher t63}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\atm.starun.game.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "com.falconware.prestissimo",
+      "apk_name": "com.falconware.prestissimo_11.apk",
+      "target_sdk": 17,
+      "abis": [
+        "armeabi",
+        "armeabi-v7a"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.falconware.prestissimo_11.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.falconware.prestissimo_11.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "com.sgr_b2.compass",
+      "apk_name": "com.sgr_b2.compass_14.apk",
+      "target_sdk": 18,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.sgr_b2.compass_14.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.sgr_b2.compass_14.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "com.proch.practicehub",
+      "apk_name": "com.proch.practicehub_1.apk",
+      "target_sdk": 10,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.proch.practicehub_1.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.proch.practicehub_1.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "com.poinsart.votar",
+      "apk_name": "com.poinsart.votar_4.apk",
+      "target_sdk": 19,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.poinsart.votar_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.poinsart.votar_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "jp.sblo.pandora.aGrep",
+      "apk_name": "jp.sblo.pandora.aGrep_12.apk",
+      "target_sdk": 8,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\jp.sblo.pandora.aGrep_12.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\jp.sblo.pandora.aGrep_12.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "uobikiemukot.yaft",
+      "apk_name": "uobikiemukot.yaft_4.apk",
+      "target_sdk": 9,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\uobikiemukot.yaft_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\uobikiemukot.yaft_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "org.xapek.andiodine",
+      "apk_name": "org.xapek.andiodine_1.apk",
+      "target_sdk": 16,
+      "abis": [
+        "armeabi",
+        "x86"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.xapek.andiodine_1.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.xapek.andiodine_1.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "org.dyndns.fules.ck",
+      "apk_name": "org.dyndns.fules.ck_20.apk",
+      "target_sdk": 8,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "mips",
+        "mips64",
+        "x86",
+        "x86_64"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.dyndns.fules.ck_20.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 8]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:44:29.349829\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\org.dyndns.fules.ck_20.apk\",\n  \"package_name\": \"org.dyndns.fules.ck\",\n  \"target_sdk\": 8,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.READ_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_org.dyndns.fules.ck_20.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\org.dyndns.fules.ck.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "com.termux",
+      "apk_name": "com.termux_16.apk",
+      "target_sdk": 22,
+      "abis": [
+        "armeabi-v7a",
+        "x86"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.termux_16.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.termux_16.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "trikita.obsqr",
+      "apk_name": "trikita.obsqr_11.apk",
+      "target_sdk": 19,
+      "abis": [
+        "armeabi",
+        "x86"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\trikita.obsqr_11.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\trikita.obsqr_11.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "ro.ui.pttdroid",
+      "apk_name": "ro.ui.pttdroid_4.apk",
+      "target_sdk": 18,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ro.ui.pttdroid_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ro.ui.pttdroid_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "com.roguetemple.hyperroid",
+      "apk_name": "com.roguetemple.hyperroid_370.apk",
+      "target_sdk": 11,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.roguetemple.hyperroid_370.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.roguetemple.hyperroid_370.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "org.mosspaper",
+      "apk_name": "org.mosspaper_6.apk",
+      "target_sdk": 21,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "mips",
+        "mips64",
+        "x86",
+        "x86_64"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.mosspaper_6.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 21]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:45:00.087835\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\org.mosspaper_6.apk\",\n  \"package_name\": \"org.mosspaper\",\n  \"target_sdk\": 21,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.WRITE_EXTERNAL_STORAGE']. Remediation: android.permission.WRITE_EXTERNAL_STORAGE: Use MediaStore API or Storage Access Framework (SAF).\",\n    \"WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.WRITE_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_org.mosspaper_6.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\org.mosspaper.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "com.kvance.Nectroid",
+      "apk_name": "com.kvance.Nectroid_10.apk",
+      "target_sdk": 4,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.kvance.Nectroid_10.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.kvance.Nectroid_10.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "net.syntaxblitz.plucklock",
+      "apk_name": "net.syntaxblitz.plucklock_4.apk",
+      "target_sdk": 15,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\net.syntaxblitz.plucklock_4.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 15]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:45:21.651946\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\net.syntaxblitz.plucklock_4.apk\",\n  \"package_name\": \"net.syntaxblitz.plucklock\",\n  \"target_sdk\": 15,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_net.syntaxblitz.plucklock_4.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "9584",
+        "top_activity": "topResumedActivity=ActivityRecord{260649249 u0 com.android.settings/.applications.specialaccess.deviceadmin.DeviceAdminAdd t64}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\net.syntaxblitz.plucklock.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "ryey.camcov",
+      "apk_name": "ryey.camcov_5.apk",
+      "target_sdk": 23,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ryey.camcov_5.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 23]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:45:40.929198\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\ryey.camcov_5.apk\",\n  \"package_name\": \"ryey.camcov\",\n  \"target_sdk\": 23,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.SYSTEM_ALERT_WINDOW']. Remediation: android.permission.SYSTEM_ALERT_WINDOW: Restricted overlay permission; requires user grant via Settings.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.CAMERA']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_ryey.camcov_5.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "9999",
+        "top_activity": "topResumedActivity=ActivityRecord{225834015 u0 ryey.camcov/.SettingsActivity t65}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\ryey.camcov.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "io.github.sanbeg.flashlight",
+      "apk_name": "io.github.sanbeg.flashlight_1.apk",
+      "target_sdk": 10,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\io.github.sanbeg.flashlight_1.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 10]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:47:12.221151\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\io.github.sanbeg.flashlight_1.apk\",\n  \"package_name\": \"io.github.sanbeg.flashlight\",\n  \"target_sdk\": 10,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.CAMERA']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_io.github.sanbeg.flashlight_1.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "CRASH",
+        "pid": "10522",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": "--------- beginning of crash\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: FATAL EXCEPTION: main\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: Process: io.github.sanbeg.flashlight, PID: 10522\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: java.lang.RuntimeException: Unable to resume activity {io.github.sanbeg.flashlight/io.github.sanbeg.flashlight.FlashLightActivity}\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread.performResumeActivity(ActivityThread.java:5988)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread.handleResumeActivity(ActivityThread.java:6021)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:73)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:64)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.executeLifecycleItem(TransactionExecutor.java:169)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:101)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:80)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:3046)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.os.Handler.dispatchMessageImpl(Handler.java:142)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.os.Handler.dispatchMessage(Handler.java:126)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.os.Looper.loopOnce(Looper.java:295)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.os.Looper.loop(Looper.java:398)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread.main(ActivityThread.java:9569)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat java.lang.reflect.Method.invoke(Native Method)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:575)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:918)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: Caused by: java.lang.RuntimeException: setParameters failed\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.hardware.Camera.native_setParameters(Native Method)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.hardware.Camera.setParameters(Camera.java:2077)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat io.github.sanbeg.flashlight.FlashLightActivity.onResume(FlashLightActivity.java:32)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.Instrumentation.callActivityOnResume(Instrumentation.java:1733)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.Activity.performResume(Activity.java:9487)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread.performResumeActivity(ActivityThread.java:5978)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \t... 15 more",
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\io.github.sanbeg.flashlight.png",
+        "failure_category": "CRASH"
+      },
+      "overall_failure_category": "CRASH"
+    },
+    {
+      "package_name": "com.jwetherell.heart_rate_monitor",
+      "apk_name": "com.jwetherell.heart_rate_monitor_1.apk",
+      "target_sdk": 5,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.jwetherell.heart_rate_monitor_1.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 5]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:47:46.935289\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.jwetherell.heart_rate_monitor_1.apk\",\n  \"package_name\": \"com.jwetherell.heart_rate_monitor\",\n  \"target_sdk\": 5,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.CAMERA']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.jwetherell.heart_rate_monitor_1.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "10980",
+        "top_activity": "topResumedActivity=ActivityRecord{21844007 u0 com.jwetherell.heart_rate_monitor/.HeartRateMonitor t67}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.jwetherell.heart_rate_monitor.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "de.mangelow.balance",
+      "apk_name": "de.mangelow.balance_3.apk",
+      "target_sdk": 16,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\de.mangelow.balance_3.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 16]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:48:05.837021\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\de.mangelow.balance_3.apk\",\n  \"package_name\": \"de.mangelow.balance\",\n  \"target_sdk\": 16,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_HIDDEN_API_REFLECTION: Non-SDK / hidden Android API reflection detected (['com.android.internal.', 'com/android/internal/']). Restricted on Android 9+ (API 28+). Remediation: Replace non-SDK reflection with public AndroidX/Jetpack APIs, or inject runtime reflection bypass shims (e.g. HiddenApiBypass / VMRuntime exemptions) during Application initialization.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.CALL_PHONE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_de.mangelow.balance_3.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\de.mangelow.balance.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "org.billthefarmer.siggen",
+      "apk_name": "org.billthefarmer.siggen_101.apk",
+      "target_sdk": 17,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.billthefarmer.siggen_101.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 17]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:48:22.283219\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\org.billthefarmer.siggen_101.apk\",\n  \"package_name\": \"org.billthefarmer.siggen\",\n  \"target_sdk\": 17,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_org.billthefarmer.siggen_101.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "11412",
+        "top_activity": "topResumedActivity=ActivityRecord{234502220 u0 org.billthefarmer.siggen/.Main t68}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\org.billthefarmer.siggen.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "com.intrications.android.sharebrowser",
+      "apk_name": "com.intrications.android.sharebrowser_2.apk",
+      "target_sdk": 17,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.intrications.android.sharebrowser_2.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 17]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:48:40.736422\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.intrications.android.sharebrowser_2.apk\",\n  \"package_name\": \"com.intrications.android.sharebrowser\",\n  \"target_sdk\": 17,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.intrications.android.sharebrowser_2.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.intrications.android.sharebrowser.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "com.github.wakhub.tinyclock",
+      "apk_name": "com.github.wakhub.tinyclock_5.apk",
+      "target_sdk": 21,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.github.wakhub.tinyclock_5.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 21]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:48:56.475149\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.github.wakhub.tinyclock_5.apk\",\n  \"package_name\": \"com.github.wakhub.tinyclock\",\n  \"target_sdk\": 21,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.github.wakhub.tinyclock_5.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.github.wakhub.tinyclock.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "com.jakebasile.android.hearingsaver",
+      "apk_name": "com.jakebasile.android.hearingsaver_12.apk",
+      "target_sdk": 8,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.jakebasile.android.hearingsaver_12.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 8]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:49:12.378802\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.jakebasile.android.hearingsaver_12.apk\",\n  \"package_name\": \"com.jakebasile.android.hearingsaver\",\n  \"target_sdk\": 8,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.jakebasile.android.hearingsaver_12.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "CRASH",
+        "pid": "12013",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": "--------- beginning of crash\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: FATAL EXCEPTION: main\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: Process: com.jakebasile.android.hearingsaver, PID: 11974\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: java.lang.RuntimeException: Unable to resume activity {com.jakebasile.android.hearingsaver/com.jakebasile.android.hearingsaver.SetupActivity}\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread.performResumeActivity(ActivityThread.java:5988)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread.handleResumeActivity(ActivityThread.java:6021)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:73)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:64)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.executeLifecycleItem(TransactionExecutor.java:169)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:101)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:80)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:3046)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.os.Handler.dispatchMessageImpl(Handler.java:142)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.os.Handler.dispatchMessage(Handler.java:126)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.os.Looper.loopOnce(Looper.java:295)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.os.Looper.loop(Looper.java:398)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread.main(ActivityThread.java:9569)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat java.lang.reflect.Method.invoke(Native Method)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:575)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:918)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: Caused by: java.lang.IllegalStateException: Activity {com.jakebasile.android.hearingsaver/com.jakebasile.android.hearingsaver.SetupActivity} did not call finish() prior to onResume() completing\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.Activity.performResume(Activity.java:9503)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread.performResumeActivity(ActivityThread.java:5978)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \t... 15 more",
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.jakebasile.android.hearingsaver.png",
+        "failure_category": "CRASH"
+      },
+      "overall_failure_category": "CRASH"
+    },
+    {
+      "package_name": "org.nick.cryptfs.passwdmanager",
+      "apk_name": "org.nick.cryptfs.passwdmanager_1210.apk",
+      "target_sdk": 17,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.nick.cryptfs.passwdmanager_1210.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 17]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:49:29.387568\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\org.nick.cryptfs.passwdmanager_1210.apk\",\n  \"package_name\": \"org.nick.cryptfs.passwdmanager\",\n  \"target_sdk\": 17,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_org.nick.cryptfs.passwdmanager_1210.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "12178",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\org.nick.cryptfs.passwdmanager.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "sk.madzik.android.logcatudp",
+      "apk_name": "sk.madzik.android.logcatudp_5.apk",
+      "target_sdk": 4,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\sk.madzik.android.logcatudp_5.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 4]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:49:45.308633\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\sk.madzik.android.logcatudp_5.apk\",\n  \"package_name\": \"sk.madzik.android.logcatudp\",\n  \"target_sdk\": 4,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_sk.madzik.android.logcatudp_5.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "12379",
+        "top_activity": "topResumedActivity=ActivityRecord{65536186 u0 sk.madzik.android.logcatudp/.LogcatUdpCfg t71}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\sk.madzik.android.logcatudp.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "com.gmail.jerickson314.sdscanner",
+      "apk_name": "com.gmail.jerickson314.sdscanner_8.apk",
+      "target_sdk": 19,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.gmail.jerickson314.sdscanner_8.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 19]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:50:02.992637\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.gmail.jerickson314.sdscanner_8.apk\",\n  \"package_name\": \"com.gmail.jerickson314.sdscanner\",\n  \"target_sdk\": 19,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.READ_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.gmail.jerickson314.sdscanner_8.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "12626",
+        "top_activity": "topResumedActivity=ActivityRecord{162845020 u0 com.gmail.jerickson314.sdscanner/.MainActivity t72}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.gmail.jerickson314.sdscanner.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "de.onyxbits.listmyapps",
+      "apk_name": "de.onyxbits.listmyapps_3.apk",
+      "target_sdk": 17,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\de.onyxbits.listmyapps_3.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 17]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:50:20.769498\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\de.onyxbits.listmyapps_3.apk\",\n  \"package_name\": \"de.onyxbits.listmyapps\",\n  \"target_sdk\": 17,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_de.onyxbits.listmyapps_3.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "12883",
+        "top_activity": "topResumedActivity=ActivityRecord{251007229 u0 de.onyxbits.listmyapps/.MainActivity t73}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\de.onyxbits.listmyapps.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    }
+  ],
+  "results": [
+    {
+      "package_name": "ch.hsr.eyecam",
+      "apk_name": "ch.hsr.eyecam_81.apk",
+      "target_sdk": 18,
+      "abis": [
+        "armeabi",
+        "armeabi-v7a"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ch.hsr.eyecam_81.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ch.hsr.eyecam_81.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "ch.nexuscomputing.android.osciprimeics",
+      "apk_name": "ch.nexuscomputing.android.osciprimeics_16.apk",
+      "target_sdk": 19,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ch.nexuscomputing.android.osciprimeics_16.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ch.nexuscomputing.android.osciprimeics_16.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "a2dp.Vol",
+      "apk_name": "a2dp.Vol_126.apk",
+      "target_sdk": 19,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\a2dp.Vol_126.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 19]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:40:15.919500\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\a2dp.Vol_126.apk\",\n  \"package_name\": \"a2dp.Vol\",\n  \"target_sdk\": 19,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.READ_PHONE_STATE', 'android.permission.WRITE_EXTERNAL_STORAGE']. Remediation: android.permission.READ_PHONE_STATE: Restricted hardware ID access; use Android ID or app-generated UUID.; android.permission.WRITE_EXTERNAL_STORAGE: Use MediaStore API or Storage Access Framework (SAF).\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.ACCESS_COARSE_LOCATION', 'android.permission.ACCESS_FINE_LOCATION', 'android.permission.GET_ACCOUNTS', 'android.permission.READ_CONTACTS', 'android.permission.READ_PHONE_STATE', 'android.permission.RECEIVE_SMS', 'android.permission.WRITE_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_a2dp.Vol_126.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "3039",
+        "top_activity": "topResumedActivity=ActivityRecord{30756310 u0 a2dp.Vol/.main t58}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\a2dp.Vol.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "acr.browser.barebones",
+      "apk_name": "acr.browser.barebones_67.apk",
+      "target_sdk": 19,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\acr.browser.barebones_67.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 19]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:40:44.218152\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\acr.browser.barebones_67.apk\",\n  \"package_name\": \"acr.browser.barebones\",\n  \"target_sdk\": 19,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.WRITE_EXTERNAL_STORAGE']. Remediation: android.permission.WRITE_EXTERNAL_STORAGE: Use MediaStore API or Storage Access Framework (SAF).\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.ACCESS_FINE_LOCATION', 'android.permission.READ_EXTERNAL_STORAGE', 'android.permission.WRITE_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_acr.browser.barebones_67.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "3715",
+        "top_activity": "topResumedActivity=ActivityRecord{154534396 u0 acr.browser.barebones/.activities.BrowserActivity t59}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\acr.browser.barebones.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "akk.astro.droid.moonphase",
+      "apk_name": "akk.astro.droid.moonphase_2.apk",
+      "target_sdk": 18,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\akk.astro.droid.moonphase_2.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 18]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:41:10.546333\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\akk.astro.droid.moonphase_2.apk\",\n  \"package_name\": \"akk.astro.droid.moonphase\",\n  \"target_sdk\": 18,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_akk.astro.droid.moonphase_2.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "4180",
+        "top_activity": "topResumedActivity=ActivityRecord{118224844 u0 akk.astro.droid.moonphase/.MoonActivity t60}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\akk.astro.droid.moonphase.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "android.androidVNC",
+      "apk_name": "android.androidVNC_13.apk",
+      "target_sdk": 4,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\android.androidVNC_13.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 4]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:42:21.107754\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\android.androidVNC_13.apk\",\n  \"package_name\": \"android.androidVNC\",\n  \"target_sdk\": 4,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.WRITE_EXTERNAL_STORAGE']. Remediation: android.permission.WRITE_EXTERNAL_STORAGE: Use MediaStore API or Storage Access Framework (SAF).\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.WRITE_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_android.androidVNC_13.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "5940",
+        "top_activity": "topResumedActivity=ActivityRecord{137854691 u0 android.androidVNC/.androidVNC t61}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\android.androidVNC.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "atm.rocketguardian",
+      "apk_name": "atm.rocketguardian_1.apk",
+      "target_sdk": 25,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "direct_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:42:59.931736\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\atm.rocketguardian_1.apk\",\n  \"package_name\": \"atm.rocketguardian\",\n  \"target_sdk\": 25,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_GLES1_DEPRECATED: Application depends on legacy OpenGL ES 1.x APIs or libraries (libGLESv1_CM). Modern Android devices and 64-bit environments deprecate GLES 1.x in favor of GLES 2.0/3.x or Vulkan. Remediation: Migrate rendering pipeline to OpenGL ES 2.0+ / Vulkan, or bundle a software GLES 1.x translation layer.\",\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_atm.rocketguardian_1.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "GLES1"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "6908",
+        "top_activity": "topResumedActivity=ActivityRecord{166511703 u0 atm.rocketguardian/.AndroidLauncher t62}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\atm.rocketguardian.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "atm.starun.game",
+      "apk_name": "atm.starun.game_121.apk",
+      "target_sdk": 20,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\atm.starun.game_121.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 20]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:43:40.718041\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\atm.starun.game_121.apk\",\n  \"package_name\": \"atm.starun.game\",\n  \"target_sdk\": 20,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_GLES1_DEPRECATED: Application depends on legacy OpenGL ES 1.x APIs or libraries (libGLESv1_CM). Modern Android devices and 64-bit environments deprecate GLES 1.x in favor of GLES 2.0/3.x or Vulkan. Remediation: Migrate rendering pipeline to OpenGL ES 2.0+ / Vulkan, or bundle a software GLES 1.x translation layer.\",\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_atm.starun.game_121.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "GLES1"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "7525",
+        "top_activity": "topResumedActivity=ActivityRecord{41557017 u0 atm.starun.game/.AndroidLauncher t63}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\atm.starun.game.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "com.falconware.prestissimo",
+      "apk_name": "com.falconware.prestissimo_11.apk",
+      "target_sdk": 17,
+      "abis": [
+        "armeabi",
+        "armeabi-v7a"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.falconware.prestissimo_11.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.falconware.prestissimo_11.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "com.sgr_b2.compass",
+      "apk_name": "com.sgr_b2.compass_14.apk",
+      "target_sdk": 18,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.sgr_b2.compass_14.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.sgr_b2.compass_14.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "com.proch.practicehub",
+      "apk_name": "com.proch.practicehub_1.apk",
+      "target_sdk": 10,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.proch.practicehub_1.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.proch.practicehub_1.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "com.poinsart.votar",
+      "apk_name": "com.poinsart.votar_4.apk",
+      "target_sdk": 19,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.poinsart.votar_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.poinsart.votar_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "jp.sblo.pandora.aGrep",
+      "apk_name": "jp.sblo.pandora.aGrep_12.apk",
+      "target_sdk": 8,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\jp.sblo.pandora.aGrep_12.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\jp.sblo.pandora.aGrep_12.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "uobikiemukot.yaft",
+      "apk_name": "uobikiemukot.yaft_4.apk",
+      "target_sdk": 9,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\uobikiemukot.yaft_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\uobikiemukot.yaft_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "org.xapek.andiodine",
+      "apk_name": "org.xapek.andiodine_1.apk",
+      "target_sdk": 16,
+      "abis": [
+        "armeabi",
+        "x86"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.xapek.andiodine_1.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.xapek.andiodine_1.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "org.dyndns.fules.ck",
+      "apk_name": "org.dyndns.fules.ck_20.apk",
+      "target_sdk": 8,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "mips",
+        "mips64",
+        "x86",
+        "x86_64"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.dyndns.fules.ck_20.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 8]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:44:29.349829\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\org.dyndns.fules.ck_20.apk\",\n  \"package_name\": \"org.dyndns.fules.ck\",\n  \"target_sdk\": 8,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.READ_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_org.dyndns.fules.ck_20.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\org.dyndns.fules.ck.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "com.termux",
+      "apk_name": "com.termux_16.apk",
+      "target_sdk": 22,
+      "abis": [
+        "armeabi-v7a",
+        "x86"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.termux_16.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.termux_16.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "trikita.obsqr",
+      "apk_name": "trikita.obsqr_11.apk",
+      "target_sdk": 19,
+      "abis": [
+        "armeabi",
+        "x86"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\trikita.obsqr_11.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\trikita.obsqr_11.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "ro.ui.pttdroid",
+      "apk_name": "ro.ui.pttdroid_4.apk",
+      "target_sdk": 18,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ro.ui.pttdroid_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ro.ui.pttdroid_4.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "com.roguetemple.hyperroid",
+      "apk_name": "com.roguetemple.hyperroid_370.apk",
+      "target_sdk": 11,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.roguetemple.hyperroid_370.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.roguetemple.hyperroid_370.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "org.mosspaper",
+      "apk_name": "org.mosspaper_6.apk",
+      "target_sdk": 21,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "mips",
+        "mips64",
+        "x86",
+        "x86_64"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.mosspaper_6.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 21]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:45:00.087835\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\org.mosspaper_6.apk\",\n  \"package_name\": \"org.mosspaper\",\n  \"target_sdk\": 21,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.WRITE_EXTERNAL_STORAGE']. Remediation: android.permission.WRITE_EXTERNAL_STORAGE: Use MediaStore API or Storage Access Framework (SAF).\",\n    \"WARN_PAGE_SIZE_COMPAT_ADVISORY: 16KB kernel detected on API >= 36; platform OS compatibility mode handles 4KB ELF alignment dynamically without binary transformation.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.WRITE_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_org.mosspaper_6.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\org.mosspaper.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "com.kvance.Nectroid",
+      "apk_name": "com.kvance.Nectroid_10.apk",
+      "target_sdk": 4,
+      "abis": [
+        "armeabi"
+      ],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.kvance.Nectroid_10.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "bypass_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.kvance.Nectroid_10.apk: Failure [INSTALL_FAILED_NO_MATCHING_ABIS: INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive": {
+        "exit_code": 1,
+        "verdict": "UNKNOWN",
+        "required_transforms": [],
+        "output": "ERROR: Cannot revive APK: triage verdict is RED (INCOMPATIBLE_DEVICE_ABI). Required transforms cannot make this APK safe/compatible without manual intervention. Use --force to override and attempt revive anyway.",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "revive_install": {
+        "exit_code": -1,
+        "output": "",
+        "success": false,
+        "failure_category": "ABI"
+      },
+      "liveness": {
+        "status": "SKIPPED",
+        "pid": null,
+        "top_activity": null,
+        "crash_log": null,
+        "screenshot": null,
+        "failure_category": "ABI"
+      },
+      "overall_failure_category": "ABI"
+    },
+    {
+      "package_name": "net.syntaxblitz.plucklock",
+      "apk_name": "net.syntaxblitz.plucklock_4.apk",
+      "target_sdk": 15,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\net.syntaxblitz.plucklock_4.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 15]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:45:21.651946\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\net.syntaxblitz.plucklock_4.apk\",\n  \"package_name\": \"net.syntaxblitz.plucklock\",\n  \"target_sdk\": 15,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_net.syntaxblitz.plucklock_4.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "9584",
+        "top_activity": "topResumedActivity=ActivityRecord{260649249 u0 com.android.settings/.applications.specialaccess.deviceadmin.DeviceAdminAdd t64}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\net.syntaxblitz.plucklock.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "ryey.camcov",
+      "apk_name": "ryey.camcov_5.apk",
+      "target_sdk": 23,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\ryey.camcov_5.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 23]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:45:40.929198\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\ryey.camcov_5.apk\",\n  \"package_name\": \"ryey.camcov\",\n  \"target_sdk\": 23,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_DEPRECATED_PERMISSIONS: Deprecated or restricted permissions detected: ['android.permission.SYSTEM_ALERT_WINDOW']. Remediation: android.permission.SYSTEM_ALERT_WINDOW: Restricted overlay permission; requires user grant via Settings.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.CAMERA']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_ryey.camcov_5.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "9999",
+        "top_activity": "topResumedActivity=ActivityRecord{225834015 u0 ryey.camcov/.SettingsActivity t65}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\ryey.camcov.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "io.github.sanbeg.flashlight",
+      "apk_name": "io.github.sanbeg.flashlight_1.apk",
+      "target_sdk": 10,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\io.github.sanbeg.flashlight_1.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 10]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:47:12.221151\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\io.github.sanbeg.flashlight_1.apk\",\n  \"package_name\": \"io.github.sanbeg.flashlight\",\n  \"target_sdk\": 10,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.CAMERA']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_io.github.sanbeg.flashlight_1.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "CRASH",
+        "pid": "10522",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": "--------- beginning of crash\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: FATAL EXCEPTION: main\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: Process: io.github.sanbeg.flashlight, PID: 10522\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: java.lang.RuntimeException: Unable to resume activity {io.github.sanbeg.flashlight/io.github.sanbeg.flashlight.FlashLightActivity}\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread.performResumeActivity(ActivityThread.java:5988)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread.handleResumeActivity(ActivityThread.java:6021)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:73)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:64)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.executeLifecycleItem(TransactionExecutor.java:169)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:101)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:80)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:3046)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.os.Handler.dispatchMessageImpl(Handler.java:142)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.os.Handler.dispatchMessage(Handler.java:126)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.os.Looper.loopOnce(Looper.java:295)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.os.Looper.loop(Looper.java:398)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread.main(ActivityThread.java:9569)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat java.lang.reflect.Method.invoke(Native Method)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:575)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:918)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: Caused by: java.lang.RuntimeException: setParameters failed\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.hardware.Camera.native_setParameters(Native Method)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.hardware.Camera.setParameters(Camera.java:2077)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat io.github.sanbeg.flashlight.FlashLightActivity.onResume(FlashLightActivity.java:32)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.Instrumentation.callActivityOnResume(Instrumentation.java:1733)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.Activity.performResume(Activity.java:9487)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \tat android.app.ActivityThread.performResumeActivity(ActivityThread.java:5978)\n10-20 12:47:16.455 10522 10522 E AndroidRuntime: \t... 15 more",
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\io.github.sanbeg.flashlight.png",
+        "failure_category": "CRASH"
+      },
+      "overall_failure_category": "CRASH"
+    },
+    {
+      "package_name": "com.jwetherell.heart_rate_monitor",
+      "apk_name": "com.jwetherell.heart_rate_monitor_1.apk",
+      "target_sdk": 5,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.jwetherell.heart_rate_monitor_1.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 5]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:47:46.935289\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.jwetherell.heart_rate_monitor_1.apk\",\n  \"package_name\": \"com.jwetherell.heart_rate_monitor\",\n  \"target_sdk\": 5,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.CAMERA']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.jwetherell.heart_rate_monitor_1.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "10980",
+        "top_activity": "topResumedActivity=ActivityRecord{21844007 u0 com.jwetherell.heart_rate_monitor/.HeartRateMonitor t67}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.jwetherell.heart_rate_monitor.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "de.mangelow.balance",
+      "apk_name": "de.mangelow.balance_3.apk",
+      "target_sdk": 16,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\de.mangelow.balance_3.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 16]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:48:05.837021\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\de.mangelow.balance_3.apk\",\n  \"package_name\": \"de.mangelow.balance\",\n  \"target_sdk\": 16,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_HIDDEN_API_REFLECTION: Non-SDK / hidden Android API reflection detected (['com.android.internal.', 'com/android/internal/']). Restricted on Android 9+ (API 28+). Remediation: Replace non-SDK reflection with public AndroidX/Jetpack APIs, or inject runtime reflection bypass shims (e.g. HiddenApiBypass / VMRuntime exemptions) during Application initialization.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.CALL_PHONE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_de.mangelow.balance_3.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\de.mangelow.balance.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "org.billthefarmer.siggen",
+      "apk_name": "org.billthefarmer.siggen_101.apk",
+      "target_sdk": 17,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.billthefarmer.siggen_101.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 17]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:48:22.283219\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\org.billthefarmer.siggen_101.apk\",\n  \"package_name\": \"org.billthefarmer.siggen\",\n  \"target_sdk\": 17,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_org.billthefarmer.siggen_101.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "11412",
+        "top_activity": "topResumedActivity=ActivityRecord{234502220 u0 org.billthefarmer.siggen/.Main t68}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\org.billthefarmer.siggen.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "com.intrications.android.sharebrowser",
+      "apk_name": "com.intrications.android.sharebrowser_2.apk",
+      "target_sdk": 17,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.intrications.android.sharebrowser_2.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 17]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:48:40.736422\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.intrications.android.sharebrowser_2.apk\",\n  \"package_name\": \"com.intrications.android.sharebrowser\",\n  \"target_sdk\": 17,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.intrications.android.sharebrowser_2.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.intrications.android.sharebrowser.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "com.github.wakhub.tinyclock",
+      "apk_name": "com.github.wakhub.tinyclock_5.apk",
+      "target_sdk": 21,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.github.wakhub.tinyclock_5.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 21]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:48:56.475149\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.github.wakhub.tinyclock_5.apk\",\n  \"package_name\": \"com.github.wakhub.tinyclock\",\n  \"target_sdk\": 21,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.github.wakhub.tinyclock_5.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "DEAD",
+        "pid": "",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.github.wakhub.tinyclock.png",
+        "failure_category": "OTHER"
+      },
+      "overall_failure_category": "OTHER"
+    },
+    {
+      "package_name": "com.jakebasile.android.hearingsaver",
+      "apk_name": "com.jakebasile.android.hearingsaver_12.apk",
+      "target_sdk": 8,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.jakebasile.android.hearingsaver_12.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 8]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:49:12.378802\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.jakebasile.android.hearingsaver_12.apk\",\n  \"package_name\": \"com.jakebasile.android.hearingsaver\",\n  \"target_sdk\": 8,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.jakebasile.android.hearingsaver_12.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "CRASH",
+        "pid": "12013",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": "--------- beginning of crash\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: FATAL EXCEPTION: main\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: Process: com.jakebasile.android.hearingsaver, PID: 11974\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: java.lang.RuntimeException: Unable to resume activity {com.jakebasile.android.hearingsaver/com.jakebasile.android.hearingsaver.SetupActivity}\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread.performResumeActivity(ActivityThread.java:5988)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread.handleResumeActivity(ActivityThread.java:6021)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:73)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:64)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.executeLifecycleItem(TransactionExecutor.java:169)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:101)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:80)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:3046)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.os.Handler.dispatchMessageImpl(Handler.java:142)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.os.Handler.dispatchMessage(Handler.java:126)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.os.Looper.loopOnce(Looper.java:295)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.os.Looper.loop(Looper.java:398)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread.main(ActivityThread.java:9569)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat java.lang.reflect.Method.invoke(Native Method)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:575)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:918)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: Caused by: java.lang.IllegalStateException: Activity {com.jakebasile.android.hearingsaver/com.jakebasile.android.hearingsaver.SetupActivity} did not call finish() prior to onResume() completing\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.Activity.performResume(Activity.java:9503)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \tat android.app.ActivityThread.performResumeActivity(ActivityThread.java:5978)\n10-20 12:49:15.403 11974 11974 E AndroidRuntime: \t... 15 more",
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.jakebasile.android.hearingsaver.png",
+        "failure_category": "CRASH"
+      },
+      "overall_failure_category": "CRASH"
+    },
+    {
+      "package_name": "org.nick.cryptfs.passwdmanager",
+      "apk_name": "org.nick.cryptfs.passwdmanager_1210.apk",
+      "target_sdk": 17,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\org.nick.cryptfs.passwdmanager_1210.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 17]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:49:29.387568\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\org.nick.cryptfs.passwdmanager_1210.apk\",\n  \"package_name\": \"org.nick.cryptfs.passwdmanager\",\n  \"target_sdk\": 17,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_org.nick.cryptfs.passwdmanager_1210.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "12178",
+        "top_activity": "topResumedActivity=ActivityRecord{166383275 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t3}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\org.nick.cryptfs.passwdmanager.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "sk.madzik.android.logcatudp",
+      "apk_name": "sk.madzik.android.logcatudp_5.apk",
+      "target_sdk": 4,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\sk.madzik.android.logcatudp_5.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 4]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:49:45.308633\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\sk.madzik.android.logcatudp_5.apk\",\n  \"package_name\": \"sk.madzik.android.logcatudp\",\n  \"target_sdk\": 4,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_sk.madzik.android.logcatudp_5.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "12379",
+        "top_activity": "topResumedActivity=ActivityRecord{65536186 u0 sk.madzik.android.logcatudp/.LogcatUdpCfg t71}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\sk.madzik.android.logcatudp.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "com.gmail.jerickson314.sdscanner",
+      "apk_name": "com.gmail.jerickson314.sdscanner_8.apk",
+      "target_sdk": 19,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\com.gmail.jerickson314.sdscanner_8.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 19]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:50:02.992637\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\com.gmail.jerickson314.sdscanner_8.apk\",\n  \"package_name\": \"com.gmail.jerickson314.sdscanner\",\n  \"target_sdk\": 19,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [\n    \"WARN_SCOPED_STORAGE_OBB: Application requests external storage permissions, declares legacy storage request, or accesses external storage/OBB paths on Android 11+ (API 30+). Android 11 enforces Scoped Storage and strictly restricts raw filesystem access to Android/data and Android/obb even with legacy storage flags. Remediation: Adopt Storage Access Framework (SAF) / MediaStore API, access app-specific files via context.getExternalFilesDirs() / context.getObbDirs(), or deliver OBB files via standard app expansion / Play Asset Delivery.\",\n    \"WARN_RUNTIME_PERMISSIONS_ON_BUMP: targetSdkVersion bumped to 24 (>= 23). The APK requests dangerous permissions (['android.permission.READ_EXTERNAL_STORAGE']) which become runtime permissions. Functionality requiring these permissions may fail unless granted at runtime or via settings/adb.\"\n  ],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_com.gmail.jerickson314.sdscanner_8.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "12626",
+        "top_activity": "topResumedActivity=ActivityRecord{162845020 u0 com.gmail.jerickson314.sdscanner/.MainActivity t72}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\com.gmail.jerickson314.sdscanner.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    },
+    {
+      "package_name": "de.onyxbits.listmyapps",
+      "apk_name": "de.onyxbits.listmyapps_3.apk",
+      "target_sdk": 17,
+      "abis": [],
+      "direct_install": {
+        "exit_code": 1,
+        "output": "Performing Streamed Install\nadb.exe: failed to install tests\\corpus\\apks\\de.onyxbits.listmyapps_3.apk: Failure [INSTALL_FAILED_DEPRECATED_SDK_VERSION: App package must target at least SDK version 24, but found 17]",
+        "success": false,
+        "failure_category": "INSTALL_FLOOR_BLOCKED"
+      },
+      "bypass_install": {
+        "exit_code": 0,
+        "output": "Performing Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "revive": {
+        "exit_code": 2,
+        "verdict": "YELLOW",
+        "required_transforms": [
+          "BUMP_TARGET_SDK"
+        ],
+        "output": "{\n  \"timestamp\": \"2026-10-20T12:50:20.769498\",\n  \"apk_path\": \"tests\\\\corpus\\\\apks\\\\de.onyxbits.listmyapps_3.apk\",\n  \"package_name\": \"de.onyxbits.listmyapps\",\n  \"target_sdk\": 17,\n  \"verdict\": \"YELLOW\",\n  \"reason\": \"MODIFICATION_REQUIRED\",\n  \"install_method\": \"DIRECT_INSTALL\",\n  \"required_transforms\": [\n    \"BUMP_TARGET_SDK\"\n  ],\n  \"warnings\": [],\n  \"details\": \"Requires transforms: ['BUMP_TARGET_SDK']\",\n  \"output_apk\": \"C:\\\\Users\\\\Divyansh\\\\Desktop\\\\Projects\\\\apkrevive\\\\build\\\\survey_temp\\\\revived_de.onyxbits.listmyapps_3.apk\",\n  \"transform_risks\": {\n    \"BUMP_TARGET_SDK\": \"MEDIUM\"\n  },\n  \"page_size_compat_verified\": true,\n  \"verdict_display\": null\n}\nWARNING: APK signature has changed. Re-signing breaks Google Play updates, signature-based licensing (Google LVL), and anti-tamper DRM checks. Installing the revived APK requires uninstalling the existing application on device, which will permanently delete all existing user data.",
+        "success": true,
+        "failure_category": "OTHER"
+      },
+      "revive_install": {
+        "exit_code": 0,
+        "output": "Performing Incremental Install\nPerforming Streamed Install\nSuccess",
+        "success": true,
+        "failure_category": "NONE"
+      },
+      "liveness": {
+        "status": "ALIVE",
+        "pid": "12883",
+        "top_activity": "topResumedActivity=ActivityRecord{251007229 u0 de.onyxbits.listmyapps/.MainActivity t73}",
+        "crash_log": null,
+        "screenshot": "build\\survey_runs\\sdk_gphone16k_x86_64_api37\\de.onyxbits.listmyapps.png",
+        "failure_category": "NONE"
+      },
+      "overall_failure_category": "NONE"
+    }
+  ],
+  "receipt_file": "receipts\\receipt_survey_sdk_gphone16k_x86_64_api37_x86_64.json"
+}

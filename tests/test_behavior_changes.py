@@ -324,118 +324,110 @@ class TestBehaviorChangesTable(unittest.TestCase):
 
 
 class TestPageSizeCompatVerification(unittest.TestCase):
-    def test_default_repo_results_unverified(self):
-        """is_page_size_compat_verified() returns False on the current results/ folder."""
+    def test_default_repo_results_unverified_without_target_api(self):
+        """is_page_size_compat_verified() returns False when target_api is None."""
         self.assertFalse(is_page_size_compat_verified())
 
-    def test_synthetic_api37_16kb_pass_result_verified(self):
-        """With synthetic temporary results folder containing an API 37 16KB PASS result for x86_64, is_page_size_compat_verified(tmp_dir) returns True."""
+    def test_repo_receipts_verified(self):
+        """Verifies that repo receipts/ directory verifies API 37 and API 35 for x86_64."""
+        self.assertTrue(is_page_size_compat_verified(target_api=37, target_abi="x86_64"))
+        self.assertTrue(is_page_size_compat_verified(target_api=35, target_abi="x86_64"))
+        self.assertFalse(is_page_size_compat_verified(target_api=36, target_abi="x86_64"))
+        self.assertFalse(is_page_size_compat_verified(target_api=37, target_abi="arm64-v8a"))
+
+    def test_receipt_present(self):
+        """Present: matching api, abi, 16384 page_size, simulated=False returns True."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            result_file = os.path.join(tmp_dir, "android17_rig_page_size.json")
-            data = {
-                "device_model": "Android 17 API 37 (16KB)",
-                "android_build": "sdk_gphone16k_x86_64",
-                "os_api_level": 37,
-                "kernel_page_size": 16384,
-                "refresh_rate": 60,
-                "emulator_or_hardware": "emulator",
+            receipt = {
+                "device_model": "test_device",
+                "api_level": 37,
+                "abi": "x86_64",
+                "page_size": 16384,
                 "date": "2026-10-18",
-                "tool_commit": "20778b3",
-                "canary_id": "canary_page_size",
-                "expected": "Run pageSizeCompat",
-                "observed": "pageSizeCompat active and running",
-                "pass_fail": "PASS",
+                "script": "scripts/test.py",
+                "simulated": False,
             }
-            with open(result_file, "w", encoding="utf-8") as f:
-                json.dump(data, f)
-
-            self.assertTrue(is_page_size_compat_verified(tmp_dir))
-            self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=37))
+            Path(tmp_dir, "receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
             self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="x86_64"))
-            self.assertTrue(is_page_size_compat_verified(Path(tmp_dir)))
-            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=36))
-            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="arm64-v8a"))
+            self.assertTrue(is_page_size_compat_verified(Path(tmp_dir), target_api=37, target_abi="x86_64"))
 
-    def test_synthetic_api37_arm64_unverified_for_x86_64(self):
-        """Synthetic API 37 16KB PASS result on arm64-v8a does NOT satisfy default x86_64 verification."""
+    def test_receipt_absent(self):
+        """Absent: requested api or abi not found returns False."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            result_file = os.path.join(tmp_dir, "android17_arm64_page_size.json")
-            data = {
-                "device_model": "Pixel 9 Pro API 37 (16KB)",
-                "android_build": "sdk_gphone64_arm64",
-                "abi": "arm64-v8a",
-                "os_api_level": 37,
-                "kernel_page_size": 16384,
-                "pass_fail": "PASS",
+            receipt = {
+                "device_model": "test_device",
+                "api_level": 35,
+                "abi": "x86_64",
+                "page_size": 16384,
+                "date": "2026-10-18",
+                "script": "scripts/test.py",
+                "simulated": False,
             }
-            with open(result_file, "w", encoding="utf-8") as f:
-                json.dump(data, f)
+            Path(tmp_dir, "receipt.json").write_text(json.dumps(receipt), encoding="utf-8")
+            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=36, target_abi="x86_64"))
+            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=None))
 
-            self.assertFalse(is_page_size_compat_verified(tmp_dir))
+    def test_receipt_simulated_ignored(self):
+        """Simulated: receipt matching api/abi but simulated=True returns False."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            receipt = {
+                "device_model": "test_device",
+                "api_level": 37,
+                "abi": "x86_64",
+                "page_size": 16384,
+                "date": "2026-10-18",
+                "script": "scripts/test.py",
+                "simulated": True,
+            }
+            Path(tmp_dir, "simulated.json").write_text(json.dumps(receipt), encoding="utf-8")
+            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="x86_64"))
+
+    def test_receipt_wrong_abi(self):
+        """Wrong ABI: receipt with matching api but different abi returns False."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            receipt = {
+                "device_model": "test_device",
+                "api_level": 37,
+                "abi": "arm64-v8a",
+                "page_size": 16384,
+                "date": "2026-10-18",
+                "script": "scripts/test.py",
+                "simulated": False,
+            }
+            Path(tmp_dir, "arm64.json").write_text(json.dumps(receipt), encoding="utf-8")
             self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="x86_64"))
             self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="arm64-v8a"))
 
-    def test_synthetic_api36_16kb_pass_result_verified(self):
-        """With synthetic temporary results folder containing an API 36 16KB PASS result, target_api=36 returns True and target_api=37 returns False."""
+    def test_receipt_non_16k_or_fail(self):
+        """4KB page size or fail status does not verify."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            result_file = os.path.join(tmp_dir, "android16_rig_page_size.json")
-            data = {
-                "device_model": "Android 16 API 36 (16KB)",
-                "android_build": "sdk_gphone64_arm64-userdebug 16",
-                "kernel_page_size": 16384,
-                "os_api_level": 36,
-                "pass_fail": "PASS",
+            receipt_4k = {
+                "device_model": "test_device",
+                "api_level": 37,
+                "abi": "x86_64",
+                "page_size": 4096,
+                "simulated": False,
             }
-            with open(result_file, "w", encoding="utf-8") as f:
-                json.dump(data, f)
+            receipt_fail = {
+                "device_model": "test_device",
+                "api_level": 37,
+                "abi": "x86_64",
+                "page_size": 16384,
+                "pass_fail": "FAIL",
+                "simulated": False,
+            }
+            Path(tmp_dir, "4k.json").write_text(json.dumps(receipt_4k), encoding="utf-8")
+            Path(tmp_dir, "fail.json").write_text(json.dumps(receipt_fail), encoding="utf-8")
+            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="x86_64"))
 
-            self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=36, target_abi="arm64-v8a"))
+    def test_nonexistent_or_empty_or_corrupt_dir(self):
+        """Non-existent dir, empty dir, or malformed JSON returns False."""
+        self.assertFalse(is_page_size_compat_verified("nonexistent_dir_9999", target_api=37))
+        with tempfile.TemporaryDirectory() as tmp_dir:
             self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37))
-            self.assertFalse(is_page_size_compat_verified(tmp_dir))
-
-    def test_synthetic_negative_cases(self):
-        """Verifies that non-PASS, non-16KB, or non-API36 results do NOT verify pageSizeCompat."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            # 1. FAIL result on API 36 16KB
-            f_fail = os.path.join(tmp_dir, "fail.json")
-            with open(f_fail, "w", encoding="utf-8") as f:
-                json.dump({
-                    "device_model": "Android 16 API 36 Preview (16KB)",
-                    "kernel_page_size": 16384,
-                    "pass_fail": "FAIL",
-                }, f)
-            self.assertFalse(is_page_size_compat_verified(tmp_dir))
-
-            # 2. PASS on 4KB kernel
-            f_4k = os.path.join(tmp_dir, "pass_4k.json")
-            with open(f_4k, "w", encoding="utf-8") as f:
-                json.dump({
-                    "device_model": "Android 16 API 36 Preview (4KB)",
-                    "kernel_page_size": 4096,
-                    "pass_fail": "PASS",
-                }, f)
-            self.assertFalse(is_page_size_compat_verified(tmp_dir))
-
-            # 3. PASS on API 35 16KB
-            f_35 = os.path.join(tmp_dir, "pass_35.json")
-            with open(f_35, "w", encoding="utf-8") as f:
-                json.dump({
-                    "device_model": "Android Emulator API 35 (16KB)",
-                    "android_build": "sdk_gphone64_arm64 API 35",
-                    "kernel_page_size": 16384,
-                    "pass_fail": "PASS",
-                }, f)
-            self.assertFalse(is_page_size_compat_verified(tmp_dir))
-
-    def test_nonexistent_or_empty_or_corrupt_results_dir(self):
-        """Non-existent dir, empty dir, or malformed JSON should return False."""
-        self.assertFalse(is_page_size_compat_verified("nonexistent_dir_9999"))
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            self.assertFalse(is_page_size_compat_verified(tmp_dir))
-            corrupt = os.path.join(tmp_dir, "bad.json")
-            with open(corrupt, "w", encoding="utf-8") as f:
-                f.write("{corrupt json content")
-            self.assertFalse(is_page_size_compat_verified(tmp_dir))
+            corrupt = Path(tmp_dir, "bad.json")
+            corrupt.write_text("{corrupt json content", encoding="utf-8")
+            self.assertFalse(is_page_size_compat_verified(tmp_dir, target_api=37))
 
     def test_list_input_and_type_coercion_edge_cases(self):
         """Test list of entries in JSON, invalid kernel_page_size type, and API level keys."""
@@ -446,16 +438,15 @@ class TestPageSizeCompatVerification(unittest.TestCase):
                     "string_not_dict",
                     {"pass_fail": "PASS", "kernel_page_size": "not_an_int"},
                     {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": "not_an_int", "android_build": "no_match"},
-                    {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": 37, "abi": "x86_64"},
+                    {"pass_fail": "PASS", "kernel_page_size": 16384, "os_api_level": 37, "abi": "x86_64", "simulated": False},
                 ], f)
-            self.assertTrue(is_page_size_compat_verified(tmp_dir))
+            self.assertTrue(is_page_size_compat_verified(tmp_dir, target_api=37, target_abi="x86_64"))
 
     def test_default_cwd_fallback(self):
-        """Test cwd/results fallback when repo_results does not exist."""
+        """Test cwd fallback when repo_receipts does not exist."""
         with mock.patch("pathlib.Path.is_dir") as mock_is_dir:
-            # First is_dir call for repo_results returns False, second for cwd results returns False
             mock_is_dir.return_value = False
-            self.assertFalse(is_page_size_compat_verified(None))
+            self.assertFalse(is_page_size_compat_verified(None, target_api=37))
 
     def test_public_system_libraries_parity(self):
         """Asserts that Python, Kotlin, and Web Hub copies of PUBLIC_SYSTEM_LIBRARIES match exactly."""

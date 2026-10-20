@@ -1,0 +1,719 @@
+{
+  "source": "https://f-droid.org/archive/index-v1.json",
+  "description": "F-Droid archive 30+ legacy APK compatibility survey manifest (targetSdk < 24, mixed ABIs)",
+  "packages": [
+    {
+      "id": "ch.hsr.eyecam_81",
+      "package_name": "ch.hsr.eyecam",
+      "version": "81",
+      "version_code": 81,
+      "target_sdk": 18,
+      "license": "GPL-3.0",
+      "apk_name": "ch.hsr.eyecam_81.apk",
+      "url": "https://f-droid.org/archive/ch.hsr.eyecam_81.apk",
+      "sha256": "949fd867d8d70f4ccaf5c8c0d82314a09280f568c29049347985c311336c9af9",
+      "size_bytes": 969777,
+      "features": [
+        "32-bit-native",
+        "abis=armeabi,armeabi-v7a"
+      ],
+      "abis": [
+        "armeabi",
+        "armeabi-v7a"
+      ],
+      "min_sdk": 8
+    },
+    {
+      "id": "ch.nexuscomputing.android.osciprimeics_16",
+      "package_name": "ch.nexuscomputing.android.osciprimeics",
+      "version": "16",
+      "version_code": 16,
+      "target_sdk": 19,
+      "license": "GPL-2.0",
+      "apk_name": "ch.nexuscomputing.android.osciprimeics_16.apk",
+      "url": "https://f-droid.org/archive/ch.nexuscomputing.android.osciprimeics_16.apk",
+      "sha256": "447b6d13d93daded64b646fdc607b74bad2fa69be730c06a958051ad12c3c0fb",
+      "size_bytes": 1271993,
+      "features": [
+        "32-bit-native",
+        "abis=armeabi"
+      ],
+      "abis": [
+        "armeabi"
+      ],
+      "min_sdk": 10
+    },
+    {
+      "id": "a2dp.Vol_126",
+      "package_name": "a2dp.Vol",
+      "version": "126",
+      "version_code": 126,
+      "target_sdk": 19,
+      "license": "Apache-2.0",
+      "apk_name": "a2dp.Vol_126.apk",
+      "url": "https://f-droid.org/archive/a2dp.Vol_126.apk",
+      "sha256": "92f0934c10a36090d977d6f35cc3bc482038a6c2a29dd50eb7dd762d740d480b",
+      "size_bytes": 527224,
+      "features": [
+        "pure-java",
+        "targetSdk=19"
+      ],
+      "abis": [],
+      "min_sdk": 15
+    },
+    {
+      "id": "acr.browser.barebones_67",
+      "package_name": "acr.browser.barebones",
+      "version": "67",
+      "version_code": 67,
+      "target_sdk": 19,
+      "license": "Apache-2.0",
+      "apk_name": "acr.browser.barebones_67.apk",
+      "url": "https://f-droid.org/archive/acr.browser.barebones_67.apk",
+      "sha256": "279f147819097271ed28fabf89326e2af18e80f41614c1e40c1f2b0028d2fb23",
+      "size_bytes": 209647,
+      "features": [
+        "pure-java",
+        "targetSdk=19"
+      ],
+      "abis": [],
+      "min_sdk": 8
+    },
+    {
+      "id": "akk.astro.droid.moonphase_2",
+      "package_name": "akk.astro.droid.moonphase",
+      "version": "2",
+      "version_code": 2,
+      "target_sdk": 18,
+      "license": "GPL-3.0",
+      "apk_name": "akk.astro.droid.moonphase_2.apk",
+      "url": "https://f-droid.org/archive/akk.astro.droid.moonphase_2.apk",
+      "sha256": "20eea522f8d41dbbe9f8fa7204f076918dd9420c562468e5fd72059e6e66615e",
+      "size_bytes": 185892,
+      "features": [
+        "pure-java",
+        "targetSdk=18"
+      ],
+      "abis": [],
+      "min_sdk": 8
+    },
+    {
+      "id": "android.androidVNC_13",
+      "package_name": "android.androidVNC",
+      "version": "13",
+      "version_code": 13,
+      "target_sdk": 4,
+      "license": "GPL-2.0",
+      "apk_name": "android.androidVNC_13.apk",
+      "url": "https://f-droid.org/archive/android.androidVNC_13.apk",
+      "sha256": "eb2682f9ab9ccc5926d1bd504995af31ce15c14b7810efd3f88ab9c3acefa4f9",
+      "size_bytes": 243294,
+      "features": [
+        "pure-java",
+        "targetSdk=4"
+      ],
+      "abis": [],
+      "min_sdk": 3
+    },
+    {
+      "id": "atm.rocketguardian_1",
+      "package_name": "atm.rocketguardian",
+      "version": "1",
+      "version_code": 1,
+      "target_sdk": 25,
+      "license": "GPL-3.0",
+      "apk_name": "atm.rocketguardian_1.apk",
+      "url": "https://f-droid.org/repo/atm.rocketguardian_1.apk",
+      "sha256": "12d9eefca28a181a44cc6a760c12d838415e6fc8d0fd79c8325cdfbf3315041f",
+      "size_bytes": 4921673,
+      "features": [
+        "64-bit-native",
+        "abis=arm64-v8a,armeabi,armeabi-v7a,x86,x86_64",
+        "elf_16kb=COMPAT_ONLY"
+      ],
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "min_sdk": 8
+    },
+    {
+      "id": "atm.starun.game_121",
+      "package_name": "atm.starun.game",
+      "version": "121",
+      "version_code": 121,
+      "target_sdk": 20,
+      "license": "GPL-3.0",
+      "apk_name": "atm.starun.game_121.apk",
+      "url": "https://f-droid.org/archive/atm.starun.game_121.apk",
+      "sha256": "01e0621f5931bef6606236800fc13bb7900855abc8693d818a122b8683f258ba",
+      "size_bytes": 10567625,
+      "features": [
+        "64-bit-native",
+        "abis=arm64-v8a,armeabi,armeabi-v7a,x86,x86_64",
+        "elf_16kb=COMPAT_ONLY",
+        "targetSdk=20"
+      ],
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "min_sdk": 8
+    },
+    {
+      "id": "com.falconware.prestissimo_11",
+      "package_name": "com.falconware.prestissimo",
+      "version": "1.0",
+      "version_code": 11,
+      "target_sdk": 17,
+      "min_sdk": 16,
+      "license": "LGPL-2.1-only",
+      "apk_name": "com.falconware.prestissimo_11.apk",
+      "url": "https://f-droid.org/archive/com.falconware.prestissimo_11.apk",
+      "sha256": "7de9f17910aa9a921cac69fea90f7616dac9037a3de9d5495ca3b6b0e4c35397",
+      "size_bytes": 57999,
+      "abis": [
+        "armeabi",
+        "armeabi-v7a"
+      ],
+      "features": [
+        "abis=armeabi,armeabi-v7a",
+        "32-bit-native",
+        "targetSdk=17"
+      ]
+    },
+    {
+      "id": "com.sgr_b2.compass_14",
+      "package_name": "com.sgr_b2.compass",
+      "version": "1.3.4",
+      "version_code": 14,
+      "target_sdk": 18,
+      "min_sdk": 4,
+      "license": "GPL-3.0-or-later",
+      "apk_name": "com.sgr_b2.compass_14.apk",
+      "url": "https://f-droid.org/archive/com.sgr_b2.compass_14.apk",
+      "sha256": "ac169ed9319d20c00642a50be7c69291f0825c75f2652c0c04b9791b221b945b",
+      "size_bytes": 71442,
+      "abis": [
+        "armeabi"
+      ],
+      "features": [
+        "abis=armeabi",
+        "32-bit-native",
+        "targetSdk=18"
+      ]
+    },
+    {
+      "id": "com.proch.practicehub_1",
+      "package_name": "com.proch.practicehub",
+      "version": "1.0",
+      "version_code": 1,
+      "target_sdk": 10,
+      "min_sdk": 7,
+      "license": "GPL-3.0-only",
+      "apk_name": "com.proch.practicehub_1.apk",
+      "url": "https://f-droid.org/archive/com.proch.practicehub_1.apk",
+      "sha256": "1d0bdcf5495689bdd6c2704c0f7825e004452ede60aa713499fa20f14c6ca0a9",
+      "size_bytes": 103511,
+      "abis": [
+        "armeabi"
+      ],
+      "features": [
+        "abis=armeabi",
+        "32-bit-native",
+        "targetSdk=10"
+      ]
+    },
+    {
+      "id": "com.poinsart.votar_4",
+      "package_name": "com.poinsart.votar",
+      "version": "1.2",
+      "version_code": 4,
+      "target_sdk": 19,
+      "min_sdk": 9,
+      "license": "AGPL-3.0-or-later",
+      "apk_name": "com.poinsart.votar_4.apk",
+      "url": "https://f-droid.org/archive/com.poinsart.votar_4.apk",
+      "sha256": "a2a458e645f5a727298ce033964d155364d8aaad17ed63ff907a43c7f173b9c4",
+      "size_bytes": 122851,
+      "abis": [
+        "armeabi"
+      ],
+      "features": [
+        "abis=armeabi",
+        "32-bit-native",
+        "targetSdk=19"
+      ]
+    },
+    {
+      "id": "jp.sblo.pandora.aGrep_12",
+      "package_name": "jp.sblo.pandora.aGrep",
+      "version": "0.2.8",
+      "version_code": 12,
+      "target_sdk": 8,
+      "min_sdk": 3,
+      "license": "LGPL-2.1-or-later",
+      "apk_name": "jp.sblo.pandora.aGrep_12.apk",
+      "url": "https://f-droid.org/archive/jp.sblo.pandora.aGrep_12.apk",
+      "sha256": "3f4d942165c4a9aaddc3dae381a46c9e19fda85d35d2787daac9117427401a86",
+      "size_bytes": 125086,
+      "abis": [
+        "armeabi"
+      ],
+      "features": [
+        "abis=armeabi",
+        "32-bit-native",
+        "targetSdk=8"
+      ]
+    },
+    {
+      "id": "uobikiemukot.yaft_4",
+      "package_name": "uobikiemukot.yaft",
+      "version": "1.0",
+      "version_code": 4,
+      "target_sdk": 9,
+      "min_sdk": 9,
+      "license": "MIT",
+      "apk_name": "uobikiemukot.yaft_4.apk",
+      "url": "https://f-droid.org/archive/uobikiemukot.yaft_4.apk",
+      "sha256": "7215516355bad778e72e76b9562b7d9630c1cf66c70d1f24b9f7f3143d66d67d",
+      "size_bytes": 126506,
+      "abis": [
+        "armeabi"
+      ],
+      "features": [
+        "abis=armeabi",
+        "32-bit-native",
+        "targetSdk=9"
+      ]
+    },
+    {
+      "id": "org.xapek.andiodine_1",
+      "package_name": "org.xapek.andiodine",
+      "version": "1.0",
+      "version_code": 1,
+      "target_sdk": 16,
+      "min_sdk": 14,
+      "license": "ISC",
+      "apk_name": "org.xapek.andiodine_1.apk",
+      "url": "https://f-droid.org/archive/org.xapek.andiodine_1.apk",
+      "sha256": "7c9cbab6c8611109f6349ee85360a064cd98d53111a8a18ba8d49760af0629da",
+      "size_bytes": 131518,
+      "abis": [
+        "armeabi",
+        "x86"
+      ],
+      "features": [
+        "abis=armeabi,x86",
+        "32-bit-native",
+        "x86-native",
+        "targetSdk=16"
+      ]
+    },
+    {
+      "id": "org.dyndns.fules.ck_20",
+      "package_name": "org.dyndns.fules.ck",
+      "version": "v1.6pre2",
+      "version_code": 20,
+      "target_sdk": 8,
+      "min_sdk": 7,
+      "license": "BSD-3-Clause",
+      "apk_name": "org.dyndns.fules.ck_20.apk",
+      "url": "https://f-droid.org/archive/org.dyndns.fules.ck_20.apk",
+      "sha256": "897486e1f857c6c0ee32ccbad0e1b8cd82f6d0e65a44a23f13f852d2b63a18c8",
+      "size_bytes": 132453,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "mips",
+        "mips64",
+        "x86",
+        "x86_64"
+      ],
+      "features": [
+        "abis=arm64-v8a,armeabi,armeabi-v7a,mips,mips64,x86,x86_64",
+        "32-bit-native",
+        "x86-native",
+        "targetSdk=8"
+      ]
+    },
+    {
+      "id": "com.termux_16",
+      "package_name": "com.termux",
+      "version": "0.16",
+      "version_code": 16,
+      "target_sdk": 22,
+      "min_sdk": 21,
+      "license": "GPL-3.0-only",
+      "apk_name": "com.termux_16.apk",
+      "url": "https://f-droid.org/archive/com.termux_16.apk",
+      "sha256": "36b32fa7dd708b9fa04ead8fe650dc15d916c937f07a40abefcafa95d8dfe75b",
+      "size_bytes": 132994,
+      "abis": [
+        "armeabi-v7a",
+        "x86"
+      ],
+      "features": [
+        "abis=armeabi-v7a,x86",
+        "32-bit-native",
+        "x86-native",
+        "targetSdk=22"
+      ]
+    },
+    {
+      "id": "trikita.obsqr_11",
+      "package_name": "trikita.obsqr",
+      "version": "2.6",
+      "version_code": 11,
+      "target_sdk": 19,
+      "min_sdk": 9,
+      "license": "MIT",
+      "apk_name": "trikita.obsqr_11.apk",
+      "url": "https://f-droid.org/archive/trikita.obsqr_11.apk",
+      "sha256": "a2f3a23ead904012b39ec2a2221c06922855c8caa41d4e6f1455c9baa45c5db6",
+      "size_bytes": 158392,
+      "abis": [
+        "armeabi",
+        "x86"
+      ],
+      "features": [
+        "abis=armeabi,x86",
+        "32-bit-native",
+        "x86-native",
+        "targetSdk=19"
+      ]
+    },
+    {
+      "id": "ro.ui.pttdroid_4",
+      "package_name": "ro.ui.pttdroid",
+      "version": "1.5",
+      "version_code": 4,
+      "target_sdk": 18,
+      "min_sdk": 7,
+      "license": "GPL-3.0-only",
+      "apk_name": "ro.ui.pttdroid_4.apk",
+      "url": "https://f-droid.org/archive/ro.ui.pttdroid_4.apk",
+      "sha256": "dfa0a8e814d470ccc9dc1d0df5dcdfe18c403cd1d63d25f611830f2e8ce5697f",
+      "size_bytes": 163759,
+      "abis": [
+        "armeabi"
+      ],
+      "features": [
+        "abis=armeabi",
+        "32-bit-native",
+        "targetSdk=18"
+      ]
+    },
+    {
+      "id": "com.roguetemple.hyperroid_370",
+      "package_name": "com.roguetemple.hyperroid",
+      "version": "3.7",
+      "version_code": 370,
+      "target_sdk": 11,
+      "min_sdk": 7,
+      "license": "GPL-2.0-only",
+      "apk_name": "com.roguetemple.hyperroid_370.apk",
+      "url": "https://f-droid.org/archive/com.roguetemple.hyperroid_370.apk",
+      "sha256": "b8187a93f5fffe34c22cb83658ec59daaeedba6ffe4d913316fc8fb1abd11665",
+      "size_bytes": 167984,
+      "abis": [
+        "armeabi"
+      ],
+      "features": [
+        "abis=armeabi",
+        "32-bit-native",
+        "targetSdk=11"
+      ]
+    },
+    {
+      "id": "org.mosspaper_6",
+      "package_name": "org.mosspaper",
+      "version": "0.6",
+      "version_code": 6,
+      "target_sdk": 21,
+      "min_sdk": 8,
+      "license": "Apache-2.0",
+      "apk_name": "org.mosspaper_6.apk",
+      "url": "https://f-droid.org/archive/org.mosspaper_6.apk",
+      "sha256": "fc0344f77beb8274f9146c5e6ac732e5d33430e23f9c9eee803176c592ad6b28",
+      "size_bytes": 186844,
+      "abis": [
+        "arm64-v8a",
+        "armeabi",
+        "armeabi-v7a",
+        "mips",
+        "mips64",
+        "x86",
+        "x86_64"
+      ],
+      "features": [
+        "abis=arm64-v8a,armeabi,armeabi-v7a,mips,mips64,x86,x86_64",
+        "32-bit-native",
+        "x86-native",
+        "targetSdk=21"
+      ]
+    },
+    {
+      "id": "com.kvance.Nectroid_10",
+      "package_name": "com.kvance.Nectroid",
+      "version": "1.2.3",
+      "version_code": 10,
+      "target_sdk": 4,
+      "min_sdk": 3,
+      "license": "GPL-3.0-only",
+      "apk_name": "com.kvance.Nectroid_10.apk",
+      "url": "https://f-droid.org/archive/com.kvance.Nectroid_10.apk",
+      "sha256": "eddd0afc04372705ef4923da6ac8069e9014f5046a7d7c7fc91bfbe36bad54ba",
+      "size_bytes": 198074,
+      "abis": [
+        "armeabi"
+      ],
+      "features": [
+        "abis=armeabi",
+        "32-bit-native",
+        "targetSdk=4"
+      ]
+    },
+    {
+      "id": "net.syntaxblitz.plucklock_4",
+      "package_name": "net.syntaxblitz.plucklock",
+      "version": "1.0.3",
+      "version_code": 4,
+      "target_sdk": 15,
+      "min_sdk": 9,
+      "license": "MIT",
+      "apk_name": "net.syntaxblitz.plucklock_4.apk",
+      "url": "https://f-droid.org/archive/net.syntaxblitz.plucklock_4.apk",
+      "sha256": "fc0db6823d18310e0038ec249f4a5c1c7db04fdd033e6438edbe895c57ce0a09",
+      "size_bytes": 25041,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=15"
+      ]
+    },
+    {
+      "id": "ryey.camcov_5",
+      "package_name": "ryey.camcov",
+      "version": "0.4",
+      "version_code": 5,
+      "target_sdk": 23,
+      "min_sdk": 15,
+      "license": "GPL-3.0-or-later",
+      "apk_name": "ryey.camcov_5.apk",
+      "url": "https://f-droid.org/archive/ryey.camcov_5.apk",
+      "sha256": "f901a1836ff62d8e22637f1642b3d265e4626daf9ddaa5498b2b00cf2699ce79",
+      "size_bytes": 25149,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=23"
+      ]
+    },
+    {
+      "id": "io.github.sanbeg.flashlight_1",
+      "package_name": "io.github.sanbeg.flashlight",
+      "version": "1.0",
+      "version_code": 1,
+      "target_sdk": 10,
+      "min_sdk": 8,
+      "license": "GPL-3.0-only",
+      "apk_name": "io.github.sanbeg.flashlight_1.apk",
+      "url": "https://f-droid.org/archive/io.github.sanbeg.flashlight_1.apk",
+      "sha256": "b7eb454bff6218e72ef5f9f31c7e386039152b19493a621638caf74c78bdc99f",
+      "size_bytes": 25280,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=10"
+      ]
+    },
+    {
+      "id": "com.jwetherell.heart_rate_monitor_1",
+      "package_name": "com.jwetherell.heart_rate_monitor",
+      "version": "1.0",
+      "version_code": 1,
+      "target_sdk": 5,
+      "min_sdk": 5,
+      "license": "Apache-2.0",
+      "apk_name": "com.jwetherell.heart_rate_monitor_1.apk",
+      "url": "https://f-droid.org/archive/com.jwetherell.heart_rate_monitor_1.apk",
+      "sha256": "29355d423c1218880134eedb8a1b02088baf5b790a131196f50d0efca7accb93",
+      "size_bytes": 25873,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=5"
+      ]
+    },
+    {
+      "id": "de.mangelow.balance_3",
+      "package_name": "de.mangelow.balance",
+      "version": "0.12",
+      "version_code": 3,
+      "target_sdk": 16,
+      "min_sdk": 8,
+      "license": "Apache-2.0",
+      "apk_name": "de.mangelow.balance_3.apk",
+      "url": "https://f-droid.org/archive/de.mangelow.balance_3.apk",
+      "sha256": "f0ba8df1e1b9d1cb7dacf0af79fed93ac61eaebb4e9cb6cb36542faf760fc2e1",
+      "size_bytes": 25916,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=16"
+      ]
+    },
+    {
+      "id": "org.billthefarmer.siggen_101",
+      "package_name": "org.billthefarmer.siggen",
+      "version": "1.01",
+      "version_code": 101,
+      "target_sdk": 17,
+      "min_sdk": 14,
+      "license": "GPL-3.0-only",
+      "apk_name": "org.billthefarmer.siggen_101.apk",
+      "url": "https://f-droid.org/archive/org.billthefarmer.siggen_101.apk",
+      "sha256": "f0ca3cad750286c43ef019bb33d1ee49df6ca70479ba0b05915853814c94fb0e",
+      "size_bytes": 26218,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=17"
+      ]
+    },
+    {
+      "id": "com.intrications.android.sharebrowser_2",
+      "package_name": "com.intrications.android.sharebrowser",
+      "version": "1.1",
+      "version_code": 2,
+      "target_sdk": 17,
+      "min_sdk": 3,
+      "license": "Apache-2.0",
+      "apk_name": "com.intrications.android.sharebrowser_2.apk",
+      "url": "https://f-droid.org/archive/com.intrications.android.sharebrowser_2.apk",
+      "sha256": "2134204d19549003aee8418e3e37f7cb0b3b6c741e259e9071c25658bbe37294",
+      "size_bytes": 26299,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=17"
+      ]
+    },
+    {
+      "id": "com.github.wakhub.tinyclock_5",
+      "package_name": "com.github.wakhub.tinyclock",
+      "version": "1.2.2",
+      "version_code": 5,
+      "target_sdk": 21,
+      "min_sdk": 17,
+      "license": "Apache-2.0",
+      "apk_name": "com.github.wakhub.tinyclock_5.apk",
+      "url": "https://f-droid.org/archive/com.github.wakhub.tinyclock_5.apk",
+      "sha256": "52a3fbf6ed75941d6a39655f3b932ecea959c706c32c74473dd4594116ef72c3",
+      "size_bytes": 27031,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=21"
+      ]
+    },
+    {
+      "id": "com.jakebasile.android.hearingsaver_12",
+      "package_name": "com.jakebasile.android.hearingsaver",
+      "version": "3.0",
+      "version_code": 12,
+      "target_sdk": 8,
+      "min_sdk": 6,
+      "license": "Apache-2.0",
+      "apk_name": "com.jakebasile.android.hearingsaver_12.apk",
+      "url": "https://f-droid.org/archive/com.jakebasile.android.hearingsaver_12.apk",
+      "sha256": "e105388f5feeca73142a4bdd47ed3b7f172469a79715043a909a871f730e67d0",
+      "size_bytes": 27065,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=8"
+      ]
+    },
+    {
+      "id": "org.nick.cryptfs.passwdmanager_1210",
+      "package_name": "org.nick.cryptfs.passwdmanager",
+      "version": "1.2.1",
+      "version_code": 1210,
+      "target_sdk": 17,
+      "min_sdk": 11,
+      "license": "Apache-2.0",
+      "apk_name": "org.nick.cryptfs.passwdmanager_1210.apk",
+      "url": "https://f-droid.org/archive/org.nick.cryptfs.passwdmanager_1210.apk",
+      "sha256": "1f57f56dcb222366246d7021bc2f5446123a3b02512d8ed65b0a29f14f8382f1",
+      "size_bytes": 27165,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=17"
+      ]
+    },
+    {
+      "id": "sk.madzik.android.logcatudp_5",
+      "package_name": "sk.madzik.android.logcatudp",
+      "version": "0.5",
+      "version_code": 5,
+      "target_sdk": 4,
+      "min_sdk": 3,
+      "license": "Apache-2.0",
+      "apk_name": "sk.madzik.android.logcatudp_5.apk",
+      "url": "https://f-droid.org/archive/sk.madzik.android.logcatudp_5.apk",
+      "sha256": "4aa489ca9a808872eee8bf0218f13ac4ab76144507378b489c18b44c14705ffa",
+      "size_bytes": 27395,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=4"
+      ]
+    },
+    {
+      "id": "com.gmail.jerickson314.sdscanner_8",
+      "package_name": "com.gmail.jerickson314.sdscanner",
+      "version": "1.7",
+      "version_code": 8,
+      "target_sdk": 19,
+      "min_sdk": 14,
+      "license": "GPL-2.0-only",
+      "apk_name": "com.gmail.jerickson314.sdscanner_8.apk",
+      "url": "https://f-droid.org/archive/com.gmail.jerickson314.sdscanner_8.apk",
+      "sha256": "f94dd8d47704ff04d09027e3bb87b87b280a3620531f72b263869bccd947b788",
+      "size_bytes": 27519,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=19"
+      ]
+    },
+    {
+      "id": "de.onyxbits.listmyapps_3",
+      "package_name": "de.onyxbits.listmyapps",
+      "version": "1.2",
+      "version_code": 3,
+      "target_sdk": 17,
+      "min_sdk": 9,
+      "license": "Apache-2.0",
+      "apk_name": "de.onyxbits.listmyapps_3.apk",
+      "url": "https://f-droid.org/archive/de.onyxbits.listmyapps_3.apk",
+      "sha256": "d5287d68f112bf660d7c086fc90d9a3b7c731ad55e69a91392675afb7ca5d82a",
+      "size_bytes": 27584,
+      "abis": [],
+      "features": [
+        "pure-java",
+        "targetSdk=17"
+      ]
+    }
+  ]
+}
