@@ -271,6 +271,18 @@ class TestAlign(unittest.TestCase):
                 verify_apk_alignment(trunc_file_path)
             self.assertTrue(str(ctx.exception).startswith("Truncated ZIP archive entry"))
 
+    def test_validate_zip_rejects_duplicate_entries(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dup_path = os.path.join(tmp_dir, "duplicate_entry.apk")
+            with zipfile.ZipFile(dup_path, "w") as zf:
+                zf.writestr("classes.dex", b"first_classes_dex")
+                zf.writestr("classes.dex", b"second_classes_dex")
+
+            from apkrevive.core.align import validate_zip_archive
+            with self.assertRaises(ValueError) as ctx:
+                validate_zip_archive(dup_path)
+            self.assertIn("Duplicate entry name detected", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
