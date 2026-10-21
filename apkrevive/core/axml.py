@@ -759,7 +759,7 @@ class AxmlSurgeon:
             app_node.set_attr("hasCode", True)
 
         # 2. INJECT_USES_LIBRARY_APACHE_HTTP
-        if "INJECT_USES_LIBRARY_APACHE_HTTP" in transforms:
+        if "INJECT_USES_LIBRARY_APACHE_HTTP" in transforms or options.get("inject_apache_http", True):
             existing = app_node.find_child("uses-library", "name", "org.apache.http.legacy")
             if not existing:
                 lib_node = AxmlNode(tag="uses-library")
@@ -783,6 +783,10 @@ class AxmlSurgeon:
         # 4. PAGE_SIZE_COMPAT
         if "PAGE_SIZE_COMPAT" in transforms:
             app_node.set_attr("pageSizeCompat", "enabled")
+
+        # 5. Native library extraction & Legacy external storage opt-out
+        app_node.set_attr("extractNativeLibs", True)
+        app_node.set_attr("requestLegacyExternalStorage", True)
 
         # 5. Display Modes & Shim Provider
         enable_60hz = options.get("enable_60hz", "LOCK_60HZ_DISPLAY_MODE" in transforms)

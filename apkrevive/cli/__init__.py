@@ -199,15 +199,20 @@ def run_patch(
         "SET_HAS_CODE_TRUE",
         "PAGE_SIZE_COMPAT",
         "EXPAND_ASPECT_RATIO",
+        "INJECT_USES_LIBRARY_APACHE_HTTP",
     ]
 
-    if meta.uses_apache_http:
-        transforms.append("INJECT_USES_LIBRARY_APACHE_HTTP")
-        remediations.append("AXML: Injected org.apache.http.legacy <uses-library>")
+    remediations.append("AXML: Injected org.apache.http.legacy <uses-library>")
+    remediations.append("AXML: Set extractNativeLibs='true' and requestLegacyExternalStorage='true'")
 
-    target_sdk_to_set = bump_target_sdk or (28 if meta.target_sdk < 23 else meta.target_sdk)
-    if target_sdk_to_set != meta.target_sdk:
+    target_sdk_to_set = bump_target_sdk if bump_target_sdk is not None else meta.target_sdk
+    if bump_target_sdk is not None and bump_target_sdk != meta.target_sdk:
         remediations.append(f"AXML: Bumped targetSdkVersion {meta.target_sdk} -> {target_sdk_to_set}")
+    elif meta.target_sdk < 24:
+        remediations.append(
+            f"AXML: Preserved low targetSdkVersion {meta.target_sdk} (prevents modern runtime permission & storage crashes; "
+            f"install via: 'adb install --bypass-low-target-sdk-block')"
+        )
 
     remediations.append("AXML: Injected ApkReviveInitProvider lifecycle shim with pageSizeCompat and aspect ratio expansion")
 

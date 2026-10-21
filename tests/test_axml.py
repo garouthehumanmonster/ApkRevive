@@ -252,6 +252,59 @@ class TestAxml(unittest.TestCase):
                 self.assertEqual(raw2, raw3)
                 self.assertEqual(p1.tree_signature(), p2.tree_signature())
 
+    def test_engine3_axml_mutations_extract_native_libs_and_scoped_storage(self):
+        root = AxmlNode(tag="manifest")
+        root.set_attr("package", "com.example.legacyapp", ns="")
+        app = AxmlNode(tag="application")
+        root.children.append(app)
+        raw = AxmlSurgeon.serialize(root)
+
+        patched = AxmlSurgeon.patch_manifest(raw, transforms=[])
+        parsed = AxmlSurgeon.parse(patched)
+        app_node = parsed.find_child("application")
+        self.assertIsNotNone(app_node)
+
+        # 1. extractNativeLibs="true"
+        extract_attr = app_node.get_attr("extractNativeLibs")
+        self.assertIsNotNone(extract_attr)
+        self.assertTrue(extract_attr.get_value())
+
+        # 2. requestLegacyExternalStorage="true"
+        storage_attr = app_node.get_attr("requestLegacyExternalStorage")
+        self.assertIsNotNone(storage_attr)
+        self.assertTrue(storage_attr.get_value())
+
+        # 3. org.apache.http.legacy <uses-library> injected
+        http_lib = app_node.find_child("uses-library", "name", "org.apache.http.legacy")
+        self.assertIsNotNone(http_lib)
+        req_attr = http_lib.get_attr("required")
+        self.assertIsNotNone(req_attr)
+        self.assertFalse(req_attr.get_value())
+
+    def test_engine3_target_sdk_preservation(self):
+        root = AxmlNode(tag="manifest")
+        root.set_attr("package", "com.example.legacyapp", ns="")
+        uses_sdk = AxmlNode(tag="uses-sdk")
+        uses_sdk.set_attr("targetSdkVersion", 19)
+        root.children.append(uses_sdk)
+        app = AxmlNode(tag="application")
+        root.children.append(app)
+        raw = AxmlSurgeon.serialize(root)
+
+        # Without bump_target_sdk, targetSdk=19 must be preserved
+        patched_preserved = AxmlSurgeon.patch_manifest(raw, transforms=[])
+        parsed1 = AxmlSurgeon.parse(patched_preserved)
+        sdk_node1 = parsed1.find_child("uses-sdk")
+        self.assertIsNotNone(sdk_node1)
+        self.assertEqual(sdk_node1.get_attr("targetSdkVersion").get_value(), 19)
+
+        # With explicit bump_target_sdk=22, targetSdk becomes 22
+        patched_bumped = AxmlSurgeon.patch_manifest(raw, transforms=[], options={"bump_target_sdk": 22})
+        parsed2 = AxmlSurgeon.parse(patched_bumped)
+        sdk_node2 = parsed2.find_child("uses-sdk")
+        self.assertIsNotNone(sdk_node2)
+        self.assertEqual(sdk_node2.get_attr("targetSdkVersion").get_value(), 22)
+
 
 if __name__ == "__main__":
     unittest.main()
