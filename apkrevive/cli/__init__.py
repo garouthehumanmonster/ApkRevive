@@ -68,7 +68,7 @@ def run_inspect(apk_path: str) -> InspectionReport:
     # 2. Private Bionic Libraries (libcrypto, libssl, libcutils, etc.)
     private_bionic_found = [
         lib for lib in meta.private_libs
-        if lib in DEFAULT_BIONIC_RENAME_MAP or "libcrypto" in lib or "libssl" in lib or "libcutils" in lib
+        if lib in PRIVATE_BIONIC_LIBS or "libcrypto" in lib or "libssl" in lib or "libcutils" in lib
     ]
     if private_bionic_found:
         remediable_issues.append(
