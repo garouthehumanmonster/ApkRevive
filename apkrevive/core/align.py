@@ -19,8 +19,12 @@ def validate_zip_archive(path: str) -> None:
         with zipfile.ZipFile(path, "r") as zf:
             total_uncompressed = 0
             total_compressed = 0
+            seen_names = set()
             for info in zf.infolist():
                 name = info.filename
+                if name in seen_names:
+                    raise ValueError(f"Duplicate entry name detected in ZIP: {name}")
+                seen_names.add(name)
                 if ".." in name or name.startswith("/") or name.startswith("\\"):
                     raise ValueError(f"Zip-slip path traversal detected: {name}")
                 if (info.external_attr >> 16) & 0o170000 == 0o120000:
