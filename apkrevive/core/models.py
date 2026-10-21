@@ -1,5 +1,5 @@
 """
-models.py - Domain models for ApkRevive v0.5.0a1 modernizer pipeline.
+models.py - Domain models for ApkRevive inspect and patch pipeline.
 """
 
 from dataclasses import dataclass, field, asdict
@@ -7,7 +7,7 @@ from enum import Enum
 from typing import List, Optional, Dict, Any
 
 
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "2.0.0"
 
 
 class Verdict(str, Enum):
@@ -102,6 +102,27 @@ class ApkMetadata:
 
 
 @dataclass
+class InspectionReport:
+    apk_path: str
+    package_name: str
+    version_code: int
+    min_sdk: int
+    target_sdk: int
+    abis: List[str]
+    fatal_blockers: List[str]
+    warnings: List[str]
+    remediable_issues: List[str]
+    page_size_16kb_status: Optional[str] = None
+    private_bionic_libs: List[str] = field(default_factory=list)
+    is_32bit_only: bool = False
+    needs_apache_http: bool = False
+    install_floor_blocked: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class PatchReport:
     timestamp: str
     apk_path: str
@@ -117,6 +138,7 @@ class PatchReport:
     transform_risks: Dict[str, str] = field(default_factory=dict)
     page_size_compat_verified: bool = True
     verdict_display: Optional[str] = None
+    remediations: List[str] = field(default_factory=list)
     schema_version: str = SCHEMA_VERSION
 
     def to_dict(self) -> Dict[str, Any]:

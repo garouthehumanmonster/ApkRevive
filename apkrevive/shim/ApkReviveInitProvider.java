@@ -30,24 +30,42 @@ public class ApkReviveInitProvider extends ContentProvider {
 
     @Override
     public boolean onCreate() {
-        // 1. Reflection call to StrictMode.disableDeathOnFileUriExposure() (guards API 24+ FileUriExposedException)
+        // 1. Hidden API Unlock (double-reflection for VMRuntime exemptions)
+        try {
+            java.lang.reflect.Method forName = Class.class.getDeclaredMethod("forName", String.class);
+            java.lang.reflect.Method getDeclaredMethod = Class.class.getDeclaredMethod("getDeclaredMethod", String.class, Class[].class);
+            Class<?> vmRuntimeClass = (Class<?>) forName.invoke(null, "dalvik.system.VMRuntime");
+            java.lang.reflect.Method getRuntime = (java.lang.reflect.Method) getDeclaredMethod.invoke(vmRuntimeClass, "getRuntime", null);
+            Object vmRuntime = getRuntime.invoke(null);
+            java.lang.reflect.Method setHiddenApiExemptions = (java.lang.reflect.Method) getDeclaredMethod.invoke(
+                vmRuntimeClass, "setHiddenApiExemptions", new Class<?>[]{String[].class}
+            );
+            setHiddenApiExemptions.invoke(vmRuntime, new Object[]{new String[]{"L"}});
+            android.util.Log.i("ApkReviveShim", "VMRuntime hidden API exemptions applied (L)");
+        } catch (Throwable t) {
+            android.util.Log.w("ApkReviveShim", "Failed to apply VMRuntime hidden API exemptions: " + t.getMessage());
+        }
+
+        // 2. StrictMode Neutralizer (disable FileUri exposure death & permit all thread/VM policies)
         try {
             java.lang.reflect.Method m = android.os.StrictMode.class.getMethod("disableDeathOnFileUriExposure");
             m.invoke(null);
         } catch (Throwable ignored) {}
-
-        // 2. Relax StrictMode.ThreadPolicy (permitAll for legacy apps doing synchronous I/O on main thread)
         try {
-            android.os.StrictMode.setThreadPolicy(new android.os.StrictMode.ThreadPolicy.Builder().permitAll().build());
+            android.os.StrictMode.setThreadPolicy(android.os.StrictMode.ThreadPolicy.LAX);
+            android.os.StrictMode.setVmPolicy(android.os.StrictMode.VmPolicy.LAX);
         } catch (Throwable ignored) {}
 
-        // 3. Install fallback UncaughtExceptionHandler with ApkReviveShim diagnostic tag
+        // 3. Global UncaughtExceptionHandler for Legacy Storage & Permissions
         try {
             final Thread.UncaughtExceptionHandler defaultHandler = Thread.getDefaultUncaughtExceptionHandler();
             Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
                 @Override
                 public void uncaughtException(Thread t, Throwable e) {
-                    android.util.Log.e("ApkReviveShim", "CRITICAL EARLY STARTUP EXCEPTION in " + t.getName() + ": " + e.getMessage(), e);
+                    if (isSwallowableException(e)) {
+                        android.util.Log.e("ApkReviveShim", "Swallowed legacy fatal crash in " + t.getName() + ": " + e.getMessage(), e);
+                        return;
+                    }
                     if (defaultHandler != null) {
                         defaultHandler.uncaughtException(t, e);
                     }
@@ -114,6 +132,56 @@ public class ApkReviveInitProvider extends ContentProvider {
         });
 
         return true;
+    }
+
+    private static boolean isSwallowableException(Throwable e) {
+        Throwable curr = e;
+        int depth = 0;
+        while (curr != null && depth < 20) {
+            if (isSwallowableSingle(curr)) {
+                return true;
+            }
+            Throwable cause = curr.getCause();
+            if (cause == curr) break;
+            curr = cause;
+            depth++;
+        }
+        return false;
+    }
+
+    private static boolean isSwallowableSingle(Throwable t) {
+        if (t == null) return false;
+
+        Class<?> cls = t.getClass();
+        while (cls != null && cls != Object.class) {
+            if ("android.os.FileUriExposedException".equals(cls.getName())) {
+                return true;
+            }
+            cls = cls.getSuperclass();
+        }
+
+        if (t instanceof SecurityException) {
+            String msg = t.getMessage();
+            if (msg != null) {
+                String lower = msg.toLowerCase(java.util.Locale.ROOT);
+                if (lower.contains("permission") || lower.contains("storage")
+                        || lower.contains("read_external_storage") || lower.contains("write_external_storage")) {
+                    return true;
+                }
+            }
+        }
+
+        if (t instanceof java.io.FileNotFoundException || t instanceof java.io.IOException) {
+            String msg = t.getMessage();
+            if (msg != null) {
+                String lower = msg.toLowerCase(java.util.Locale.ROOT);
+                if (lower.contains("/sdcard") || lower.contains("/storage") || lower.contains("permission denied")) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private void applyWindowAttributes(Activity activity, boolean enable60Hz, boolean enableCutout) {

@@ -6,7 +6,36 @@ import mmap
 import struct
 from typing import Dict, Any
 
-from apkrevive.security.zip_guard import validate_zip_archive
+import os
+import zipfile
+
+
+def validate_zip_archive(path: str) -> None:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Archive not found: {path}")
+    if os.path.getsize(path) < 22:
+        raise ValueError("Truncated ZIP archive entry")
+    try:
+        with zipfile.ZipFile(path, "r") as zf:
+            total_uncompressed = 0
+            total_compressed = 0
+            for info in zf.infolist():
+                name = info.filename
+                if ".." in name or name.startswith("/") or name.startswith("\\"):
+                    raise ValueError(f"Zip-slip path traversal detected: {name}")
+                if (info.external_attr >> 16) & 0o170000 == 0o120000:
+                    raise ValueError(f"Symlink forbidden in APK archive: {name}")
+                total_uncompressed += info.file_size
+                total_compressed += info.compress_size
+            if total_uncompressed > 2 * 1024 * 1024 * 1024:
+                raise ValueError("Uncompressed size exceeds 2GB limit")
+            if total_compressed > 0 and (total_uncompressed / total_compressed) > 100:
+                if total_uncompressed > 10 * 1024 * 1024:
+                    raise ValueError(f"Zip bomb detected: compression ratio exceeds 100x limit")
+    except zipfile.BadZipFile as e:
+        raise ValueError(f"Truncated ZIP archive entry: {e}")
+
+
 
 
 class UnsupportedZip64Error(ValueError):

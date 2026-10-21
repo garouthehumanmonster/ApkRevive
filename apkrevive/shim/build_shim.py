@@ -4,6 +4,7 @@ build_shim.py - Standalone build engine for ApkReviveInitProvider bytecode shim.
 Compiles ApkReviveInitProvider.java using javac and d8 into canonical shim.dex.
 """
 
+import argparse
 import hashlib
 import os
 import shutil
@@ -13,7 +14,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-CANONICAL_SHIM_SHA256 = "e98aa52caf836fee44189b37f87fd91082bd6754a11cd796ec8ca9cf1d35feaa"
+CANONICAL_SHIM_SHA256 = "5ac830e1c5a5668594ff5768ce31bea1f3c3e5c6624a7ba6e2da991b2ae8ba9e"
 SHIM_DIR = Path(__file__).resolve().parent
 SHIM_JAVA_PATH = SHIM_DIR / "ApkReviveInitProvider.java"
 SHIM_DEX_PATH = SHIM_DIR / "shim.dex"
@@ -103,10 +104,10 @@ def resolve_tool(name: str, build_tools_dir: Optional[Path] = None) -> str:
     return name
 
 
-def build_shim(output_dex_path: Optional[Path] = None) -> bytes:
+def build_shim(output_dex_path: Optional[Path] = None, force: bool = False) -> bytes:
     """
     Compiles ApkReviveInitProvider.java into deterministic DEX bytecode.
-    Verifies SHA256 against canonical hash.
+    Verifies SHA256 against canonical hash unless force is True.
     Optionally writes output to output_dex_path.
     Returns generated DEX bytes.
     """
@@ -161,7 +162,7 @@ def build_shim(output_dex_path: Optional[Path] = None) -> bytes:
         dex_bytes = dex_file.read_bytes()
 
     actual_sha256 = hashlib.sha256(dex_bytes).hexdigest()
-    if actual_sha256 != CANONICAL_SHIM_SHA256:
+    if not force and actual_sha256 != CANONICAL_SHIM_SHA256:
         raise ValueError(
             f"Compiled shim.dex SHA256 mismatch!\n"
             f"Expected: {CANONICAL_SHIM_SHA256}\n"
@@ -177,8 +178,24 @@ def build_shim(output_dex_path: Optional[Path] = None) -> bytes:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="ApkRevive bytecode shim builder and verifier")
+    parser.add_argument("--force", action="store_true", help="Force building and overwriting shim.dex even if hash does not match CANONICAL_SHIM_SHA256")
+    parser.add_argument("--verify", action="store_true", help="Verify committed shim.dex against CANONICAL_SHIM_SHA256")
+    args = parser.parse_args()
+
+    if args.verify:
+        if not SHIM_DEX_PATH.exists():
+            print(f"[-] shim.dex not found at {SHIM_DEX_PATH}", file=sys.stderr)
+            return 1
+        digest = hashlib.sha256(SHIM_DEX_PATH.read_bytes()).hexdigest()
+        if digest != CANONICAL_SHIM_SHA256:
+            print(f"[-] Verification failed! Expected {CANONICAL_SHIM_SHA256}, got {digest}", file=sys.stderr)
+            return 1
+        print(f"[+] Verified canonical hash match for {SHIM_DEX_PATH} ({digest})")
+        return 0
+
     print(f"[*] Building ApkRevive shim from {SHIM_JAVA_PATH}...")
-    dex_bytes = build_shim(output_dex_path=SHIM_DEX_PATH)
+    dex_bytes = build_shim(output_dex_path=SHIM_DEX_PATH, force=args.force)
     digest = hashlib.sha256(dex_bytes).hexdigest()
     print(f"[+] Successfully generated {SHIM_DEX_PATH} ({len(dex_bytes)} bytes)")
     print(f"[+] SHA256: {digest}")
@@ -186,6 +203,10 @@ def main():
         print("[+] Verified canonical hash match.")
         return 0
     else:
+        if args.force:
+            print(f"[!] Force mode: generated {SHIM_DEX_PATH} with new hash {digest}")
+            print(f"[!] Update CANONICAL_SHIM_SHA256 in {__file__} to: {digest}")
+            return 0
         print("[-] Hash verification failed!", file=sys.stderr)
         return 1
 

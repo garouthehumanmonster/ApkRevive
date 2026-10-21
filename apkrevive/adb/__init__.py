@@ -1,1 +1,0 @@
-"""ADB & hardware communication wrappers."""

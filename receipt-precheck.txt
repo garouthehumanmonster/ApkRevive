@@ -1,2 +1,0 @@
-python: can't open file 'C:\\Users\\Divyansh\\Desktop\\Projects\\apkrevive\\verify_apkrevive_fixes.py': [Errno 2] No such file or directory
-EXIT=2

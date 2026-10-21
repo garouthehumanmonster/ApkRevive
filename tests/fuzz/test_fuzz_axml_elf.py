@@ -16,7 +16,7 @@ except ImportError:
 
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.elf_surgeon import rewrite_elf_16kb
-from apkrevive.security.zip_guard import validate_zip_archive
+from apkrevive.core.align import validate_zip_archive
 
 
 class TestFuzzAxmlElf(unittest.TestCase):

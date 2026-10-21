@@ -12,15 +12,6 @@ build/
 uv.lock
 .venv/
 
-# Android / Gradle
-.gradle/
-build/
-**/build/
-local.properties
-.kotlin/
-*.keystore
-*.jks
-
 # IDE & OS
 .idea/
 .vscode/
@@ -29,15 +20,8 @@ local.properties
 .DS_Store
 Thumbs.db
 
-# Transient benchmarks & artifacts
-results/transient/
-results/*.tmp
+# Transient artifacts
 *.tmp
 *.apk.tmp
-
-# Corpus test APK binaries (must not be committed)
-tests/corpus/apks/
-tests/corpus/apks/*.apk
-corpus/*.apk
-tests/corpus/emulator_test/
-
+*.idsig
+scratch/

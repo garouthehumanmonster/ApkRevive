@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "apkrevive"
 version = "0.5.0a1"
-description = "Legacy Android APK modernizer pipeline targeting API 3-28 (Alpha)"
+description = "Ruthless legacy Android APK runtime compatibility patcher targeting API 3-28 on Android 14-16"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = []
@@ -34,8 +34,6 @@ include = ["apkrevive*"]
 line-length = 120
 target-version = "py39"
 exclude = [
-    "canaries",
-    "apkrevive-android",
     ".git",
     "__pycache__",
 ]
