@@ -54,7 +54,35 @@ KNOWN_RESOURCE_IDS = {
     "anyDensity": 0x0101026C,
     "compileSdkVersion": 0x01010572,
     "compileSdkVersionCodename": 0x01010573,
+    "permission": 0x01010006,
+    "protectionLevel": 0x01010009,
+    "sharedUserLabel": 0x0101000A,
+    "sharedUserId": 0x0101000B,
+    "persistent": 0x0101000D,
+    "enabled": 0x0101000E,
+    "process": 0x01010011,
+    "taskAffinity": 0x01010012,
+    "priority": 0x0101001C,
+    "description": 0x01010020,
+    "hardwareAccelerated": 0x010102D3,
+    "largeHeap": 0x0101035A,
+    "supportsRtl": 0x010103AF,
+    "banner": 0x010103F2,
+    "directBootAware": 0x01010505,
+    "roundIcon": 0x0101052C,
+    "appComponentFactory": 0x0101057A,
+    "fullBackupOnly": 0x01010473,
+    "dataExtractionRules": 0x010105FA,
 }
+
+
+def _encode_res_string_pool_u8_length(val: int) -> bytes:
+    if val < 0x80:
+        return bytes([val])
+    elif val <= 0x7FFF:
+        return bytes([(val >> 8) | 0x80, val & 0xFF])
+    else:
+        raise ValueError(f"AXML string length exceeds 32767 limit: {val}")
 
 
 class UnsupportedAxmlChunk(ValueError):
@@ -260,6 +288,12 @@ class AxmlSurgeon:
                             continue
                         u16_len = struct.unpack_from("<H", pool_data, p)[0]
                         p += 2
+                        if u16_len & 0x8000:
+                            if p + 2 > len(pool_data):
+                                strings.append("")
+                                continue
+                            u16_len = ((u16_len & 0x7FFF) << 16) | struct.unpack_from("<H", pool_data, p)[0]
+                            p += 2
                         if p + (u16_len * 2) > len(pool_data):
                             strings.append("")
                             continue
@@ -391,11 +425,7 @@ class AxmlSurgeon:
                 enc = s.encode("utf-8")
                 c_len = len(s)
                 b_len = len(enc)
-                prefix = (
-                    bytes([c_len & 0x7F, b_len & 0x7F])
-                    if b_len < 128 and c_len < 128
-                    else struct.pack(">HH", c_len | 0x8000, b_len | 0x8000)
-                )
+                prefix = _encode_res_string_pool_u8_length(c_len) + _encode_res_string_pool_u8_length(b_len)
                 entry = prefix + enc + b"\x00"
             else:
                 u16_enc = s.encode("utf-16le")
@@ -632,7 +662,7 @@ class AxmlSurgeon:
             enc = s.encode("utf-8")
             b_len = len(enc)
             c_len = len(s)
-            prefix = bytes([c_len & 0x7F, b_len & 0x7F]) if b_len < 128 and c_len < 128 else struct.pack(">HH", c_len | 0x8000, b_len | 0x8000)
+            prefix = _encode_res_string_pool_u8_length(c_len) + _encode_res_string_pool_u8_length(b_len)
             entry = prefix + enc + b"\x00"
             offsets.append(curr_offset)
             encoded_strings.append(entry)
