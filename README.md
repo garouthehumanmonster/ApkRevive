@@ -35,11 +35,14 @@ Instead of merely reporting compatibility errors, ApkRevive directly patches bin
    - 16KB boundary zipalignment for `.so` and `resources.arsc` using Android tag `0xD935`.
    - V2/V3 signing via `apksigner` with 4KB-aligned APK Signing Block padding (Verity Padding Block `0x42726577`).
 
+5. **Post-Patch Verification Engine (`apkrevive verify`):**
+   - Complete 4-tier integrity verification: 16KB container alignment, V2/V3 signature validity, binary AXML loader compatibility, and contiguous multidex bytecode with class collision detection.
+
 ---
 
 ## Installation
 
-Requires Python 3.9+ and Android SDK build-tools (`apksigner`, `zipalign`) in your `PATH` (or uses built-in fallbacks).
+Requires Python 3.9+ and Android SDK build-tools (`apksigner`, `zipalign`, `aapt2`) in your `PATH` (or uses built-in fallbacks).
 
 ```bash
 git clone https://github.com/garouthehumanmonster/ApkRevive.git
@@ -56,7 +59,7 @@ pip install -e ".[dev]"
 
 ## CLI Usage
 
-ApkRevive provides two primary commands:
+ApkRevive provides three primary commands:
 
 ### 1. `apkrevive inspect <apk>`
 Scans an APK and outputs a concise terminal summary of actual fatal blockers.
@@ -122,13 +125,106 @@ Status: READY
 ```
 
 Options:
-- `-o, --output <path>`: Output patched APK path (required).
-- `--device-api <api>`: Target Android API level (default: 35).
+- `-o, --output <path>`: Path for output revived APK.
 - `--bump-target-sdk <api>`: Bump `targetSdkVersion` to specified API level (default: 24).
-- `--ks <keystore>`: Path to custom signing keystore.
-- `--ks-pass <pass>`: Keystore password.
+- `--no-sign`: Skip APK V2/V3 signing step.
+- `--keystore <path>`: Path to custom signing keystore.
 - `--json`: Output report as JSON.
-- `--force`: Force patching even when fatal blockers are detected.
+
+### 3. `apkrevive verify <apk>`
+Runs the comprehensive post-patch verification battery to confirm alignment, signature block, AXML manifest, and multidex class integrity.
+
+```bash
+apkrevive verify revived_game.apk
+```
+
+Output:
+```
+============================================================
+  ApkRevive Post-Patch Verification
+============================================================
+  APK Path:  revived_game.apk
+  Overall:   [PASS]
+
+  Checks:
+    [PASS] 16KB Container Alignment
+    [PASS] V2/V3 APK Signing Block (4KB CD alignment)
+    [PASS] AndroidManifest.xml Binary AXML Parsing
+    [PASS] Contiguous Multidex & No Class Collisions
+============================================================
+```
+
+Emits JSON with `--json`:
+```bash
+apkrevive verify revived_game.apk --json
+```
+
+Verbose diagnostics with `--verbose`:
+```bash
+apkrevive verify revived_game.apk --verbose
+```
+
+Exit Codes:
+- `0`: All verification checks passed.
+- `1`: One or more verification checks failed.
+- `2`: File not found or unexpected runtime error.
+
+---
+
+## Re-Signing Limitations & Security Warnings
+
+> [!WARNING]
+> ApkRevive re-signs modernized APKs using a new cryptographic key. Modifying an APK binary and re-signing carries critical platform limitations:
+>
+> 1. **Google Play In-Place Update Incompatibility (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`):**
+>    Android's package manager strictly enforces signature consistency across app updates. A revived APK cannot update an existing app installed from Google Play or signed with original vendor keys.
+> 2. **Mandatory Uninstallation & Data Loss:**
+>    To install the revived APK on a target device, any previously installed version must first be uninstalled (`adb uninstall <package>`), resulting in permanent deletion of all private application sandbox data, databases, and shared preferences.
+> 3. **Broken Signature-Level Permissions (`protectionLevel="signature"`):**
+>    Any shared user IDs (`android:sharedUserId`) or custom signature permissions shared between coordinated apps will fail signature verification and be stripped or denied.
+> 4. **Broken Certificate-Bound Cloud & Security Services:**
+>    Services tied to the original signing certificate fingerprint (SHA-1/SHA-256) will fail to authenticate, including:
+>    - Google Sign-In & OAuth credentials
+>    - Firebase App Check and Cloud Messaging
+>    - Play Integrity API and SafetyNet Attestation
+>    - Third-party DRM and anti-tamper security checks
+
+---
+
+## Capability Table
+
+| Feature | Status | Test Citation |
+|---|---|---|
+| 16KB Page Size Inspection (64-bit) | VERIFIED | `tests/test_elf16k.py` |
+| 16KB Zipalign Container Padding (0xD935) | VERIFIED | `tests/test_align.py` |
+| V2/V3 Signature Verification Block (4KB CD) | VERIFIED | `tests/test_signer.py` |
+| In-Memory Binary AXML Idempotent Surgery | VERIFIED | `tests/test_axml.py` |
+| Strict Ascending Resource-ID Attribute Sorting | VERIFIED | `tests/test_axml_correctness.py` |
+| Missing `<uses-sdk>` and targetSdkVersion Bump | VERIFIED | `tests/test_axml.py` |
+| Apache HTTP Legacy Injection | VERIFIED | `tests/test_axml.py` |
+| Scoped Storage & Cleartext Traffic Unlocks | VERIFIED | `tests/test_axml.py` |
+| Next Multidex Slot Injection (`classesN.dex`) | VERIFIED | `tests/test_dex_surgeon.py` |
+| StrictMode & FileUriExposed Bypass Shim | VERIFIED | `scripts/verify_emulator_e2e.py` |
+| Hidden API Unlock Shim (`VMRuntime`) | VERIFIED | `scripts/verify_emulator_e2e.py` |
+| 60Hz Display Refresh Locking | UNVERIFIED | `docs/COMPATIBILITY.md` (no Activity hooks in ContentProvider) |
+| Display Cutout Short Edges Mode | UNVERIFIED | `docs/COMPATIBILITY.md` (no Activity hooks in ContentProvider) |
+| In-Place 16KB Relinking of 4KB Binaries | UNVERIFIED | Mathematically impossible without source/relocs; uses `pageSizeCompat` |
+
+---
+
+## Tested Matrix
+
+| Subsystem / Capability | Verification Suite & Test Files | Status |
+|---|---|---|
+| 16KB Page Size Alignment & Inspection | `tests/test_elf16k.py`, `tests/test_elf_surgeon.py` | VERIFIED |
+| AXML Manifest Surgery & Idempotency | `tests/test_axml.py`, `tests/test_axml_correctness.py` | VERIFIED |
+| DEX Shim Injection & Multidex | `tests/test_dex_surgeon.py`, `tests/test_shim.py` | VERIFIED |
+| 16KB Zipalign (0xD935) & V2/V3 Signing | `tests/test_align.py`, `tests/test_signer.py` | VERIFIED |
+| Triage & Behavioral Changes | `tests/test_triage.py`, `tests/test_behavior_changes.py` | VERIFIED |
+| Live Emulator E2E | `scripts/verify_emulator_e2e.py` | VERIFIED |
+| F-Droid Real Legacy Corpus | `tests/corpus/test_corpus.py` | VERIFIED |
+| Property & Fuzzing | `tests/fuzz/test_fuzz_axml_elf.py` | VERIFIED |
+| Post-Patch Verification Engine | `tests/test_verify.py` | VERIFIED |
 
 ---
 

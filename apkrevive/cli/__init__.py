@@ -27,6 +27,7 @@ from apkrevive.core.extractor import inspect_apk
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.signer import sign_apk, verify_apk_certs
+from apkrevive.core.verify import verify_apk_integrity, VerificationReport
 from apkrevive.core.elf_surgeon import (
     rewrite_elf_16kb,
     get_elf_needed,
@@ -411,6 +412,40 @@ def format_patch_report(report: PatchReport) -> str:
     return "\n".join(lines)
 
 
+def run_verify(apk_path: str, verbose: bool = False) -> VerificationReport:
+    """Runs post-patch verification battery on an APK and returns a VerificationReport."""
+    return verify_apk_integrity(apk_path, verbose=verbose)
+
+
+def format_verification_report(report: VerificationReport, verbose: bool = False) -> str:
+    """Formats human-readable terminal output for VerificationReport."""
+    lines = [
+        "============================================================",
+        "  ApkRevive Post-Patch Verification",
+        "============================================================",
+        f"  APK Path:  {report.apk_path}",
+        f"  Overall:   {'[PASS]' if report.is_valid else '[FAIL]'}",
+        "",
+        "  Checks:",
+        f"    [{'PASS' if report.checks.get('alignment') else 'FAIL'}] 16KB Container Alignment",
+        f"    [{'PASS' if report.checks.get('signature') else 'FAIL'}] V2/V3 APK Signing Block (4KB CD alignment)",
+        f"    [{'PASS' if report.checks.get('axml') else 'FAIL'}] AndroidManifest.xml Binary AXML Parsing",
+        f"    [{'PASS' if report.checks.get('dex') else 'FAIL'}] Contiguous Multidex & No Class Collisions",
+    ]
+    if report.errors:
+        lines.append("")
+        lines.append("  Errors:")
+        for err in report.errors:
+            lines.append(f"    [!] {err}")
+    if verbose and report.details:
+        lines.append("")
+        lines.append("  Details:")
+        for k, v in report.details.items():
+            lines.append(f"    - {k}: {v}")
+    lines.append("============================================================")
+    return "\n".join(lines)
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="apkrevive",
@@ -455,6 +490,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_patch.add_argument("--enable-cutout", action="store_true", help=argparse.SUPPRESS)
     p_patch.add_argument("--json", action="store_true", help="Output machine-readable JSON report")
 
+    # Subcommand: verify
+    p_verify = subparsers.add_parser(
+        "verify",
+        help="Run comprehensive post-patch verification battery",
+    )
+    p_verify.add_argument("apk", help="Path to APK to verify")
+    p_verify.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    p_verify.add_argument("--verbose", action="store_true", help="Verbose diagnostics")
+
     args = parser.parse_args(argv)
 
     if args.command in ("inspect", "triage"):
@@ -494,6 +538,21 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 0
         except Exception as e:
             sys.stderr.write(f"Error patching APK: {e}\n")
+            return 2
+
+    elif args.command == "verify":
+        try:
+            report = run_verify(args.apk, verbose=args.verbose)
+            if args.json:
+                print(json.dumps(report.to_dict(), indent=2))
+            else:
+                print(format_verification_report(report, verbose=args.verbose))
+            return 0 if report.is_valid else 1
+        except FileNotFoundError as e:
+            sys.stderr.write(f"File not found: {e}\n")
+            return 2
+        except Exception as e:
+            sys.stderr.write(f"Error verifying APK: {e}\n")
             return 2
 
     return 0
@@ -559,8 +618,10 @@ def revive_cmd(args: Any) -> int:
 __all__ = [
     "run_inspect",
     "run_patch",
+    "run_verify",
     "format_inspection_report",
     "format_patch_report",
+    "format_verification_report",
     "main",
     "triage_cmd",
     "revive_cmd",
