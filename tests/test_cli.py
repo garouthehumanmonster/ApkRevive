@@ -81,6 +81,30 @@ class TestCli(unittest.TestCase):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
 
+    def test_inspect_private_bionic_dependencies_remediable(self):
+        apk_bytes = make_test_apk("com.example.bionic", target_sdk=24)
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f:
+            f.write(apk_bytes)
+            f.flush()
+            temp_path = f.name
+
+        try:
+            with patch("apkrevive.cli.inspect_apk") as mock_inspect:
+                from apkrevive.core.models import ApkMetadata
+                mock_inspect.return_value = ApkMetadata(
+                    package_name="com.example.bionic",
+                    target_sdk=24,
+                    min_sdk=14,
+                    abis=["arm64-v8a"],
+                    private_libs=["libcrypto.so"],
+                )
+                report = run_inspect(temp_path)
+                self.assertIn("libcrypto.so", report.private_bionic_libs)
+                self.assertTrue(any("Private Bionic linker dependencies" in r for r in report.remediable_issues))
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
     def test_inspect_cli_json(self):
         apk_bytes = make_test_apk("com.example.json", target_sdk=22)
         with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f:
