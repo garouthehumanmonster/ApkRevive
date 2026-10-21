@@ -105,6 +105,26 @@ class TestTriage(unittest.TestCase):
         self.assertFalse(res_36_x86["page_size_compat_verified"])
         self.assertEqual(res_36_x86.get("verdict_display"), "GREEN (UNVERIFIED)")
 
+    def test_textrel_returns_red_on_api23_plus(self):
+        """Verifies that an APK with text relocations (DT_TEXTREL) returns RED on API >= 23, never GREEN."""
+        apk = ApkMetadata(
+            package_name="com.example.textrel",
+            target_sdk=22,
+            abis=["armeabi-v7a"],
+            has_textrel=True,
+            textrel_libs=["liblegacy_textrel.so"],
+        )
+        dev = DeviceProfile(
+            os_api_level=35,
+            install_floor=24,
+            supported_abis=["armeabi-v7a", "arm64-v8a"],
+            page_size_bytes=4096,
+        )
+        res = evaluate_triage(apk, dev)
+        self.assertEqual(res["verdict"], "RED")
+        self.assertEqual(res["reason"], "INCOMPATIBLE_TEXTREL")
+        self.assertIn("liblegacy_textrel.so", res["details"])
+
 
 if __name__ == "__main__":
     unittest.main()
