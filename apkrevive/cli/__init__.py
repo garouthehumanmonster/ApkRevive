@@ -185,6 +185,9 @@ def run_patch(
     bump_target_sdk: Optional[int] = None,
     no_sign: bool = False,
     keystore_path: Optional[str] = None,
+    keystore_pass: Optional[str] = None,
+    key_alias: Optional[str] = None,
+    key_pass: Optional[str] = None,
     quiet: bool = False,
 ) -> PatchReport:
     """Executes the binary mutation pipeline to revive a legacy APK."""
@@ -337,10 +340,15 @@ def run_patch(
         import shutil
         shutil.copyfile(temp_aligned, output_apk)
         if not no_sign:
-            sign_apk(
+            signed = sign_apk(
                 output_apk,
                 keystore_path=keystore_path,
+                keystore_pass=keystore_pass,
+                key_alias=key_alias,
+                key_pass=key_pass,
             )
+            if not signed:
+                raise RuntimeError(f"Failed to sign output APK {output_apk} with apksigner.")
             remediations.append("Signer: Applied APK Signature Scheme v2/v3")
         else:
             remediations.append("Signer: Signing skipped (--no-sign)")
@@ -468,12 +476,16 @@ def main(argv: Optional[List[str]] = None) -> int:
             return revive_cmd(args)
         try:
             out_apk = args.output or args.apk.replace(".apk", ".revived.apk")
+            ks_path = args.keystore or getattr(args, "ks", None)
             rep = run_patch(
                 input_apk=args.apk,
                 output_apk=out_apk,
                 bump_target_sdk=args.bump_target_sdk,
                 no_sign=args.no_sign,
-                keystore_path=args.keystore or args.ks,
+                keystore_path=ks_path,
+                keystore_pass=getattr(args, "ks_pass", None),
+                key_alias=getattr(args, "ks_alias", None),
+                key_pass=getattr(args, "key_pass", None),
             )
             if args.json:
                 print(json.dumps(rep.to_dict(), indent=2))
@@ -534,6 +546,9 @@ def revive_cmd(args: Any) -> int:
         input_apk=input_path,
         output_apk=output_path,
         keystore_path=ks,
+        keystore_pass=getattr(args, "ks_pass", None),
+        key_alias=getattr(args, "ks_alias", None),
+        key_pass=getattr(args, "key_pass", None),
         no_sign=getattr(args, "no_sign", False),
     )
     if getattr(args, "json", False):
