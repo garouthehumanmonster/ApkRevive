@@ -400,6 +400,52 @@ class TestAxml(unittest.TestCase):
         # Verify style span data is preserved at new_styles_start
         self.assertEqual(appended[new_styles_start : new_styles_start + len(style_span_data)], style_span_data)
 
+    def test_multibyte_utf8_string_pool_encoding(self):
+        """Verifies that multi-byte UTF-8 string (c_len < 128, b_len >= 128) encodes independently."""
+        # 70 unicode characters (c_len=70 < 128), each 3 bytes in UTF-8 (b_len=210 >= 128)
+        text = "\u4e16" * 70
+        root = AxmlNode(tag="manifest")
+        root.set_attr("package", "com.example.utf8", ns="")
+        app = AxmlNode(tag="application")
+        app.set_attr("label", text)
+        root.children.append(app)
+
+        data = AxmlSurgeon.serialize(root)
+        parsed = AxmlSurgeon.parse(data)
+        parsed_app = parsed.find_child("application")
+        self.assertIsNotNone(parsed_app)
+        self.assertEqual(parsed_app.get_attr("label").get_value(), text)
+
+    def test_utf16_long_string_two_word_length_decoding(self):
+        """Verifies that UTF-16 string with 2-word length (> 0x7FFF) decodes properly."""
+        # Synthetic UTF-16 AXML with 32770 chars (0x8002)
+        total_chars = 0x8002
+        high_word = 0x8000 | (total_chars >> 16)
+        low_word = total_chars & 0xFFFF
+        prefix = struct.pack("<HH", high_word, low_word)
+        str_bytes = b"A\x00" * total_chars
+
+        sp_data = prefix + str_bytes + b"\x00\x00"
+        pad = (4 - (len(sp_data) % 4)) % 4
+        sp_data_padded = sp_data + (b"\x00" * pad)
+
+        offset_table = struct.pack("<I", 0)
+        str_start = 28 + len(offset_table)
+        sp_size = str_start + len(sp_data_padded)
+        sp_chunk = struct.pack("<HHI IIIII", 0x0001, 28, sp_size, 1, 0, 0x0000, str_start, 0) + offset_table + sp_data_padded
+
+        # Wrap in minimal XML container
+        rm_chunk = struct.pack("<HHI I", 0x0180, 8, 12, 0)
+        xml_size = 8 + len(sp_chunk) + len(rm_chunk)
+        # Element chunk for root
+        elem = struct.pack("<HHI II II HHH HHH", 0x0102, 16, 36, 1, 0xFFFFFFFF, 0xFFFFFFFF, 0, 20, 20, 0, 0, 0, 0)
+        elem_end = struct.pack("<HHI II II", 0x0103, 16, 24, 1, 0xFFFFFFFF, 0xFFFFFFFF, 0)
+        body = elem + elem_end
+        total_xml = struct.pack("<HHI", 0x0003, 8, 8 + len(sp_chunk) + len(rm_chunk) + len(body)) + sp_chunk + rm_chunk + body
+
+        parsed_root = AxmlSurgeon.parse(total_xml)
+        self.assertEqual(len(parsed_root.tag), total_chars)
+
 
 if __name__ == "__main__":
     unittest.main()
