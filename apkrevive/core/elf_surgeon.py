@@ -29,10 +29,32 @@ PAGE_4KB = 0x1000
 PAGE_16KB = 0x4000
 
 DEFAULT_BIONIC_RENAME_MAP = {
-    "libcrypto.so": "libcrypto_legacy.so",
-    "libssl.so": "libssl_legacy.so",
-    "libcutils.so": "libcutils_legacy.so",
+    "libcrypto.so": "libcrypt0.so",
+    "libssl.so": "libss1.so",
+    "libcutils.so": "libcutil0.so",
+    "libutils.so": "libutil0.so",
+    "libgui.so": "libgu1.so",
+    "libandroid_runtime.so": "libandroid_runtim0.so",
 }
+
+
+def get_stub_so(soname: str, abi: str) -> bytes:
+    """
+    Retrieves fallback shared object bytes for the given soname and ABI.
+    1. Checks local tool stubs in apkrevive/stubs/<abi>/<soname> or stubs/<abi>/<soname>.
+    2. Falls back to generating a minimal 16KB-aligned ELF shared object via make_fallback_so.
+    """
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(pkg_dir, "..", "stubs", abi, soname),
+        os.path.join(os.getcwd(), "stubs", abi, soname),
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            with open(path, "rb") as f:
+                return f.read()
+
+    return make_fallback_so(soname, abi)
 
 
 from apkrevive.core.align import validate_zip_archive
@@ -392,12 +414,27 @@ def patch_apk_native_libs(
                 target_path = f"lib/{abi}/{new_lib}"
                 if target_path not in existing_entries:
                     try:
-                        fallback_bytes = make_fallback_so(new_lib, abi)
+                        fallback_bytes = get_stub_so(new_lib, abi)
                         zout.writestr(target_path, fallback_bytes)
+                        existing_entries.add(target_path)
                         modified = True
                         remediations.append(f"INJECT_FALLBACK:{target_path}")
                     except ValueError:
                         pass
+
+        # 4. Check for 32-bit only native library presence
+        if found_abis:
+            has_64bit = any(abi in ("arm64-v8a", "x86_64") for abi in found_abis)
+            has_32bit = any(abi in ("armeabi", "armeabi-v7a", "x86") for abi in found_abis)
+            if has_32bit and not has_64bit:
+                abi_str = ", ".join(sorted(found_abis))
+                first_abi = sorted(found_abis)[0]
+                warning_msg = (
+                    f"WARN_32BIT_ONLY: APK contains only 32-bit native libraries ({abi_str}). "
+                    "Target device must support 32-bit execution, or installation requires: "
+                    f"'adb install --abi {first_abi} --bypass-low-target-sdk-block'"
+                )
+                remediations.append(warning_msg)
 
     return modified, remediations
 
@@ -412,6 +449,7 @@ __all__ = [
     "rewrite_elf_16kb",
     "patch_elf_dt_needed",
     "make_fallback_so",
+    "get_stub_so",
     "patch_apk_native_libs",
     "rewrite_apk_elfs_16kb",
     "validate_zip_archive",

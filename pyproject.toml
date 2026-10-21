@@ -29,6 +29,7 @@ include = ["apkrevive*"]
 
 [tool.setuptools.package-data]
 "apkrevive.shim" = ["*.dex", "*.java"]
+"apkrevive.stubs" = ["*/*.so"]
 
 [tool.ruff]
 line-length = 120
