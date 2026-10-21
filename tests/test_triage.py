@@ -125,6 +125,31 @@ class TestTriage(unittest.TestCase):
         self.assertEqual(res["reason"], "INCOMPATIBLE_TEXTREL")
         self.assertIn("liblegacy_textrel.so", res["details"])
 
+    def test_bump_target_sdk_triggers_bionic_isolation_red(self):
+        """Verifies that bumping target_sdk to >= 24 re-evaluates Bionic isolation and returns RED if private libs exist."""
+        apk = ApkMetadata(
+            package_name="com.example.bionic_bump",
+            target_sdk=22,
+            abis=["arm64-v8a"],
+            elf_load_align_64bit=16384,
+            private_libs=["libcrypto.so"],
+        )
+        dev = DeviceProfile(
+            os_api_level=35,
+            install_floor=24,
+            supported_abis=["arm64-v8a"],
+            page_size_bytes=16384,
+        )
+        # Without bump (target_sdk=22): greylisted -> runnable unmodified with bypass
+        res_unbumped = evaluate_triage(apk, dev, bump_target_sdk=None)
+        self.assertEqual(res_unbumped["verdict"], "GREEN")
+
+        # With bump to 24: Bionic namespace isolation applies -> must be RED
+        res_bumped = evaluate_triage(apk, dev, bump_target_sdk=24)
+        self.assertEqual(res_bumped["verdict"], "RED")
+        self.assertEqual(res_bumped["reason"], "UNRESOLVABLE_SYSTEM_LIBRARY")
+        self.assertIn("libcrypto.so", res_bumped["details"])
+
 
 if __name__ == "__main__":
     unittest.main()
