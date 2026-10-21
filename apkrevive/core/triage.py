@@ -232,12 +232,17 @@ def evaluate_triage(
         )
 
     # 2. Private System Libraries & Bionic Greylist Check
+    effective_target_sdk = bump_target_sdk if bump_target_sdk is not None else target_sdk
+    bionic_isolation_active = (
+        "BIONIC_NAMESPACE_ISOLATION" in applicable_ids
+        or (effective_target_sdk >= 24 and device_sdk >= 24)
+    )
     if private_libs:
         blocked_libs = []
         for lib in private_libs:
             if lib in PUBLIC_SYSTEM_LIBRARIES:
                 continue
-            if "BIONIC_NAMESPACE_ISOLATION" not in applicable_ids and lib in BIONIC_GREYLIST:
+            if not bionic_isolation_active and lib in BIONIC_GREYLIST:
                 continue
             blocked_libs.append(lib)
 
@@ -246,7 +251,7 @@ def evaluate_triage(
                 "schema_version": SCHEMA_VERSION,
                 "verdict": Verdict.RED.value,
                 "reason": TriageSignal.UNRESOLVABLE_SYSTEM_LIBRARY.value,
-                "details": f"Blocked private platform libraries: {blocked_libs} (targetSdk={target_sdk})",
+                "details": f"Blocked private platform libraries: {blocked_libs} (effective targetSdk={effective_target_sdk})",
                 "warnings": warnings,
                 "required_transforms": [],
                 "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
