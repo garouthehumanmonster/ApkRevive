@@ -1,0 +1,20 @@
+# ApkRevive Code Owners
+# Syntax: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default global owner for all repository files
+* @garouthehumanmonster
+
+# Core Python Engine & CLI
+/apkrevive/ @garouthehumanmonster
+
+# Android Companion App
+/apkrevive-android/ @garouthehumanmonster
+
+# Canaries & Verification Harnesses
+/canaries/ @garouthehumanmonster
+/scripts/ @garouthehumanmonster
+/receipts/ @garouthehumanmonster
+/results/ @garouthehumanmonster
+
+# CI / GitHub Actions Workflows & Security
+/.github/ @garouthehumanmonster

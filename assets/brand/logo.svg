@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="leftHexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF4D6A" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#F5A623" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#1B2432" stop-opacity="0.4" />
+    </linearGradient>
+    <linearGradient id="rightHexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.8" />
+      <stop offset="60%" stop-color="#00E5A3" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#00E5A3" stop-opacity="1" />
+    </linearGradient>
+    <linearGradient id="pulseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F5A623" />
+      <stop offset="40%" stop-color="#38BDF8" />
+      <stop offset="70%" stop-color="#00E5A3" />
+      <stop offset="100%" stop-color="#00E5A3" />
+    </linearGradient>
+    <filter id="emeraldGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- BACKGROUND GRID / OSCILLOSCOPE TRACE (Subtle) -->
+  <g opacity="0.15">
+    <line x1="10" y1="30" x2="110" y2="30" stroke="#263245" stroke-width="1" stroke-dasharray="2 4" />
+    <line x1="10" y1="60" x2="110" y2="60" stroke="#263245" stroke-width="1" />
+    <line x1="10" y1="90" x2="110" y2="90" stroke="#263245" stroke-width="1" stroke-dasharray="2 4" />
+    <line x1="30" y1="10" x2="30" y2="110" stroke="#263245" stroke-width="1" stroke-dasharray="2 4" />
+    <line x1="60" y1="10" x2="60" y2="110" stroke="#263245" stroke-width="1" />
+    <line x1="90" y1="10" x2="90" y2="110" stroke="#263245" stroke-width="1" stroke-dasharray="2 4" />
+  </g>
+
+  <!-- ICON MARK (Left 120px) -->
+  <g transform="translate(10, 10)">
+    <!-- Fractured 4KB Left Hex Half (Center at X=50, Y=50) -->
+    <!-- Point Top: 50, 10. Top-Left: 18, 30. Bottom-Left: 18, 70. Bottom: 50, 90 -->
+    <!-- Fragment A: Top shard -->
+    <path d="M 48 10 L 22 28 L 36 42 L 48 38 Z" fill="url(#leftHexGrad)" stroke="#FF4D6A" stroke-width="1.5" />
+    <!-- Fragment B: Lower side shard with offset glitch -->
+    <path d="M 16 36 L 44 48 L 40 68 L 16 64 Z" fill="#1B2432" stroke="#F5A623" stroke-width="1.5" stroke-dasharray="5 2" />
+    <!-- Fragment C: Bottom shard -->
+    <path d="M 18 72 L 48 90 L 48 76 L 28 66 Z" fill="url(#leftHexGrad)" stroke="#FF4D6A" stroke-width="1.5" />
+    <!-- 4K misalignment label -->
+    <text x="24" y="55" fill="#FF4D6A" font-family="JetBrains Mono, monospace" font-size="8" font-weight="700" letter-spacing="-0.5">4KB</text>
+
+    <!-- Emerald Defibrillator Pulse Bridge (X: 42 -> 58) -->
+    <path d="M 38 50 L 46 50 L 50 32 L 54 68 L 57 44 L 60 54 L 64 50 L 72 50" 
+          stroke="url(#pulseGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+          filter="url(#emeraldGlow)" />
+
+    <!-- Solid Reinforced 16KB Right Hex Half (Point Top: 52, 10. Top-Right: 84, 30. Bottom-Right: 84, 70. Bottom: 52, 90) -->
+    <path d="M 52 10 L 84 30 L 84 70 L 52 90 L 52 68 L 68 50 L 52 32 Z" 
+          fill="#121822" stroke="url(#rightHexGrad)" stroke-width="2.5" stroke-linejoin="round" />
+    
+    <!-- Inner structural brace for 16KB -->
+    <path d="M 56 22 L 78 36 L 78 64 L 56 78 Z" 
+          fill="none" stroke="#00E5A3" stroke-width="1" stroke-opacity="0.4" stroke-dasharray="3 3" />
+    <circle cx="68" cy="50" r="3.5" fill="#00E5A3" filter="url(#emeraldGlow)" />
+    
+    <!-- 16KB alignment label -->
+    <text x="62" y="62" fill="#00E5A3" font-family="JetBrains Mono, monospace" font-size="7" font-weight="700">16K</text>
+  </g>
+
+  <!-- LOGO WORDMARK (Right) -->
+  <g transform="translate(135, 30)">
+    <!-- Primary Title: ApkRevive -->
+    <text x="0" y="38" fill="#F8FAFC" font-family="Space Grotesk, Inter, sans-serif" font-size="38" font-weight="700" letter-spacing="-1">
+      Apk<tspan fill="#00E5A3">Revive</tspan>
+    </text>
+
+    <!-- Status badge pill: 16KB READY -->
+    <g transform="translate(210, 14)">
+      <rect x="0" y="0" width="98" height="22" rx="4" fill="#121822" stroke="#00E5A3" stroke-width="1.2" />
+      <circle cx="10" cy="11" r="3.5" fill="#00E5A3" filter="url(#emeraldGlow)" />
+      <text x="18" y="15" fill="#00E5A3" font-family="JetBrains Mono, monospace" font-size="9" font-weight="700" letter-spacing="0.5">16KB READY</text>
+    </g>
+
+    <!-- Subtitle: Precision Binary Surgery & Autonomous Modernizer -->
+    <text x="2" y="62" fill="#94A3B8" font-family="Inter, sans-serif" font-size="12" font-weight="500" letter-spacing="0.2">
+      Autonomous 16KB ELF &amp; Android 15+ Compatibility Engine
+    </text>
+
+    <!-- Hex offset marker telemetry -->
+    <text x="2" y="77" fill="#38BDF8" font-family="JetBrains Mono, monospace" font-size="10" font-weight="500" opacity="0.85">
+      0x00004000 <tspan fill="#64748B">|</tspan> PT_LOAD <tspan fill="#00E5A3">CONGRUENT</tspan> <tspan fill="#64748B">|</tspan> ZERO-SLIP
+    </text>
+  </g>
+</svg>

@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apkrevive"
+version = "0.4.0"
+description = "Ruthless legacy Android APK runtime compatibility patcher targeting API 3-28 on Android 14-16"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "hypothesis>=6.100.0",
+    "rich>=13.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "coverage>=7.0.0",
+]
+
+
+[project.scripts]
+apkrevive = "apkrevive.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["apkrevive*"]
+
+[tool.setuptools.package-data]
+"apkrevive.shim" = ["*.dex", "*.java"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+exclude = [
+    ".git",
+    "__pycache__",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501", "E701", "E402"]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["apkrevive"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "-m 'not integration'"
+markers = [
+    "integration: marks tests requiring external binaries/tools (deselect with '-m \"not integration\"')",
+]
