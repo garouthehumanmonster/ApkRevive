@@ -163,11 +163,23 @@ def evaluate_triage(
     if apk.get("has_textrel") or apk.get("textrel_libs"):
         textrel_names = sorted(list(set(apk.get("textrel_libs", []))))
         lib_str = f" ({textrel_names})" if textrel_names else ""
-        warnings.append(
+        warn_msg = (
             f"WARN_TEXTREL: Native library containing text relocations (DT_TEXTREL) detected{lib_str}. "
             f"Android 6.0+ (API 23+) dynamic linker refuses to load binaries with text relocations for security (W^X memory policy). "
             f"Remediation: Recompile native code with -fPIC to eliminate text relocations."
         )
+        warnings.append(warn_msg)
+        if device_sdk >= 23:
+            return {
+                "schema_version": SCHEMA_VERSION,
+                "verdict": Verdict.RED.value,
+                "reason": TriageSignal.INCOMPATIBLE_TEXTREL.value,
+                "details": f"Native library containing text relocations (DT_TEXTREL) is forbidden on Android 6.0+ (API {device_sdk}): {textrel_names or 'unknown library'}",
+                "warnings": warnings,
+                "required_transforms": [],
+                "transform_risks": {t: TRANSFORM_RISK_LEVELS.get(t, "MEDIUM") for t in required_transforms},
+                "page_size_compat_verified": True,
+            }
 
     # Warning 5: Cleartext HTTP & Legacy TLS
     uses_cleartext = apk.get("uses_cleartext_traffic")
