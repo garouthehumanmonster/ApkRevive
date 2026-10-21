@@ -101,6 +101,62 @@ class TestFuzzAxmlElf(unittest.TestCase):
             AxmlSurgeon.parse(overflow_chunk)
         self.assertIn("Invalid AXML chunk size", str(ctx.exception))
 
+    def test_axml_roundtrip_property_fuzz(self):
+        """Property test: arbitrary valid AxmlNode trees serialize and parse back idempotently."""
+        if not HAS_HYPOTHESIS:
+            return
+
+        from apkrevive.core.axml import AxmlNode, KNOWN_RESOURCE_IDS
+
+        attr_names = list(KNOWN_RESOURCE_IDS.keys())[:15]
+
+        @settings(max_examples=50, deadline=None)
+        @given(
+            pkg=st.text(alphabet="abcdefghijklmnopqrstuvwxyz", min_size=3, max_size=20),
+            tag_name=st.sampled_from(["application", "activity", "service", "receiver"]),
+            attr_name=st.sampled_from(attr_names),
+            attr_val=st.one_of(st.booleans(), st.integers(min_value=0, max_value=10000), st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789", min_size=1, max_size=20)),
+        )
+        def _prop(pkg: str, tag_name: str, attr_name: str, attr_val):
+            root = AxmlNode(tag="manifest")
+            root.set_attr("package", f"com.example.{pkg}", ns="")
+            child = AxmlNode(tag=tag_name)
+            child.set_attr(attr_name, attr_val)
+            root.children.append(child)
+
+            data = AxmlSurgeon.serialize(root)
+            parsed = AxmlSurgeon.parse(data)
+            self.assertEqual(parsed.tag, "manifest")
+            found_child = parsed.find_child(tag_name)
+            self.assertIsNotNone(found_child)
+            attr = found_child.get_attr(attr_name)
+            self.assertIsNotNone(attr)
+            self.assertEqual(attr.get_value(), attr_val)
+
+        _prop()
+
+    def test_elf16k_check_property_fuzz(self):
+        """Property test: elf16k.check never crashes on arbitrary binary inputs."""
+        from apkrevive.core import elf16k
+        from apkrevive.core.elf_surgeon import audit_elf_16kb, get_elf_needed
+
+        if HAS_HYPOTHESIS:
+            @settings(max_examples=100, deadline=None)
+            @given(st.binary(min_size=0, max_size=8192))
+            def _prop(payload: bytes):
+                report = elf16k.check(payload)
+                self.assertIsInstance(report.status, elf16k.Elf16kStatus)
+                self.assertIsInstance(report.reasons, list)
+
+                is_compliant, issues = audit_elf_16kb(payload)
+                self.assertIsInstance(is_compliant, bool)
+                self.assertIsInstance(issues, list)
+
+                needed = get_elf_needed(payload)
+                self.assertIsInstance(needed, list)
+
+            _prop()
+
 
 if __name__ == "__main__":
     unittest.main()
