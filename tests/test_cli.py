@@ -126,7 +126,7 @@ class TestCli(unittest.TestCase):
                 app = root.find_child("application")
                 self.assertIsNotNone(app)
                 # ApkReviveInitProvider should be injected
-                provider = app.find_child("provider", "name", "apkrevive.shim.ApkReviveInitProvider")
+                provider = app.find_child("provider", "name", "com.apkrevive.runtime.ApkReviveInitProvider") or app.find_child("provider", "name", "apkrevive.shim.ApkReviveInitProvider")
                 self.assertIsNotNone(provider)
         finally:
             for p in (in_path, out_path):

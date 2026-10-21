@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-CANONICAL_SHIM_SHA256 = "5ac830e1c5a5668594ff5768ce31bea1f3c3e5c6624a7ba6e2da991b2ae8ba9e"
+CANONICAL_SHIM_SHA256 = "ae45ed4ce54c24bb0ab8decd08a9ee577ff885991086cc72818580b0ebcea0af"
 SHIM_DIR = Path(__file__).resolve().parent
 SHIM_JAVA_PATH = SHIM_DIR / "ApkReviveInitProvider.java"
 SHIM_DEX_PATH = SHIM_DIR / "shim.dex"
@@ -132,12 +132,15 @@ def build_shim(output_dex_path: Optional[Path] = None, force: bool = False) -> b
         tmp_dex = tmp_dir / "dex"
         tmp_dex.mkdir(parents=True, exist_ok=True)
 
+        java_sources = sorted(str(p) for p in SHIM_DIR.rglob("*.java"))
+        if not java_sources:
+            raise FileNotFoundError(f"No Java sources found in {SHIM_DIR}")
+
         cmd_javac = [
             javac_bin,
             "-cp", str(android_jar),
             "-d", str(tmp_bin),
-            str(SHIM_JAVA_PATH)
-        ]
+        ] + java_sources
         res_javac = subprocess.run(cmd_javac, capture_output=True, text=True)
         if res_javac.returncode != 0:
             raise RuntimeError(f"javac compilation failed:\n{res_javac.stderr}")

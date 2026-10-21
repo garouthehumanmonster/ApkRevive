@@ -28,8 +28,14 @@ from apkrevive.core.signer import sign_apk, verify_apk_certs
 from apkrevive.core.elf_surgeon import (
     patch_elf_dt_needed,
     make_fallback_so,
+    get_stub_so,
     rewrite_elf_16kb,
     DEFAULT_BIONIC_RENAME_MAP,
+)
+from apkrevive.core.dex_surgeon import (
+    load_canonical_shim,
+    is_shim_dex,
+    get_next_multidex_name,
 )
 from apkrevive.shim.build_shim import CANONICAL_SHIM_SHA256
 
@@ -301,18 +307,31 @@ def run_patch(
                     target_so_path = f"lib/{abi}/{new_lib}"
                     if target_so_path not in existing_filenames:
                         try:
-                            fallback_bytes = make_fallback_so(new_lib, abi)
+                            fallback_bytes = get_stub_so(new_lib, abi)
                             zout.writestr(target_so_path, fallback_bytes)
+                            existing_filenames.add(target_so_path)
                             remediations.append(f"Fallback SO: Injected {target_so_path}")
                         except ValueError:
                             pass
 
             # Inject ApkReviveInitProvider bytecode shim as next classesN.dex (if not already present)
             if not has_shim_provider:
-                next_idx = max(dex_indices) + 1 if dex_indices else 1
-                shim_dex_name = f"classes{next_idx}.dex" if next_idx > 1 else "classes.dex"
+                existing_dex_names = [f"classes{i}.dex" if i > 1 else "classes.dex" for i in dex_indices]
+                shim_dex_name = get_next_multidex_name(existing_dex_names)
                 zout.writestr(shim_dex_name, shim_dex_bytes)
                 remediations.append(f"DEX Shim: Injected {shim_dex_name} containing ApkReviveInitProvider (Hidden API + StrictMode + Crash Suppressor)")
+
+            # Warn on 32-bit only APKs
+            if found_abis:
+                has_64bit = any(abi in KNOWN_64BIT_ABIS for abi in found_abis)
+                has_32bit = any(abi in KNOWN_32BIT_ABIS for abi in found_abis)
+                if has_32bit and not has_64bit:
+                    abi_str = ", ".join(sorted(found_abis))
+                    first_abi = sorted(found_abis)[0]
+                    remediations.append(
+                        f"Warning: 32-bit only APK ({abi_str}). Target device must support 32-bit execution, "
+                        f"or installation requires: 'adb install --abi {first_abi} --bypass-low-target-sdk-block'"
+                    )
 
         # Step 3: 16KB Zipalign
         align_apk(temp_unaligned, temp_aligned, page_align_64bit=16384)

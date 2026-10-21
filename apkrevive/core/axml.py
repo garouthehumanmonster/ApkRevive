@@ -718,7 +718,14 @@ class AxmlSurgeon:
         return xml_header + sp_chunk + rm_chunk + bytes(start_ns_chunks) + bytes(body_bytes) + bytes(end_ns_chunks)
 
     @classmethod
-    def patch_manifest(cls, data: bytes, transforms: List[str], options: Optional[Dict[str, Any]] = None) -> bytes:
+    def patch_manifest(
+        cls,
+        data: bytes,
+        transforms: Optional[List[str]] = None,
+        options: Optional[Dict[str, Any]] = None,
+        inject_shim: Optional[bool] = None,
+    ) -> bytes:
+        transforms = transforms or []
         options = options or {}
         root = cls.parse(data)
 
@@ -781,7 +788,8 @@ class AxmlSurgeon:
         enable_60hz = options.get("enable_60hz", "LOCK_60HZ_DISPLAY_MODE" in transforms)
         enable_cutout = options.get("enable_cutout", False)
         standalone_install = options.get("standalone_install", False) or ("STANDALONE_INSTALL" in transforms)
-        inject_shim = enable_60hz or enable_cutout or standalone_install or options.get("inject_shim", False)
+        if inject_shim is None:
+            inject_shim = enable_60hz or enable_cutout or standalone_install or options.get("inject_shim", False)
 
         if enable_60hz:
             if not app_node.find_child("meta-data", "name", "apkrevive.enable_60hz_lock"):
@@ -801,14 +809,16 @@ class AxmlSurgeon:
             app_node.set_attr("hasCode", True)
             pkg_attr = root.get_attr("package")
             pkg_name = pkg_attr.raw_value if pkg_attr and pkg_attr.raw_value else "com.apkrevive.app"
-            prov_node = app_node.find_child("provider", "name", "apkrevive.shim.ApkReviveInitProvider")
+            prov_node = app_node.find_child("provider", "name", "com.apkrevive.runtime.ApkReviveInitProvider")
+            if not prov_node:
+                prov_node = app_node.find_child("provider", "name", "apkrevive.shim.ApkReviveInitProvider")
             if not prov_node:
                 prov_node = AxmlNode(tag="provider")
-                prov_node.set_attr("name", "apkrevive.shim.ApkReviveInitProvider")
+                prov_node.set_attr("name", "com.apkrevive.runtime.ApkReviveInitProvider")
                 app_node.children.append(prov_node)
-            prov_node.set_attr("authorities", f"{pkg_name}.apkrevive.init")
+            prov_node.set_attr("authorities", f"{pkg_name}.apkreviveinit")
             prov_node.set_attr("exported", False)
-            prov_node.set_attr("initOrder", 2147483647)
+            prov_node.set_attr("initOrder", 999999999)
 
         out_bytes = cls.serialize(root)
         check_root = cls.parse(out_bytes)
@@ -822,12 +832,15 @@ class AxmlSurgeon:
                 if (ch.tag == "provider" or ch.tag.split(":")[-1] == "provider")
                 and any(
                     (a.name == "name" or a.name.split(":")[-1] == "name")
-                    and (a.raw_value == "apkrevive.shim.ApkReviveInitProvider" or a.get_value() == "apkrevive.shim.ApkReviveInitProvider")
+                    and (
+                        a.raw_value in ("com.apkrevive.runtime.ApkReviveInitProvider", "apkrevive.shim.ApkReviveInitProvider")
+                        or a.get_value() in ("com.apkrevive.runtime.ApkReviveInitProvider", "apkrevive.shim.ApkReviveInitProvider")
+                    )
                     for a in ch.attributes
                 )
             ]
             if len(providers) != 1:
-                raise AssertionError(f"Expected provider apkrevive.shim.ApkReviveInitProvider present exactly once, found {len(providers)}")
+                raise AssertionError(f"Expected provider ApkReviveInitProvider present exactly once, found {len(providers)}")
             has_code_attr = check_app.get_attr("hasCode")
             if not has_code_attr or not has_code_attr.get_value():
                 raise AssertionError("Expected hasCode to be True when inject_shim is active")

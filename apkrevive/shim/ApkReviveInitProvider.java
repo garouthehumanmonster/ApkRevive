@@ -52,9 +52,19 @@ public class ApkReviveInitProvider extends ContentProvider {
             m.invoke(null);
         } catch (Throwable ignored) {}
         try {
-            android.os.StrictMode.setThreadPolicy(android.os.StrictMode.ThreadPolicy.LAX);
-            android.os.StrictMode.setVmPolicy(android.os.StrictMode.VmPolicy.LAX);
-        } catch (Throwable ignored) {}
+            android.os.StrictMode.setThreadPolicy(new android.os.StrictMode.ThreadPolicy.Builder().permitAll().build());
+        } catch (Throwable t) {
+            try {
+                android.os.StrictMode.setThreadPolicy(android.os.StrictMode.ThreadPolicy.LAX);
+            } catch (Throwable ignored) {}
+        }
+        try {
+            android.os.StrictMode.setVmPolicy(new android.os.StrictMode.VmPolicy.Builder().build());
+        } catch (Throwable t) {
+            try {
+                android.os.StrictMode.setVmPolicy(android.os.StrictMode.VmPolicy.LAX);
+            } catch (Throwable ignored) {}
+        }
 
         // 3. Global UncaughtExceptionHandler for Legacy Storage & Permissions
         try {
@@ -165,7 +175,22 @@ public class ApkReviveInitProvider extends ContentProvider {
             if (msg != null) {
                 String lower = msg.toLowerCase(java.util.Locale.ROOT);
                 if (lower.contains("permission") || lower.contains("storage")
-                        || lower.contains("read_external_storage") || lower.contains("write_external_storage")) {
+                        || lower.contains("read_external_storage") || lower.contains("write_external_storage")
+                        || lower.contains("device id") || lower.contains("getdeviceid")
+                        || lower.contains("read_phone_state") || lower.contains("imei")) {
+                    return true;
+                }
+            }
+        }
+
+        if (t instanceof IllegalStateException) {
+            String msg = t.getMessage();
+            if (msg != null) {
+                String lower = msg.toLowerCase(java.util.Locale.ROOT);
+                if (lower.contains("not allowed to start service")
+                        || lower.contains("background execution not allowed")
+                        || lower.contains("app is in background")
+                        || lower.contains("startforegroundservice")) {
                     return true;
                 }
             }
