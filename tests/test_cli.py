@@ -161,6 +161,56 @@ class TestCli(unittest.TestCase):
                 if os.path.exists(p):
                     os.remove(p)
 
+    def test_patch_fails_when_signing_fails(self):
+        apk_bytes = make_test_apk("com.example.signfail")
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_in, \
+             tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            f_in.write(apk_bytes)
+            f_in.flush()
+            in_path = f_in.name
+            out_path = f_out.name
+
+        try:
+            with patch("apkrevive.cli.sign_apk", return_value=False):
+                with self.assertRaises(RuntimeError) as ctx:
+                    run_patch(in_path, out_path, no_sign=False)
+                self.assertIn("Failed to sign output APK", str(ctx.exception))
+        finally:
+            for p in (in_path, out_path):
+                if os.path.exists(p):
+                    os.remove(p)
+
+    def test_patch_forwards_keystore_credentials(self):
+        apk_bytes = make_test_apk("com.example.credforward")
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_in, \
+             tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f_out:
+            f_in.write(apk_bytes)
+            f_in.flush()
+            in_path = f_in.name
+            out_path = f_out.name
+
+        try:
+            with patch("apkrevive.cli.sign_apk", return_value=True) as mock_sign:
+                run_patch(
+                    in_path,
+                    out_path,
+                    keystore_path="my_ks.p12",
+                    keystore_pass="ks_secret",
+                    key_alias="custom_alias",
+                    key_pass="key_secret",
+                )
+                mock_sign.assert_called_once_with(
+                    out_path,
+                    keystore_path="my_ks.p12",
+                    keystore_pass="ks_secret",
+                    key_alias="custom_alias",
+                    key_pass="key_secret",
+                )
+        finally:
+            for p in (in_path, out_path):
+                if os.path.exists(p):
+                    os.remove(p)
+
 
 if __name__ == "__main__":
     unittest.main()
