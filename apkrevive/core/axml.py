@@ -873,6 +873,14 @@ class AxmlSurgeon:
         if inject_shim is None:
             inject_shim = enable_60hz or enable_cutout or standalone_install or options.get("inject_shim", False)
 
+        if enable_60hz:
+            meta_60hz = app_node.find_child("meta-data", "name", "apkrevive.enable_60hz_lock")
+            if not meta_60hz:
+                meta_60hz = AxmlNode(tag="meta-data")
+                meta_60hz.set_attr("name", "apkrevive.enable_60hz_lock")
+                meta_60hz.set_attr("value", True)
+                app_node.children.append(meta_60hz)
+
         if "SET_HAS_CODE_TRUE" in transforms or options.get("force_has_code") or inject_shim:
             app_node.set_attr("hasCode", True)
             pkg_attr = root.get_attr("package")
