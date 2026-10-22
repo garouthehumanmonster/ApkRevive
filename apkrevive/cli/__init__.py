@@ -26,8 +26,6 @@ from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.signer import sign_apk, verify_apk_certs as verify_apk_certs
 from apkrevive.core.verify import verify_apk_integrity, VerificationReport
 from apkrevive.core.toolchain import (
-    find_jdk_tool,
-    find_sdk_tool,
     run_doctor,
     diagnose_tools,
 )
@@ -587,20 +585,6 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 2
 
     elif args.command in ("patch", "revive"):
-        if not getattr(args, "no_sign", False):
-            missing_signing = []
-            if not find_jdk_tool("keytool"):
-                missing_signing.append("keytool")
-            if not find_sdk_tool("apksigner"):
-                missing_signing.append("apksigner")
-            if missing_signing:
-                sys.stderr.write(
-                    f"Error: Missing required signing tool(s): {', '.join(missing_signing)}.\n"
-                    "APK signing requires JDK (keytool) and Android SDK build-tools (apksigner).\n"
-                    "Run 'apkrevive doctor' to diagnose your environment or use '--no-sign' to skip signing.\n"
-                )
-                return 1
-
         if args.command == "revive":
             return revive_cmd(args)
         try:
@@ -739,20 +723,6 @@ def triage_cmd(args: Any) -> int:
 
 
 def revive_cmd(args: Any) -> int:
-    if not getattr(args, "no_sign", False):
-        missing_signing = []
-        if not find_jdk_tool("keytool"):
-            missing_signing.append("keytool")
-        if not find_sdk_tool("apksigner"):
-            missing_signing.append("apksigner")
-        if missing_signing:
-            sys.stderr.write(
-                f"Error: Missing required signing tool(s): {', '.join(missing_signing)}.\n"
-                "APK signing requires JDK (keytool) and Android SDK build-tools (apksigner).\n"
-                "Run 'apkrevive doctor' to diagnose your environment or use '--no-sign' to skip signing.\n"
-            )
-            return 1
-
     input_path = getattr(args, "apk", "")
     output_path = getattr(args, "output", None) or input_path.replace(".apk", ".revived.apk")
     if os.path.exists(input_path):
@@ -767,21 +737,25 @@ def revive_cmd(args: Any) -> int:
         "on device, which will permanently delete all existing user data.\n"
     )
     ks = getattr(args, "ks", None) or getattr(args, "keystore", None)
-    rep = run_patch(
-        input_apk=input_path,
-        output_apk=output_path,
-        bump_target_sdk=getattr(args, "bump_target_sdk", None),
-        keystore_path=ks,
-        keystore_pass=getattr(args, "ks_pass", None),
-        key_alias=getattr(args, "ks_alias", None),
-        key_pass=getattr(args, "key_pass", None),
-        no_sign=getattr(args, "no_sign", False),
-    )
-    if getattr(args, "json", False):
-        print(json.dumps(rep.to_dict(), indent=2))
-    else:
-        print(format_patch_report(rep))
-    return 0
+    try:
+        rep = run_patch(
+            input_apk=input_path,
+            output_apk=output_path,
+            bump_target_sdk=getattr(args, "bump_target_sdk", None),
+            keystore_path=ks,
+            keystore_pass=getattr(args, "ks_pass", None),
+            key_alias=getattr(args, "ks_alias", None),
+            key_pass=getattr(args, "key_pass", None),
+            no_sign=getattr(args, "no_sign", False),
+        )
+        if getattr(args, "json", False):
+            print(json.dumps(rep.to_dict(), indent=2))
+        else:
+            print(format_patch_report(rep))
+        return 0
+    except Exception as e:
+        sys.stderr.write(f"Error reviving APK: {e}\n")
+        return 1
 
 
 __all__ = [

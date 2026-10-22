@@ -460,12 +460,13 @@ class TestDiff(unittest.TestCase):
         out_apk = self._get_temp_path()
         build_diff_test_apk(in_apk)
 
-        with patch("apkrevive.cli.find_sdk_tool", return_value=None):
+        with patch("apkrevive.core.signer.subprocess.run", side_effect=FileNotFoundError("apksigner missing")):
             with patch("sys.stderr", new_callable=io.StringIO) as mock_err:
                 code = main(["revive", in_apk, "-o", out_apk])
 
         self.assertEqual(code, 1)
         self.assertIn("Missing required signing tool", mock_err.getvalue())
+        self.assertIn("apkrevive doctor", mock_err.getvalue())
 
     def test_revive_cmd_direct_with_bump_target_sdk_and_json(self):
         in_apk = self._get_temp_path()

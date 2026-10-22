@@ -17,7 +17,7 @@ from apkrevive.core.toolchain import (
     run_doctor,
 )
 from apkrevive.cli import main
-from apkrevive.core.signer import ensure_keystore, get_apksigner_cmd
+from apkrevive.core.signer import ensure_keystore, get_apksigner_cmd, sign_apk
 from apkrevive.core.verify import get_aapt2_cmd
 from apkrevive.shim.build_shim import resolve_tool
 
@@ -188,16 +188,13 @@ class TestToolchainDiscovery(unittest.TestCase):
             self.assertEqual(code, 0)
             mock_doc.assert_called_once()
 
-    def test_cli_patch_fail_fast_on_missing_signing_tools(self):
-        with patch("apkrevive.cli.find_jdk_tool", return_value=None), \
-             patch("apkrevive.cli.find_sdk_tool", return_value=None):
-            stderr_buf = io.StringIO()
-            with patch("sys.stderr", stderr_buf):
-                code = main(["patch", "dummy.apk"])
-                self.assertEqual(code, 1)
-                err = stderr_buf.getvalue()
-                self.assertIn("Missing required signing tool(s)", err)
-                self.assertIn("apkrevive doctor", err)
+    def test_sign_apk_missing_apksigner_raises_doctor_hint(self):
+        with patch("apkrevive.core.signer.ensure_keystore", return_value=("ks.p12", "pass", "alias")), \
+             patch("subprocess.run", side_effect=FileNotFoundError("apksigner missing")):
+            with self.assertRaises(RuntimeError) as ctx:
+                sign_apk("dummy.apk")
+            self.assertIn("Missing required signing tool(s)", str(ctx.exception))
+            self.assertIn("apkrevive doctor", str(ctx.exception))
 
     def test_cli_patch_no_sign_bypasses_check(self):
         with patch("apkrevive.cli.run_patch") as mock_run:

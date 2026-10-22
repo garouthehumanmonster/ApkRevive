@@ -108,9 +108,15 @@ def ensure_keystore(
             "-validity", "10000",
             "-dname", f"CN=ApkRevive ({alias}),O=ApkRevive,C=US"
         ]
-        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if res.returncode != 0:
-            raise RuntimeError(f"keytool failed to generate keystore: {res.stderr}")
+        try:
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if res.returncode != 0:
+                raise RuntimeError(f"keytool failed to generate keystore: {res.stderr}")
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                "keytool binary not found in JDK or PATH. Keystore generation requires JDK keytool. "
+                "Run 'apkrevive doctor' to diagnose toolchain prerequisites."
+            ) from e
 
     return str(default_ks), password, alias
 
@@ -126,6 +132,8 @@ def sign_apk(
     apksigner = get_apksigner_cmd()
     try:
         ks, ks_pwd, alias = ensure_keystore(keystore_path, keystore_pass, key_alias)
+    except RuntimeError:
+        raise
     except Exception as e:
         sys.stderr.write(f"Keystore error: {e}\n")
         return False
@@ -145,6 +153,12 @@ def sign_apk(
     try:
         res = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return res.returncode == 0
+    except FileNotFoundError as e:
+        raise RuntimeError(
+            "Missing required signing tool(s): apksigner. "
+            "APK signing requires JDK (keytool) and Android SDK build-tools (apksigner). "
+            "Run 'apkrevive doctor' to diagnose your environment or use '--no-sign' to skip signing."
+        ) from e
     except Exception as e:
         sys.stderr.write(f"apksigner execution error: {e}\n")
         return False
