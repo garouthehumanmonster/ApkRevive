@@ -6,7 +6,7 @@ ApkRevive is currently in **Alpha** status. Security patches are applied to the 
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.5.x (Alpha) | :white_check_mark: |
+| 0.5.x   | :white_check_mark: |
 | 0.4.x   | :white_check_mark: |
 | < 0.4.0 | :x:                |
 

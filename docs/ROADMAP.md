@@ -4,12 +4,14 @@ This document outlines the prioritized engineering roadmap for ApkRevive across 
 
 ---
 
-## Current Release: v0.5.0a1 (Alpha)
-- [x] Initial release & unified repository packaging.
+## Current Release: v0.5.0 (Release)
+- [x] Initial release & unified repository packaging (v0.5.0).
 - [x] Structured receipt schema (`scripts/make_receipt.py`) and dynamic verification engine.
-- [x] 35-APK legacy compatibility survey harness (`scripts/survey.py`) and API 37 16KB emulator evidence.
+- [x] Directory-wide legacy compatibility survey harness (`scripts/survey.py`) and aggregate triage statistics.
+- [x] Toolchain diagnostics engine (`apkrevive doctor`) with environment prerequisites auditing.
+- [x] Deep binary diff engine (`apkrevive diff`) with terminal formatting and SARIF 2.1.0 telemetry.
 - [x] Hardened supply chain: Dependabot, CodeQL static analysis, pip-audit, action commit SHA pinning, Sigstore build provenance attestations.
-- [x] Authoritative JSON output schemas (`docs/SCHEMA.md`, `schema_version: "1.0.0"`).
+- [x] Authoritative JSON output schemas (`docs/SCHEMA.md`, `schema_version: "2.1.0"`).
 - [x] Explicit operational limits documentation (`docs/LIMITS.md`).
 
 ---

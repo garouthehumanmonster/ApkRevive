@@ -86,7 +86,7 @@ class TestInitAndMainCoverage(unittest.TestCase):
         non_existent = Path(tempfile.gettempdir()) / "non_existent_pyproject_for_test.toml"
         with patch("importlib.metadata.version", side_effect=PackageNotFoundError("not found")):
             ver = _resolve_version(non_existent)
-            self.assertEqual(ver, "0.5.0a1")
+            self.assertEqual(ver, "0.5.0")
 
         # 2. File exists but regex doesn't match
         with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as tf:

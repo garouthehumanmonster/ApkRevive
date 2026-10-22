@@ -5,6 +5,26 @@ All notable changes to ApkRevive will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-10-22
+
+### Added
+- **Unified Release Versioning & Schemas:**
+  - Unified package version `0.5.0` across `pyproject.toml`, `apkrevive/__init__.py`, and `SECURITY.md`.
+  - Comprehensive, authoritative output schemas documented in `docs/SCHEMA.md` covering `inspect`, `triage`, `patch`, `verify`, `diff`, `doctor`, and verification receipts.
+- **Toolchain Doctor (`apkrevive doctor`):**
+  - Host runtime environment diagnostic engine verifying JDK binaries (`javac`, `keytool`) and Android SDK build/platform tools (`apksigner`, `aapt2`, `d8`, `adb`).
+  - Terminal table formatting and machine-readable JSON output (`--json`) with remediation install hints.
+- **Deep Binary Diff Engine (`apkrevive diff`):**
+  - Structural comparison across AndroidManifest.xml, ELF 16KB segment alignment, DEX class expansion, APK Signing Block, and container entry deltas.
+  - SARIF 2.1.0 telemetry output (`--sarif`) for GitHub Code Scanning and CI/CD security pipelines.
+- **Verification Receipt & Survey Tooling:**
+  - `scripts/make_receipt.py`: Generates structured verification receipts from target APKs with cryptographic hashing (SHA-256, SHA-1, MD5) and post-patch container validation.
+  - `scripts/survey.py`: Directory-wide legacy APK compatibility survey runner and triage aggregator producing formatted summary tables and JSON breakdowns.
+- **Container Verification & Alignment Hardening:**
+  - Enforced 4KB alignment on Central Directory entries and APK Signing Block verity padding (`0x42726577`).
+  - Support for unsigned container verification semantics (`is_unsigned=True`) for `--no-sign` workflows.
+  - Dry-run emulator receipts and enhanced 16KB emulator verification harness.
+
 ## [0.4.0] - 2026-10-21
 
 ### Added
