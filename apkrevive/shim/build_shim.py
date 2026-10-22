@@ -7,12 +7,13 @@ Compiles ApkReviveInitProvider.java using javac and d8 into canonical shim.dex.
 import argparse
 import hashlib
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from typing import Optional
+
+from apkrevive.core.toolchain import find_jdk_tool, find_sdk_tool
 
 CANONICAL_SHIM_SHA256 = "29502fbaebc7c96457792a13cbfb2bcb6bde667195235638aaf83da74b54a265"
 SHIM_DIR = Path(__file__).resolve().parent
@@ -57,42 +58,15 @@ def find_platform_dir(sdk: Path) -> Path:
 
 
 def resolve_tool(name: str, build_tools_dir: Optional[Path] = None) -> str:
-    found = shutil.which(name)
-    if found:
-        return found
+    if name in ("javac", "keytool"):
+        tool = find_jdk_tool(name)
+        if tool:
+            return tool
+        return f"{name}.exe" if sys.platform == "win32" else name
 
-    if sys.platform == "win32":
-        for ext in [".exe", ".bat", ".cmd"]:
-            cand = shutil.which(f"{name}{ext}")
-            if cand:
-                return cand
-
-    if name == "javac":
-        java_home = os.environ.get("JAVA_HOME")
-        if java_home:
-            javac_cand = Path(java_home) / "bin" / ("javac.exe" if sys.platform == "win32" else "javac")
-            if javac_cand.is_file():
-                return str(javac_cand)
-        if sys.platform == "win32":
-            known_windows_javacs = [
-                r"C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot\bin\javac.exe",
-            ]
-            for win_javac in known_windows_javacs:
-                if os.path.isfile(win_javac):
-                    return win_javac
-            prog_files = os.environ.get("ProgramFiles", r"C:\Program Files")
-            java_dir = Path(prog_files) / "Java"
-            if java_dir.is_dir():
-                for j_cand in sorted(java_dir.glob("**/javac.exe"), reverse=True):
-                    return str(j_cand)
-        return "javac.exe" if sys.platform == "win32" else "javac"
-
-    if build_tools_dir and build_tools_dir.is_dir():
-        candidates = [f"{name}.bat", f"{name}.exe", f"{name}.cmd", name] if sys.platform == "win32" else [name]
-        for tool_name in candidates:
-            tool_path = build_tools_dir / tool_name
-            if tool_path.is_file():
-                return str(tool_path)
+    tool = find_sdk_tool(name, build_tools_dir=build_tools_dir)
+    if tool:
+        return tool
 
     if sys.platform == "win32":
         ext = ".bat" if name in ("d8", "apksigner") else ".exe"

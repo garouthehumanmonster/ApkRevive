@@ -12,31 +12,12 @@ import sys
 import warnings
 from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
+from apkrevive.core.toolchain import find_sdk_tool, find_jdk_tool
 
 
 def get_apksigner_cmd() -> str:
-    which_cmd = shutil.which("apksigner")
-    if which_cmd:
-        return which_cmd
-    sdk_roots = [
-        os.environ.get("ANDROID_HOME"),
-        os.environ.get("ANDROID_SDK_ROOT"),
-        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk"),
-        os.path.expanduser("~/Library/Android/sdk"),
-        os.path.expanduser("~/Android/Sdk")
-    ]
-    for root in sdk_roots:
-        if not root or not os.path.exists(root):
-            continue
-        build_tools_dir = os.path.join(root, "build-tools")
-        if os.path.exists(build_tools_dir):
-            versions = sorted(os.listdir(build_tools_dir), reverse=True)
-            for ver in versions:
-                for candidate in ["apksigner.bat", "apksigner"]:
-                    cand_path = os.path.join(build_tools_dir, ver, candidate)
-                    if os.path.exists(cand_path):
-                        return cand_path
-    return "apksigner"
+    found = find_sdk_tool("apksigner")
+    return found or "apksigner"
 
 
 def get_default_user_keystore() -> Tuple[Path, str, str]:
@@ -108,15 +89,12 @@ def ensure_keystore(
     alias = key_alias or default_alias
 
     if not default_ks.is_file():
-        keytool = shutil.which("keytool")
+        keytool = find_jdk_tool("keytool")
         if not keytool:
-            java_home = os.environ.get("JAVA_HOME")
-            if java_home:
-                cand = Path(java_home) / "bin" / ("keytool.exe" if sys.platform == "win32" else "keytool")
-                if cand.is_file():
-                    keytool = str(cand)
-        if not keytool:
-            keytool = "keytool"
+            raise RuntimeError(
+                "keytool binary not found in JDK or PATH. Keystore generation requires JDK keytool. "
+                "Run 'apkrevive doctor' to diagnose toolchain prerequisites."
+            )
 
         cmd = [
             keytool, "-genkeypair", "-v",

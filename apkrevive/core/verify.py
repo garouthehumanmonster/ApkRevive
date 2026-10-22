@@ -10,10 +10,8 @@ Performs comprehensive validation battery:
 
 from dataclasses import dataclass, field
 import os
-import shutil
 import struct
 import subprocess
-import sys
 from typing import Dict, Any, List, Optional, Tuple
 import zipfile
 
@@ -21,6 +19,7 @@ from apkrevive.core.align import verify_apk_alignment, validate_zip_archive
 from apkrevive.core.signer import verify_signing_block_padding, verify_apk_certs
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.dex_surgeon import DEX_CLASS_PATTERN
+from apkrevive.core.toolchain import find_sdk_tool
 
 VALID_DEX_MAGICS = {
     b"dex\n035\x00",
@@ -53,36 +52,7 @@ class VerificationReport:
 
 def get_aapt2_cmd() -> Optional[str]:
     """Locates aapt2 binary in system PATH or Android SDK build-tools directories."""
-    which_cmd = shutil.which("aapt2")
-    if which_cmd:
-        return which_cmd
-    if sys.platform == "win32":
-        for ext in [".exe", ".bat", ".cmd"]:
-            cand = shutil.which(f"aapt2{ext}")
-            if cand:
-                return cand
-    sdk_roots = [
-        os.environ.get("ANDROID_HOME"),
-        os.environ.get("ANDROID_SDK_ROOT"),
-        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Android", "Sdk") if os.environ.get("LOCALAPPDATA") else None,
-        os.path.expanduser("~/Library/Android/sdk"),
-        os.path.expanduser("~/Android/Sdk"),
-    ]
-    for root in sdk_roots:
-        if not root or not os.path.exists(root):
-            continue
-        build_tools_dir = os.path.join(root, "build-tools")
-        if os.path.exists(build_tools_dir):
-            try:
-                versions = sorted(os.listdir(build_tools_dir), reverse=True)
-                for ver in versions:
-                    for candidate in ["aapt2.exe", "aapt2"]:
-                        cand_path = os.path.join(build_tools_dir, ver, candidate)
-                        if os.path.exists(cand_path):
-                            return cand_path
-            except OSError:
-                continue
-    return None
+    return find_sdk_tool("aapt2")
 
 
 def _read_uleb128(data: bytes, offset: int) -> Tuple[int, int]:

@@ -25,6 +25,7 @@ from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.signer import sign_apk, verify_apk_certs as verify_apk_certs
 from apkrevive.core.verify import verify_apk_integrity, VerificationReport
+from apkrevive.core.toolchain import find_jdk_tool, find_sdk_tool, run_doctor
 from apkrevive.core.elf_surgeon import (
     rewrite_elf_16kb,
     get_elf_needed,
@@ -501,7 +502,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_verify.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     p_verify.add_argument("--verbose", action="store_true", help="Verbose diagnostics")
 
+    # Subcommand: doctor
+    subparsers.add_parser(
+        "doctor",
+        help="Check and diagnose JDK and Android SDK toolchain prerequisites",
+    )
+
     args = parser.parse_args(argv)
+
+    if args.command == "doctor":
+        return run_doctor()
 
     if args.command in ("inspect", "triage"):
         if args.command == "triage":
@@ -518,6 +528,20 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 2
 
     elif args.command in ("patch", "revive"):
+        if not getattr(args, "no_sign", False):
+            missing_signing = []
+            if not find_jdk_tool("keytool"):
+                missing_signing.append("keytool")
+            if not find_sdk_tool("apksigner"):
+                missing_signing.append("apksigner")
+            if missing_signing:
+                sys.stderr.write(
+                    f"Error: Missing required signing tool(s): {', '.join(missing_signing)}.\n"
+                    "APK signing requires JDK (keytool) and Android SDK build-tools (apksigner).\n"
+                    "Run 'apkrevive doctor' to diagnose your environment or use '--no-sign' to skip signing.\n"
+                )
+                return 1
+
         if args.command == "revive":
             return revive_cmd(args)
         try:
@@ -688,6 +712,7 @@ __all__ = [
     "run_inspect",
     "run_patch",
     "run_verify",
+    "run_doctor",
     "format_inspection_report",
     "format_patch_report",
     "format_verification_report",
