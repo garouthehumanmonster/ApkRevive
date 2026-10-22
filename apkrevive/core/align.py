@@ -35,7 +35,7 @@ def validate_zip_archive(path: str) -> None:
                 raise ValueError("Uncompressed size exceeds 2GB limit")
             if total_compressed > 0 and (total_uncompressed / total_compressed) > 100:
                 if total_uncompressed > 10 * 1024 * 1024:
-                    raise ValueError(f"Zip bomb detected: compression ratio exceeds 100x limit")
+                    raise ValueError("Zip bomb detected: compression ratio exceeds 100x limit")
     except zipfile.BadZipFile as e:
         raise ValueError(f"Truncated ZIP archive entry: {e}")
 

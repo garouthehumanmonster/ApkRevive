@@ -342,7 +342,6 @@ class TestAxml(unittest.TestCase):
 
         # Inspect serialized START_ELEMENT chunk for application node
         offset = 8
-        found_app = False
         while offset < len(raw):
             c_type, c_hsize, c_size = struct.unpack_from("<HHI", raw, offset)
             if c_type == 0x0102:  # START_ELEMENT
@@ -355,8 +354,6 @@ class TestAxml(unittest.TestCase):
                     # Lookup res_id from resource map chunk
                     attr_res_ids.append(a_name)
                     attr_offset += 20
-                if attr_count >= 4:
-                    found_app = True
             offset += c_size
 
         parsed = AxmlSurgeon.parse(raw)
@@ -436,7 +433,6 @@ class TestAxml(unittest.TestCase):
 
         # Wrap in minimal XML container
         rm_chunk = struct.pack("<HHI I", 0x0180, 8, 12, 0)
-        xml_size = 8 + len(sp_chunk) + len(rm_chunk)
         # Element chunk for root
         elem = struct.pack("<HHI II II HHH HHH", 0x0102, 16, 36, 1, 0xFFFFFFFF, 0xFFFFFFFF, 0, 20, 20, 0, 0, 0, 0)
         elem_end = struct.pack("<HHI II II", 0x0103, 16, 24, 1, 0xFFFFFFFF, 0xFFFFFFFF, 0)

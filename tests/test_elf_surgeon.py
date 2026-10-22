@@ -19,11 +19,9 @@ import zipfile
 from apkrevive.core.elf16k import check, fix, Elf16kStatus
 from apkrevive.core.elf_surgeon import (
     rewrite_elf_16kb,
-    rewrite_apk_elfs_16kb,
     patch_apk_native_libs,
     audit_elf_16kb,
     get_elf_needed,
-    PRIVATE_BIONIC_LIBS,
 )
 from apkrevive.core.elf import validate_elf_segments
 

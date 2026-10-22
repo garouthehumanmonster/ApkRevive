@@ -9,14 +9,12 @@ Performs comprehensive validation battery:
 """
 
 from dataclasses import dataclass, field
-import io
 import os
-import re
 import shutil
 import struct
 import subprocess
 import sys
-from typing import Dict, Any, List, Optional, Tuple, Set
+from typing import Dict, Any, List, Optional, Tuple
 import zipfile
 
 from apkrevive.core.align import verify_apk_alignment, validate_zip_archive

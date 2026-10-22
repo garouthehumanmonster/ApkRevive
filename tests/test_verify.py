@@ -17,10 +17,8 @@ from apkrevive.core.axml import AxmlSurgeon, AxmlNode
 from apkrevive.core.align import align_apk
 from apkrevive.core.verify import (
     verify_apk_integrity,
-    parse_dex_class_descriptors,
-    VerificationReport,
 )
-from apkrevive.cli import main, run_verify, format_verification_report
+from apkrevive.cli import main
 
 
 def create_synthetic_dex(class_descriptors: list) -> bytes:

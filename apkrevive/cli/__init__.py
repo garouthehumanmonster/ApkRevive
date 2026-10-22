@@ -3,7 +3,6 @@ cli.py - Main entrypoint for ApkRevive inspect and patch CLI.
 """
 
 import argparse
-import hashlib
 import json
 import mmap
 import os
@@ -13,7 +12,7 @@ import sys
 import tempfile
 import zipfile
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional, Set
+from typing import Any, List, Optional, Set
 
 from apkrevive import __version__
 from apkrevive.core.models import (
@@ -21,12 +20,11 @@ from apkrevive.core.models import (
     InspectionReport,
     PatchReport,
     DeviceProfile,
-    Verdict,
 )
 from apkrevive.core.extractor import inspect_apk
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import align_apk, validate_zip_archive
-from apkrevive.core.signer import sign_apk, verify_apk_certs
+from apkrevive.core.signer import sign_apk
 from apkrevive.core.verify import verify_apk_integrity, VerificationReport
 from apkrevive.core.elf_surgeon import (
     rewrite_elf_16kb,
@@ -34,11 +32,8 @@ from apkrevive.core.elf_surgeon import (
     PRIVATE_BIONIC_LIBS,
 )
 from apkrevive.core.dex_surgeon import (
-    load_canonical_shim,
-    is_shim_dex,
     get_next_multidex_name,
 )
-from apkrevive.shim.build_shim import CANONICAL_SHIM_SHA256
 
 KNOWN_64BIT_ABIS = {"arm64-v8a", "x86_64", "riscv64"}
 KNOWN_32BIT_ABIS = {"armeabi", "armeabi-v7a", "x86", "mips", "mips64"}

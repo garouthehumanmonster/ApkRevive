@@ -7,10 +7,8 @@ legacy background/storage exceptions before Application.onCreate() runs.
 """
 
 import hashlib
-import os
 import re
-from pathlib import Path
-from typing import List, Optional, Tuple, Set
+from typing import List, Optional, Tuple
 import zipfile
 
 from apkrevive.core.align import validate_zip_archive

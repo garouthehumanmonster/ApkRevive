@@ -7,7 +7,6 @@ and proves the revived APK installs and runs live without crashing.
 """
 
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -20,7 +19,6 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import verify_apk_alignment
 from apkrevive.core.signer import verify_signing_block_padding
 from apkrevive.cli import main as cli_main
@@ -83,10 +81,10 @@ def build_legacy_canary_apk(output_apk: Path) -> Path:
     print("[*] Building legacy API 19 canary APK...")
     output_apk.parent.mkdir(parents=True, exist_ok=True)
 
-    adb = find_sdk_tool("adb")
+    find_sdk_tool("adb")
     aapt2 = find_sdk_tool("aapt2")
     d8 = find_sdk_tool("d8")
-    apksigner = find_sdk_tool("apksigner")
+    find_sdk_tool("apksigner")
     javac = shutil.which("javac") or "javac"
     android_jar = find_android_jar()
 
