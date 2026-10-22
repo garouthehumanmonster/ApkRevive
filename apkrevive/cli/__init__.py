@@ -537,12 +537,12 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     elif args.command == "verify":
         try:
-            report = run_verify(args.apk, verbose=args.verbose)
+            vreport = run_verify(args.apk, verbose=args.verbose)
             if args.json:
-                print(json.dumps(report.to_dict(), indent=2))
+                print(json.dumps(vreport.to_dict(), indent=2))
             else:
-                print(format_verification_report(report, verbose=args.verbose))
-            return 0 if report.is_valid else 1
+                print(format_verification_report(vreport, verbose=args.verbose))
+            return 0 if vreport.is_valid else 1
         except FileNotFoundError as e:
             sys.stderr.write(f"File not found: {e}\n")
             return 2
