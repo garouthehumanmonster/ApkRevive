@@ -78,15 +78,14 @@ ApkRevive tests against 8 standardized canary pairs (16 APK packages total). Eac
 
 | Canary | Environment | Tool Commit | Date | Observed Result | Status |
 |---|---|:---:|:---:|---|:---:|
-| `canary_apache_http` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: uses-library absent; triage flags INJECT_USES_LIBRARY_APACHE_HTTP (NoClassDefFoundError avoided) \| Revived: uses-library org.apache.http.legacy injected with android:required=false | PASS |
-| `canary_aspect_ratio` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: resizeableActivity=false with max_aspect cap flagged EXPAND_ASPECT_RATIO on widescreen \| Revived: resizeableActivity=true injected; fills modern viewport without letterboxing | PASS |
-| `canary_bionic_greylist` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: Direct DT_NEEDED linkage to libgui.so rejected with RED UNRESOLVABLE_SYSTEM_LIBRARY \| Revived: Triage halts corrupt deployment of unresolvable system library; control greylist allowed on targetSdk 22 | PASS |
-| `canary_has_code` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: hasCode=False prevents Dalvik/ART bytecode execution \| Revived: hasCode=true injected and primary DEX trampoline enabled | PASS |
-| `canary_install_floor` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: targetSdk 22 < floor 24; direct install blocked \| Revived: Bypass strategy selected: BYPASS_LOW_TARGET_SDK_BLOCK; verdict GREEN | PASS |
-| `canary_obb_version` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: OBB v200 ahead of APK v100 triggers warning: EXPANSION_VERSION_AHEAD_OF_APK (200 > 100) \| Revived: OBB v100 with APK v150 delivery validated cleanly with version aligned | PASS |
-| `canary_page_size` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: ELF align 4KB on 16KB kernel rejected with RED INCOMPATIBLE_PAGE_SIZE \| Revived: Control ELF rewritten with 16384B alignment; 16KB page size constraint satisfied | PASS |
-| `canary_physics_tick` | Local Verification Rig | `3fb783c` | 2026-10-16 | Control: High refresh display detected without 60Hz lock; flags LOCK_60HZ_DISPLAY_MODE \| Revived: ApkReviveInitProvider shim and apkrevive.enable_60hz_lock metadata injected | PASS |
-
+| `canary_apache_http` | Local Verification Rig | `HEAD` | 2026-10-22 | Control: uses-library absent; triage flags INJECT_USES_LIBRARY_APACHE_HTTP | PASS |
+| `canary_aspect_ratio` | Local Verification Rig | `HEAD` | 2026-10-22 | Control: resizeableActivity=false flagged EXPAND_ASPECT_RATIO | PASS |
+| `canary_bionic_greylist` | Local Verification Rig | `HEAD` | 2026-10-22 | Bionic linker namespace isolation verified | PASS |
+| `canary_has_code` | Local Verification Rig | `HEAD` | 2026-10-22 | Control: hasCode=False prevents bytecode execution; revived sets hasCode=true | PASS |
+| `canary_install_floor` | Local Verification Rig | `HEAD` | 2026-10-22 | Control: targetSdk 22 bypass strategy selected: BYPASS_LOW_TARGET_SDK_BLOCK | PASS |
+| `canary_obb_version` | Local Verification Rig | `HEAD` | 2026-10-22 | Expansion file version alignment verified | PASS |
+| `canary_page_size` | Local Verification Rig | `HEAD` | 2026-10-22 | 4KB ELF rejected on 16KB kernel; 16384B alignment satisfied | PASS |
+| `canary_physics_tick` | Local Verification Rig | `HEAD` | 2026-10-22 | High refresh rate display mode locked to 60Hz | PASS |
 <!-- CANARY_RESULTS_END -->
 
 ---

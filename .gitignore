@@ -26,3 +26,6 @@ Thumbs.db
 *.apk.tmp
 *.idsig
 scratch/
+tests/corpus/apks/
+canaries/build/
+results/
