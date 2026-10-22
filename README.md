@@ -59,10 +59,10 @@ pip install -e ".[dev]"
 
 ## CLI Usage
 
-ApkRevive provides three primary commands:
+ApkRevive provides six primary commands:
 
 ### 1. `apkrevive inspect <apk>`
-Scans an APK and outputs a concise terminal summary of actual fatal blockers.
+Scans an APK and outputs a concise terminal summary of actual fatal blockers, remediable issues, and runtime warnings.
 
 ```bash
 apkrevive inspect legacy_game.apk
@@ -95,8 +95,23 @@ Emits JSON with `--json`:
 apkrevive inspect legacy_game.apk --json
 ```
 
-### 2. `apkrevive patch <apk> -o <out.apk>`
-Executes the binary mutation pipeline to remediate runtime crashes.
+### 2. `apkrevive triage <apk>`
+Evaluates APK compatibility against a target device profile (OS API level, ABIs, page size, install floor) and returns a `GREEN`, `YELLOW`, or `RED` compatibility verdict.
+
+```bash
+apkrevive triage legacy_game.apk --device-api 35 --page-size 16384
+```
+
+Options:
+- `--device-api <api>`: Target device Android API level (default: 35).
+- `--device-abis <abis>`: Comma-separated supported ABIs (default: `arm64-v8a`).
+- `--page-size <bytes>`: Target device page size in bytes (`4096` or `16384`, default: 16384).
+- `--device-floor <api>`: Install floor API level (default: 0).
+- `--sarif`: Output diagnostics as SARIF 2.1.0 telemetry.
+- `--json`: Output report as JSON.
+
+### 3. `apkrevive patch <apk> -o <out.apk>`
+Executes the binary mutation pipeline to remediate runtime crashes (AXML surgery, Bionic DT_NEEDED auditing, DEX shim injection, 16KB zipalign, V2/V3 signing).
 
 ```bash
 apkrevive patch legacy_game.apk -o revived_game.apk
@@ -131,7 +146,7 @@ Options:
 - `--keystore <path>`: Path to custom signing keystore.
 - `--json`: Output report as JSON.
 
-### 3. `apkrevive verify <apk>`
+### 4. `apkrevive verify <apk>`
 Runs the comprehensive post-patch verification battery to confirm alignment, signature block, AXML manifest, and multidex class integrity.
 
 ```bash
@@ -169,25 +184,42 @@ Exit Codes:
 - `1`: One or more verification checks failed.
 - `2`: File not found or unexpected runtime error.
 
+### 5. `apkrevive diff <original_apk> <revived_apk>`
+Compares original and revived APKs across manifest attributes, native shared libraries, DEX bytecode additions, and cryptographic signing structures.
+
+```bash
+apkrevive diff original.apk revived.apk
+```
+
+Options:
+- `--json`: Output structured JSON diff report.
+- `--sarif`: Output SARIF 2.1.0 telemetry format.
+
+### 6. `apkrevive doctor`
+Checks and diagnoses the host environment for required JDK tools (`javac`, `keytool`) and Android SDK build-tools (`apksigner`, `zipalign`, `d8`, `aapt2`).
+
+```bash
+apkrevive doctor
+```
+
 ---
 
-## Re-Signing Limitations & Security Warnings
+## Re-Signing Limitations & Security Boundaries
 
 > [!WARNING]
-> ApkRevive re-signs modernized APKs using a new cryptographic key. Modifying an APK binary and re-signing carries critical platform limitations:
+> ApkRevive re-signs modernized APKs using a newly generated or custom cryptographic key. Re-signing an existing application package alters its certificate fingerprint, creating strict platform boundaries:
 >
 > 1. **Google Play In-Place Update Incompatibility (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`):**
->    Android's package manager strictly enforces signature consistency across app updates. A revived APK cannot update an existing app installed from Google Play or signed with original vendor keys.
-> 2. **Mandatory Uninstallation & Data Loss:**
->    To install the revived APK on a target device, any previously installed version must first be uninstalled (`adb uninstall <package>`), resulting in permanent deletion of all private application sandbox data, databases, and shared preferences.
-> 3. **Broken Signature-Level Permissions (`protectionLevel="signature"`):**
->    Any shared user IDs (`android:sharedUserId`) or custom signature permissions shared between coordinated apps will fail signature verification and be stripped or denied.
-> 4. **Broken Certificate-Bound Cloud & Security Services:**
->    Services tied to the original signing certificate fingerprint (SHA-1/SHA-256) will fail to authenticate, including:
->    - Google Sign-In & OAuth credentials
->    - Firebase App Check and Cloud Messaging
->    - Play Integrity API and SafetyNet Attestation
->    - Third-party DRM and anti-tamper security checks
+>    Android's package manager mandates cryptographic certificate identity across app updates. A revived APK cannot update an existing app installed from Google Play or signed with vendor release keys.
+> 2. **Permanent Data Wipe & Mandatory App Reinstallation:**
+>    Installing the revived APK on a target device requires uninstalling any existing version (`adb uninstall <package>`), which **permanently deletes all application data, private databases, shared preferences, and files** stored in `/data/data/<package_name>`.
+> 3. **Signature-Level Permission Restrictions (`protectionLevel="signature"`) & Shared UIDs:**
+>    Permissions declared with `android:protectionLevel="signature"` are strictly granted only between packages signed with the identical cryptographic certificate. Re-signing breaks custom signature permissions, causing IPC interfaces, content providers, and services to deny access. Similarly, shared process identities (`android:sharedUserId`) fail if companion packages are not signed by the same key.
+> 4. **Play Integrity API & Anti-Tamper Attestation:**
+>    Security attestation frameworks and certificate-bound cloud APIs will detect the certificate change and fail verification:
+>    - **Google Play Integrity & SafetyNet:** Fail integrity verdicts (`MEETS_DEVICE_INTEGRITY`, `MEETS_APP_INTEGRITY`).
+>    - **Google Sign-In & Firebase:** Fail OAuth authentication and App Check if the new certificate SHA-1/SHA-256 fingerprint is not registered in the developer console.
+>    - **Commercial DRM & Tamper Detection:** Widevine modular DRM and application self-signature checks detect modifications and terminate execution.
 
 ---
 

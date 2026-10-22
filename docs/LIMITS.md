@@ -76,11 +76,13 @@ Any modification to an APK—whether patching `AndroidManifest.xml`, injecting `
 Android's security architecture treats the cryptographic signing certificate as the definitive identity of an application package. Re-signing an application is required after modifying its contents, which has significant operational side effects.
 
 ### What Breaks on Re-Signing
-1. **Destructive Updates (Loss of App Data)**:
-   - Android prevents upgrading an existing application if the installed version is signed with a different certificate (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
-   - Installing the revived APK requires an explicit uninstall of the existing application, which **permanently deletes all user data, application databases, and local storage** in `/data/data/<package_name>`.
-2. **Shared User IDs (`android:sharedUserId`)**:
-   - Applications that share Linux UIDs to access common databases and files must be signed with the identical cryptographic certificate. Re-signing one app without re-signing all companion apps breaks shared process isolation.
+1. **Google Play In-Place Update Incompatibility & Data Wipe**:
+   - Android's package manager strictly enforces signature consistency across app updates. A revived APK cannot update an existing app installed from Google Play or signed with original vendor keys (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+   - Installing the revived APK requires an explicit uninstall of the existing application (`adb uninstall <package>`), which **permanently deletes all user data, application databases, and local storage** in `/data/data/<package_name>`.
+2. **Signature-Level Permission Restrictions (`protectionLevel="signature"`) & Shared User IDs**:
+   - Permissions declared with `android:protectionLevel="signature"` are granted by the system only to packages signed with the exact same cryptographic certificate.
+   - Re-signing breaks custom signature permissions, causing IPC interfaces, content providers, and services protected by signature permissions to reject requests.
+   - Applications that share Linux UIDs (`android:sharedUserId`) to access common databases and files must be signed with the identical cryptographic certificate; re-signing one app without re-signing all companion apps breaks shared process isolation.
 3. **Android Keystore Cryptographic Keys**:
    - Keys stored in the Android Keystore (`AndroidKeyStore`) that are bound to the application's signature or authorization tokens are invalidated when the package signature changes.
 4. **Encrypted SQLite Databases (SQLCipher / Custom Salts)**:
@@ -182,3 +184,16 @@ Modern tall displays (18:9, 19.5:9, 20:9) pillarbox legacy applications that do 
 ### Semantic Overwrite & Opt-Out
 When `EXPAND_ASPECT_RATIO` is executed, any existing `max_aspect` value is overwritten to `2.5` to ensure consistent full-screen rendering across modern devices.
 - **Escape Hatch**: Applications wishing to preserve an explicitly pinned legacy aspect ratio can exclude `EXPAND_ASPECT_RATIO` or pass `--no-aspect-ratio-expansion`.
+
+---
+
+## 11. 60Hz Display Mode Locking & Display Cutout Mode Architectural Limitation
+
+### The Constraint
+Legacy Android games and visual applications often rely on fixed 60Hz frame pacing or non-notched screen geometry. Modern displays frequently default to 90Hz/120Hz refresh rates and incorporate display cutouts (notches or camera punch-holes).
+
+### What ApkRevive Cannot Do
+`ApkReviveInitProvider` runs during startup in `ContentProvider.onCreate()` before any `Activity` is instantiated. Android's display mode switching (`preferredDisplayModeId`) and window cutout modes (`LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`) require an active `Window` and `Activity` context, which do not exist in headless `ContentProvider` initialization without bytecode rewriting or `ActivityLifecycleCallbacks`.
+
+As a result, headless initialization cannot programmatically configure window display modes or cutout layout behavior. These flags are not supported via static ContentProvider injection and have been removed from the patch CLI. Realizing display mode switching or cutout adjustments requires either an application-level `ActivityLifecycleCallbacks` implementation or per-activity bytecode manipulation.
+

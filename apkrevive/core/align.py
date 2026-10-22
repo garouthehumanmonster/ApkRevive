@@ -8,6 +8,7 @@ from typing import Dict, Any
 
 import os
 import zipfile
+import zlib
 
 
 def validate_zip_archive(path: str) -> None:
@@ -134,11 +135,34 @@ def align_apk(input_apk: str, output_apk: str, page_align_64bit: int = 16384) ->
 
                     lfh_header = in_buf[lfh_offset : lfh_offset + 30 + lfh_fn_len]
 
-                    # Calculate alignment requirement
-                    alignment = 4
-                    if method == 0:  # STORED
-                        if (filename.startswith("lib/") and filename.endswith(".so")) or filename.endswith(".so") or filename == "resources.arsc":
-                            alignment = 16384
+                    has_decompressed = False
+                    decompressed_data = b""
+                    is_so_or_arsc = (
+                        (filename.startswith("lib/") and filename.endswith(".so"))
+                        or filename.endswith(".so")
+                        or filename == "resources.arsc"
+                    )
+                    orig_flags = flags
+                    if is_so_or_arsc and method != 0:
+                        raw_data = in_buf[data_start : data_start + comp_size]
+                        try:
+                            decompressed_data = zlib.decompress(raw_data, -15)
+                        except Exception:
+                            decompressed_data = zlib.decompress(raw_data)
+                        method = 0
+                        comp_size = len(decompressed_data)
+                        uncomp_size = comp_size
+                        if not crc:
+                            crc = zlib.crc32(decompressed_data)
+                        flags &= ~0x0008
+                        alignment = 16384
+                        has_decompressed = True
+                    else:
+                        # Calculate alignment requirement
+                        alignment = 4
+                        if method == 0:  # STORED
+                            if is_so_or_arsc:
+                                alignment = 16384
 
                     new_lfh_offset = f_out.tell()
                     orig_extra = in_buf[lfh_offset + 30 + lfh_fn_len : lfh_offset + 30 + lfh_fn_len + lfh_ef_len]
@@ -155,20 +179,29 @@ def align_apk(input_apk: str, output_apk: str, page_align_64bit: int = 16384) ->
                     new_extra = clean_extra + padding_field
 
                     new_lfh = bytearray(lfh_header)
+                    if has_decompressed:
+                        struct.pack_into("<H", new_lfh, 6, flags)
+                        struct.pack_into("<H", new_lfh, 8, method)
+                        struct.pack_into("<I", new_lfh, 14, crc)
+                        struct.pack_into("<I", new_lfh, 18, comp_size)
+                        struct.pack_into("<I", new_lfh, 22, uncomp_size)
                     struct.pack_into("<H", new_lfh, 28, len(new_extra))
                     f_out.write(new_lfh)
                     f_out.write(new_extra)
 
-                    CHUNK_SIZE = 64 * 1024
-                    curr_pos = data_start
-                    rem = comp_size
-                    while rem > 0:
-                        chunk_sz = min(rem, CHUNK_SIZE)
-                        f_out.write(in_buf[curr_pos : curr_pos + chunk_sz])
-                        curr_pos += chunk_sz
-                        rem -= chunk_sz
+                    if has_decompressed:
+                        f_out.write(decompressed_data)
+                    else:
+                        CHUNK_SIZE = 64 * 1024
+                        curr_pos = data_start
+                        rem = comp_size
+                        while rem > 0:
+                            chunk_sz = min(rem, CHUNK_SIZE)
+                            f_out.write(in_buf[curr_pos : curr_pos + chunk_sz])
+                            curr_pos += chunk_sz
+                            rem -= chunk_sz
 
-                    if flags & 0x0008:
+                    if (orig_flags & 0x0008) and not has_decompressed:
                         desc_pos = data_start + comp_size
                         has_sig = (desc_pos + 4 <= buf_len and in_buf[desc_pos : desc_pos + 4] == b"PK\x07\x08")
                         is_64 = (comp_size == 0xFFFFFFFF or uncomp_size == 0xFFFFFFFF)
@@ -179,6 +212,12 @@ def align_apk(input_apk: str, output_apk: str, page_align_64bit: int = 16384) ->
 
                     # Record Central Directory entry
                     cd_record = bytearray(in_buf[cd_ptr : cd_ptr + 46 + fn_len + ef_len + comm_len])
+                    if has_decompressed:
+                        struct.pack_into("<H", cd_record, 8, flags)
+                        struct.pack_into("<H", cd_record, 10, method)
+                        struct.pack_into("<I", cd_record, 16, crc)
+                        struct.pack_into("<I", cd_record, 20, comp_size)
+                        struct.pack_into("<I", cd_record, 24, uncomp_size)
                     struct.pack_into("<H", cd_record, 30, 0)  # zero out extra field in central dir
                     struct.pack_into("<I", cd_record, 42, new_lfh_offset)
                     new_central_entries.append(cd_record[: 46 + fn_len] + cd_record[46 + fn_len + ef_len :])

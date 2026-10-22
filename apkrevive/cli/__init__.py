@@ -508,8 +508,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_patch.add_argument("--ks-pass", default=None, help=argparse.SUPPRESS)
     p_patch.add_argument("--ks-alias", default=None, help=argparse.SUPPRESS)
     p_patch.add_argument("--key-pass", default=None, help=argparse.SUPPRESS)
-    p_patch.add_argument("--enable-60hz", action="store_true", help=argparse.SUPPRESS)
-    p_patch.add_argument("--enable-cutout", action="store_true", help=argparse.SUPPRESS)
     p_patch.add_argument("--json", action="store_true", help="Output machine-readable JSON report")
 
     # Subcommand: verify

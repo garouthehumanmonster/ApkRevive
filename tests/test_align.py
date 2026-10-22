@@ -310,6 +310,64 @@ class TestAlign(unittest.TestCase):
             self.assertTrue(pad_info["cd_aligned_4k"])
             self.assertEqual(pad_info["cd_offset"] % 4096, 0)
 
+    def test_align_decompresses_deflated_so_and_aligns_16kb(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            in_path = os.path.join(tmp_dir, "input_deflated.apk")
+            out_path = os.path.join(tmp_dir, "output_aligned.apk")
+
+            so_payload = b"\x7fELF_FAKE_SHARED_OBJECT_" * 2000
+            arsc_payload = b"ARSC_RESOURCE_TABLE_" * 1500
+            txt_payload = b"REGULAR_TEXT_DATA_" * 1000
+
+            with zipfile.ZipFile(in_path, "w") as zf_in:
+                # Add deflated .so file
+                zf_in.writestr("lib/arm64-v8a/libdeflated.so", so_payload, compress_type=zipfile.ZIP_DEFLATED)
+                # Add deflated resources.arsc
+                zf_in.writestr("resources.arsc", arsc_payload, compress_type=zipfile.ZIP_DEFLATED)
+                # Add deflated text file (should remain deflated)
+                zf_in.writestr("assets/test.txt", txt_payload, compress_type=zipfile.ZIP_DEFLATED)
+
+            # Verify input APK indeed has deflated entries
+            with zipfile.ZipFile(in_path, "r") as zf_check:
+                self.assertEqual(zf_check.getinfo("lib/arm64-v8a/libdeflated.so").compress_type, zipfile.ZIP_DEFLATED)
+                self.assertEqual(zf_check.getinfo("resources.arsc").compress_type, zipfile.ZIP_DEFLATED)
+                self.assertEqual(zf_check.getinfo("assets/test.txt").compress_type, zipfile.ZIP_DEFLATED)
+
+            # Run align_apk
+            align_apk(in_path, out_path)
+
+            # Verify alignment
+            res = verify_apk_alignment(out_path)
+            self.assertTrue(res["aligned"])
+            self.assertIn("lib/arm64-v8a/libdeflated.so", res["entries"])
+            self.assertEqual(res["entries"]["lib/arm64-v8a/libdeflated.so"]["required_align"], 16384)
+            self.assertTrue(res["entries"]["lib/arm64-v8a/libdeflated.so"]["aligned"])
+            self.assertIn("resources.arsc", res["entries"])
+            self.assertEqual(res["entries"]["resources.arsc"]["required_align"], 16384)
+            self.assertTrue(res["entries"]["resources.arsc"]["aligned"])
+
+            # Verify container integrity and decompressed state
+            with zipfile.ZipFile(out_path, "r") as zf_out:
+                self.assertIsNone(zf_out.testzip())
+                # .so was converted to STORED
+                info_so = zf_out.getinfo("lib/arm64-v8a/libdeflated.so")
+                self.assertEqual(info_so.compress_type, zipfile.ZIP_STORED)
+                self.assertEqual(info_so.file_size, len(so_payload))
+                self.assertEqual(info_so.compress_size, len(so_payload))
+                self.assertEqual(zf_out.read("lib/arm64-v8a/libdeflated.so"), so_payload)
+
+                # resources.arsc was converted to STORED
+                info_arsc = zf_out.getinfo("resources.arsc")
+                self.assertEqual(info_arsc.compress_type, zipfile.ZIP_STORED)
+                self.assertEqual(info_arsc.file_size, len(arsc_payload))
+                self.assertEqual(info_arsc.compress_size, len(arsc_payload))
+                self.assertEqual(zf_out.read("resources.arsc"), arsc_payload)
+
+                # assets/test.txt remained DEFLATED
+                info_txt = zf_out.getinfo("assets/test.txt")
+                self.assertEqual(info_txt.compress_type, zipfile.ZIP_DEFLATED)
+                self.assertEqual(zf_out.read("assets/test.txt"), txt_payload)
+
 
 if __name__ == "__main__":
     unittest.main()

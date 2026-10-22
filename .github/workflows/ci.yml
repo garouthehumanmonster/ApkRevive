@@ -160,6 +160,9 @@ jobs:
         with: { python-version: "3.12" }
       - run: |
           pip install -e ".[dev]"
+      - name: Verify Shim Source Compilation Reproducibility
+        run: python -m apkrevive.shim.build_shim --verify
+      - run: |
           python canaries/build_canaries.py
           python scripts/download_corpus.py
           pytest -m integration -q -rs
