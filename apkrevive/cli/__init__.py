@@ -24,7 +24,7 @@ from apkrevive.core.models import (
 from apkrevive.core.extractor import inspect_apk
 from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import align_apk, validate_zip_archive
-from apkrevive.core.signer import sign_apk
+from apkrevive.core.signer import sign_apk, verify_apk_certs as verify_apk_certs
 from apkrevive.core.verify import verify_apk_integrity, VerificationReport
 from apkrevive.core.elf_surgeon import (
     rewrite_elf_16kb,
