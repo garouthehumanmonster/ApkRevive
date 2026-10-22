@@ -55,8 +55,8 @@ DANGEROUS_PERMISSIONS = {
 
 
 def evaluate_triage(
-    apk_meta: ApkMetadata,
-    device_profile: DeviceProfile,
+    apk_meta: Union[ApkMetadata, Dict[str, Any]],
+    device_profile: Union[DeviceProfile, Dict[str, Any]],
     results_dir: Optional[Union[str, Path]] = None,
     bump_target_sdk: Optional[int] = None,
 ) -> Dict[str, Any]:

@@ -16,7 +16,6 @@ from typing import Any, List, Optional, Set
 
 from apkrevive import __version__
 from apkrevive.core.models import (
-    ApkMetadata,
     InspectionReport,
     PatchReport,
     DeviceProfile,
@@ -453,18 +452,26 @@ def main(argv: Optional[List[str]] = None) -> int:
     # Subcommand: inspect
     p_inspect = subparsers.add_parser(
         "inspect",
-        aliases=["triage"],
         help="Inspect APK for fatal blockers (32-bit only, private bionic symbols, targetSdk < 23, Apache HTTP)",
     )
     p_inspect.add_argument("apk", help="Path to input APK file")
     p_inspect.add_argument("--json", action="store_true", help="Output machine-readable JSON")
-    p_inspect.add_argument("--device-api", type=int, default=35, help=argparse.SUPPRESS)
-    p_inspect.add_argument("--device-abis", default="arm64-v8a", help=argparse.SUPPRESS)
-    p_inspect.add_argument("--page-size", type=int, default=16384, help=argparse.SUPPRESS)
-    p_inspect.add_argument("--device-floor", type=int, default=24, help=argparse.SUPPRESS)
-    p_inspect.add_argument("--target-sdk", type=int, default=None, help=argparse.SUPPRESS)
-    p_inspect.add_argument("--apk-abis", default=None, help=argparse.SUPPRESS)
-    p_inspect.add_argument("--uses-apache-http", action="store_true", default=None, help=argparse.SUPPRESS)
+
+    # Subcommand: triage
+    p_triage = subparsers.add_parser(
+        "triage",
+        help="Triage APK against target Android device profile and behavior changes",
+    )
+    p_triage.add_argument("apk", help="Path to input APK file")
+    p_triage.add_argument("--device-api", type=int, default=35, help="Target device OS API level")
+    p_triage.add_argument("--device-abis", default="arm64-v8a", help="Comma-separated target device supported ABIs")
+    p_triage.add_argument("--page-size", type=int, default=16384, help="Target device page size in bytes")
+    p_triage.add_argument("--device-floor", type=int, default=24, help="Target device minimum install floor API level")
+    p_triage.add_argument("--target-sdk", type=int, default=None, help="Override APK targetSdkVersion")
+    p_triage.add_argument("--apk-abis", default=None, help="Override APK native ABIs (comma-separated)")
+    p_triage.add_argument("--uses-apache-http", action="store_true", default=None, help="Override Apache HTTP usage")
+    p_triage.add_argument("--json", action="store_true", help="Output raw JSON format")
+    p_triage.add_argument("--sarif", action="store_true", help="Output SARIF 2.1.0 telemetry format")
 
     # Subcommand: patch
     p_patch = subparsers.add_parser(
@@ -556,29 +563,96 @@ def main(argv: Optional[List[str]] = None) -> int:
 # Legacy CLI compatibility wrappers for test suites
 def triage_cmd(args: Any) -> int:
     from apkrevive.core.triage import evaluate_triage
+
     apk_path = getattr(args, "apk", "")
-    if os.path.exists(apk_path):
-        rep = run_inspect(apk_path)
-        print(json.dumps(rep.to_dict(), indent=2))
-        return 1 if rep.fatal_blockers else 0
+    if apk_path and os.path.exists(apk_path):
+        validate_zip_archive(apk_path)
+        meta = inspect_apk(apk_path)
+        meta_dict = meta.to_dict()
     else:
-        apk_target_sdk = getattr(args, "target_sdk", 28)
+        apk_target_sdk = getattr(args, "target_sdk", None)
+        if apk_target_sdk is None:
+            apk_target_sdk = 28
         apk_abis_str = getattr(args, "apk_abis", "") or ""
         apk_abis = [a.strip() for a in apk_abis_str.split(",") if a.strip()]
-        apk = ApkMetadata(
-            target_sdk=apk_target_sdk,
-            abis=apk_abis,
-            uses_apache_http=bool(getattr(args, "uses_apache_http", False)),
-        )
-        dev_abis = getattr(args, "device_abis", "arm64-v8a").split(",")
-        dev = DeviceProfile(
-            os_api_level=getattr(args, "device_api", 35),
-            supported_abis=dev_abis,
-            page_size_bytes=getattr(args, "page_size", 16384),
-        )
-        res = evaluate_triage(apk, dev)
+        meta_dict = {
+            "target_sdk": apk_target_sdk,
+            "abis": apk_abis,
+            "uses_apache_http": bool(getattr(args, "uses_apache_http", False)),
+        }
+
+    # Apply overrides to metadata dict before evaluation
+    if getattr(args, "target_sdk", None) is not None:
+        meta_dict["target_sdk"] = int(args.target_sdk)
+    if getattr(args, "apk_abis", None) is not None:
+        meta_dict["abis"] = [a.strip() for a in str(args.apk_abis).split(",") if a.strip()]
+    if getattr(args, "uses_apache_http", None) is not None:
+        meta_dict["uses_apache_http"] = bool(args.uses_apache_http)
+
+    dev_abis_str = getattr(args, "device_abis", "arm64-v8a") or "arm64-v8a"
+    dev_abis = [a.strip() for a in str(dev_abis_str).split(",") if a.strip()]
+    dev = DeviceProfile(
+        os_api_level=int(getattr(args, "device_api", 35) or 35),
+        supported_abis=dev_abis,
+        install_floor=int(getattr(args, "device_floor", None) or 0),
+        page_size_bytes=int(getattr(args, "page_size", 16384) or 16384),
+    )
+
+    res = evaluate_triage(meta_dict, dev)
+
+    verdict = str(res.get("verdict", ""))
+    if verdict == "GREEN":
+        code = 0
+    elif verdict == "YELLOW":
+        code = 2
+    else:
+        code = 3
+
+    if getattr(args, "sarif", False):
+        level_map = {
+            "YELLOW": "warning",
+            "RED": "error",
+            "GREEN": "none",
+        }
+        sarif_level = level_map.get(verdict, "warning")
+        rule_id = str(res.get("reason") or verdict)
+        details = str(res.get("details") or f"Triage verdict: {verdict}")
+        sarif_doc = {
+            "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+            "version": "2.1.0",
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "apkrevive",
+                            "version": __version__,
+                            "rules": [
+                                {
+                                    "id": rule_id,
+                                    "shortDescription": {
+                                        "text": rule_id,
+                                    },
+                                }
+                            ],
+                        }
+                    },
+                    "results": [
+                        {
+                            "ruleId": rule_id,
+                            "level": sarif_level,
+                            "message": {
+                                "text": details,
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        print(json.dumps(sarif_doc, indent=2))
+    else:
         print(json.dumps(res, indent=2))
-        return 0 if res.get("verdict") == "GREEN" else 1
+
+    return code
 
 
 def revive_cmd(args: Any) -> int:
