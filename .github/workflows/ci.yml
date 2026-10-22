@@ -67,9 +67,16 @@ jobs:
         env:
           APKREVIVE_REQUIRE_ARTIFACTS: ${{ matrix.os == 'ubuntu-latest' && '1' || '0' }}
         run: |
-          coverage run -m pytest tests/ -rs
+          coverage run -m pytest tests/ -rs --tb=short --junitxml=junit-${{ matrix.os }}-${{ matrix.python-version }}.xml
           coverage report
           coverage xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.python-version }}
+          path: junit-*.xml
 
   android-ci:
     name: Android Companion App CI
