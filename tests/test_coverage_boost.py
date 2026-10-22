@@ -190,6 +190,22 @@ class TestCliReportsAndCommands(unittest.TestCase):
         out = format_patch_report(prep)
         self.assertIn("ApkRevive Patch Execution Complete", out)
         self.assertIn("Injected Apache HTTP", out)
+        self.assertIn("ready for installation on modern Android devices", out)
+
+        prep_unsigned = PatchReport(
+            timestamp="2026-01-01T00:00:00Z",
+            apk_path="in.apk",
+            package_name="com.test",
+            target_sdk=28,
+            verdict="GREEN",
+            reason="Success",
+            output_apk="out.apk",
+            remediations=["Aligned 16KB"],
+            required_transforms=[],
+            is_signed=False,
+        )
+        out_unsigned = format_patch_report(prep_unsigned)
+        self.assertIn("App is revived (UNSIGNED). Signing was skipped.", out_unsigned)
 
     def test_format_verification_report(self):
         vrep_pass = VerificationReport(

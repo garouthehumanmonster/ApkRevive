@@ -39,6 +39,7 @@ class VerificationReport:
     checks: Dict[str, bool] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
     details: Dict[str, Any] = field(default_factory=dict)
+    is_unsigned: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -47,6 +48,7 @@ class VerificationReport:
             "checks": self.checks,
             "errors": self.errors,
             "details": self.details,
+            "is_unsigned": self.is_unsigned,
         }
 
 
@@ -158,6 +160,7 @@ def verify_apk_integrity(apk_path: str, verbose: bool = False) -> VerificationRe
     }
     errors: List[str] = []
     details: Dict[str, Any] = {}
+    is_unsigned = False
 
     # =========================================================================
     # 1. 16KB Container Alignment Check
@@ -186,21 +189,25 @@ def verify_apk_integrity(apk_path: str, verbose: bool = False) -> VerificationRe
         pad_info = verify_signing_block_padding(apk_path)
         details["signing_block"] = pad_info
 
-        cert_ok, cert_msg = verify_apk_certs(apk_path)
-        details["signature_certs"] = {"valid": cert_ok, "output": cert_msg}
-
-        sig_ok = True
-        if not pad_info.get("has_signing_block", False):
-            errors.append("V2/V3 signature check failed: Missing APK Signing Block")
-            sig_ok = False
-        if not pad_info.get("cd_aligned_4k", False):
+        cd_aligned = pad_info.get("cd_aligned_4k", False)
+        if not cd_aligned:
             errors.append(f"Central Directory is not 4KB aligned: offset={pad_info.get('cd_offset')}")
-            sig_ok = False
-        if not cert_ok:
-            errors.append(f"APK signature verification failed: {cert_msg}")
-            sig_ok = False
 
-        checks["signature"] = sig_ok
+        if not pad_info.get("has_signing_block", False):
+            is_unsigned = True
+            checks["signature"] = cd_aligned
+            details["signature_status"] = "UNSIGNED"
+        else:
+            cert_ok, cert_msg = verify_apk_certs(apk_path)
+            details["signature_certs"] = {"valid": cert_ok, "output": cert_msg}
+            details["signature_status"] = "SIGNED"
+            sig_ok = True
+            if not cert_ok:
+                errors.append(f"APK signature verification failed: {cert_msg}")
+                sig_ok = False
+            if not cd_aligned:
+                sig_ok = False
+            checks["signature"] = sig_ok
     except Exception as e:
         checks["signature"] = False
         errors.append(f"Signature verification failed: {e}")
@@ -318,10 +325,10 @@ def verify_apk_integrity(apk_path: str, verbose: bool = False) -> VerificationRe
     # Final Result
     # =========================================================================
     is_valid = (
-        checks["alignment"]
-        and checks["signature"]
-        and checks["axml"]
-        and checks["dex"]
+        checks.get("alignment", False)
+        and checks.get("signature", False)
+        and checks.get("axml", False)
+        and checks.get("dex", False)
         and len(errors) == 0
     )
 
@@ -331,6 +338,7 @@ def verify_apk_integrity(apk_path: str, verbose: bool = False) -> VerificationRe
         checks=checks,
         errors=errors,
         details=details,
+        is_unsigned=is_unsigned,
     )
 
 

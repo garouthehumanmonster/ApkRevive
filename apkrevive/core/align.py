@@ -186,6 +186,10 @@ def align_apk(input_apk: str, output_apk: str, page_align_64bit: int = 16384) ->
                     cd_ptr += 46 + fn_len + ef_len + comm_len
 
                 # Write Central Directory & EOCD
+                cd_offset_raw = f_out.tell()
+                cd_pad = (4096 - (cd_offset_raw % 4096)) % 4096
+                if cd_pad > 0:
+                    f_out.write(b"\x00" * cd_pad)
                 new_cd_offset = f_out.tell()
                 for cd_rec in new_central_entries:
                     f_out.write(cd_rec)

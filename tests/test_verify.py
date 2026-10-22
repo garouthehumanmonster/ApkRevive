@@ -18,7 +18,7 @@ from apkrevive.core.align import align_apk
 from apkrevive.core.verify import (
     verify_apk_integrity,
 )
-from apkrevive.cli import main
+from apkrevive.cli import main, format_verification_report
 
 
 def create_synthetic_dex(class_descriptors: list) -> bytes:
@@ -226,16 +226,52 @@ class TestVerify(unittest.TestCase):
                 code = main(["verify", apk_path])
                 self.assertEqual(code, 1)
 
-    def test_verify_fails_on_missing_signature(self):
-        """APK without signing block causes check['signature'] = False, returns exit code 1."""
+    def test_verify_unsigned_valid_apk(self):
+        """Unsigned valid APK with 4KB CD alignment produces is_valid=True, is_unsigned=True, and [PASS (UNSIGNED)] in format."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             apk_path = os.path.join(tmp_dir, "unsigned.apk")
             build_test_apk(apk_path, with_align=True, with_signature=False)
 
             report = verify_apk_integrity(apk_path)
+            self.assertTrue(report.is_valid)
+            self.assertTrue(report.is_unsigned)
+            self.assertTrue(report.checks["signature"])
+            self.assertEqual(report.errors, [])
+
+            out = format_verification_report(report)
+            self.assertIn("[PASS (UNSIGNED)]", out)
+            self.assertIn("[PASS (UNSIGNED)] V2/V3 APK Signing Block (4KB CD alignment)", out)
+            self.assertIn("Container is unsigned. Installation on Android 12+ requires signing", out)
+
+            code = main(["verify", apk_path])
+            self.assertEqual(code, 0)
+
+    def test_verify_fails_on_unsigned_unaligned_cd(self):
+        """Unsigned APK with unaligned Central Directory causes check['signature'] = False and exit code 1."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            apk_path = os.path.join(tmp_dir, "unaligned_cd.apk")
+            build_test_apk(apk_path, with_align=False, with_signature=False)
+
+            # Ensure CD offset is not 4KB aligned
+            with open(apk_path, "rb") as f:
+                data = f.read()
+            eocd_pos = data.rfind(b"PK\x05\x06")
+            cd_offset = struct.unpack_from("<I", data, eocd_pos + 16)[0]
+            if cd_offset % 4096 == 0:
+                # Add 1 byte of padding before CD to break alignment
+                data = data[:cd_offset] + b"X" + data[cd_offset:eocd_pos] + data[eocd_pos:]
+                new_eocd = data.rfind(b"PK\x05\x06")
+                data_ba = bytearray(data)
+                struct.pack_into("<I", data_ba, new_eocd + 16, cd_offset + 1)
+                data = bytes(data_ba)
+                with open(apk_path, "wb") as f:
+                    f.write(data)
+
+            report = verify_apk_integrity(apk_path)
             self.assertFalse(report.is_valid)
+            self.assertTrue(report.is_unsigned)
             self.assertFalse(report.checks["signature"])
-            self.assertTrue(any("signature" in e.lower() or "signing" in e.lower() for e in report.errors))
+            self.assertTrue(any("Central Directory is not 4KB aligned" in e for e in report.errors))
 
             code = main(["verify", apk_path])
             self.assertEqual(code, 1)

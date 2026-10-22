@@ -386,6 +386,7 @@ def run_patch(
         output_apk=output_apk,
         remediations=remediations,
         required_transforms=transforms,
+        is_signed=not no_sign,
     )
 
 
@@ -403,7 +404,11 @@ def format_patch_report(report: PatchReport) -> str:
     for rem in report.remediations:
         lines.append(f"    [+] {rem}")
     lines.append("")
-    lines.append("  App is revived and ready for installation on modern Android devices.")
+    if not getattr(report, "is_signed", True):
+        lines.append("  App is revived (UNSIGNED). Signing was skipped.")
+        lines.append("  To install on Android 12+, sign the APK via 'apksigner' or rerun without '--no-sign'.")
+    else:
+        lines.append("  App is revived and ready for installation on modern Android devices.")
     return "\n".join(lines)
 
 
@@ -414,19 +419,28 @@ def run_verify(apk_path: str, verbose: bool = False) -> VerificationReport:
 
 def format_verification_report(report: VerificationReport, verbose: bool = False) -> str:
     """Formats human-readable terminal output for VerificationReport."""
+    if report.is_valid:
+        overall_str = "[PASS (UNSIGNED)]" if getattr(report, "is_unsigned", False) else "[PASS]"
+    else:
+        overall_str = "[FAIL]"
+    sig_str = "PASS (UNSIGNED)" if getattr(report, "is_unsigned", False) else ("PASS" if report.checks.get("signature") else "FAIL")
+
     lines = [
         "============================================================",
         "  ApkRevive Post-Patch Verification",
         "============================================================",
         f"  APK Path:  {report.apk_path}",
-        f"  Overall:   {'[PASS]' if report.is_valid else '[FAIL]'}",
+        f"  Overall:   {overall_str}",
         "",
         "  Checks:",
         f"    [{'PASS' if report.checks.get('alignment') else 'FAIL'}] 16KB Container Alignment",
-        f"    [{'PASS' if report.checks.get('signature') else 'FAIL'}] V2/V3 APK Signing Block (4KB CD alignment)",
+        f"    [{sig_str}] V2/V3 APK Signing Block (4KB CD alignment)",
         f"    [{'PASS' if report.checks.get('axml') else 'FAIL'}] AndroidManifest.xml Binary AXML Parsing",
         f"    [{'PASS' if report.checks.get('dex') else 'FAIL'}] Contiguous Multidex & No Class Collisions",
     ]
+    if getattr(report, "is_unsigned", False):
+        lines.append("")
+        lines.append("  Notice:\n    [*] Container is unsigned. Installation on Android 12+ requires signing via 'apkrevive patch' or 'apksigner'.")
     if report.errors:
         lines.append("")
         lines.append("  Errors:")

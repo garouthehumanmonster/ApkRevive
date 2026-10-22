@@ -283,6 +283,33 @@ class TestAlign(unittest.TestCase):
                 validate_zip_archive(dup_path)
             self.assertIn("Duplicate entry name detected", str(ctx.exception))
 
+    def test_align_apk_ensures_4kb_cd_alignment(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            in_path = os.path.join(tmp_dir, "unaligned.apk")
+            out_path = os.path.join(tmp_dir, "aligned.apk")
+
+            with zipfile.ZipFile(in_path, "w") as zf:
+                zf.writestr("test.txt", b"hello world")
+                zinfo = zipfile.ZipInfo("resources.arsc")
+                zinfo.compress_type = zipfile.ZIP_STORED
+                zf.writestr(zinfo, b"ARSC_PAYLOAD" * 100)
+
+            align_apk(in_path, out_path)
+
+            with open(out_path, "rb") as f:
+                data = f.read()
+
+            eocd_pos = data.rfind(b"PK\x05\x06")
+            self.assertNotEqual(eocd_pos, -1)
+            cd_size, cd_offset = struct.unpack_from("<II", data, eocd_pos + 12)
+            self.assertEqual(cd_offset % 4096, 0)
+            self.assertEqual(data[cd_offset : cd_offset + 4], b"PK\x01\x02")
+
+            from apkrevive.core.signer import verify_signing_block_padding
+            pad_info = verify_signing_block_padding(out_path)
+            self.assertTrue(pad_info["cd_aligned_4k"])
+            self.assertEqual(pad_info["cd_offset"] % 4096, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

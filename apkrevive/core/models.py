@@ -141,6 +141,7 @@ class PatchReport:
     verdict_display: Optional[str] = None
     remediations: List[str] = field(default_factory=list)
     schema_version: str = SCHEMA_VERSION
+    is_signed: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
