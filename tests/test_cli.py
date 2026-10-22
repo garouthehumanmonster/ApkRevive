@@ -211,6 +211,31 @@ class TestCli(unittest.TestCase):
                 if os.path.exists(p):
                     os.remove(p)
 
+    def test_doctor_json_output_success(self):
+        fake_diag = {
+            "keytool": {"found": True, "required_for_signing": True, "hint": "h1"},
+            "apksigner": {"found": True, "required_for_signing": True, "hint": "h2"},
+        }
+        with patch("apkrevive.cli.diagnose_tools", return_value=fake_diag):
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                code = main(["doctor", "--json"])
+                self.assertEqual(code, 0)
+                data = json.loads(mock_out.getvalue())
+                self.assertIn("keytool", data)
+                self.assertTrue(data["keytool"]["found"])
+
+    def test_doctor_json_output_missing_signing(self):
+        fake_diag = {
+            "keytool": {"found": False, "required_for_signing": True, "hint": "h1"},
+            "apksigner": {"found": True, "required_for_signing": True, "hint": "h2"},
+        }
+        with patch("apkrevive.cli.diagnose_tools", return_value=fake_diag):
+            with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                code = main(["doctor", "--json"])
+                self.assertEqual(code, 1)
+                data = json.loads(mock_out.getvalue())
+                self.assertFalse(data["keytool"]["found"])
+
 
 if __name__ == "__main__":
     unittest.main()

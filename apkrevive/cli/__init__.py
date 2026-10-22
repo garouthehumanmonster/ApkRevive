@@ -25,7 +25,12 @@ from apkrevive.core.axml import AxmlSurgeon
 from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.signer import sign_apk, verify_apk_certs as verify_apk_certs
 from apkrevive.core.verify import verify_apk_integrity, VerificationReport
-from apkrevive.core.toolchain import find_jdk_tool, find_sdk_tool, run_doctor
+from apkrevive.core.toolchain import (
+    find_jdk_tool,
+    find_sdk_tool,
+    run_doctor,
+    diagnose_tools,
+)
 from apkrevive.core.diff import (
     run_diff,
     format_diff_report,
@@ -339,6 +344,9 @@ def run_patch(
 
         # Step 4: Output and Signing
         import shutil
+        out_parent = os.path.dirname(os.path.abspath(output_apk))
+        if out_parent:
+            os.makedirs(out_parent, exist_ok=True)
         shutil.copyfile(temp_aligned, output_apk)
         if not no_sign:
             signed = sign_apk(
@@ -520,10 +528,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_verify.add_argument("--verbose", action="store_true", help="Verbose diagnostics")
 
     # Subcommand: doctor
-    subparsers.add_parser(
+    p_doctor = subparsers.add_parser(
         "doctor",
         help="Check and diagnose JDK and Android SDK toolchain prerequisites",
     )
+    p_doctor.add_argument("--json", action="store_true", help="Output machine-readable JSON format")
 
     # Subcommand: diff
     p_diff = subparsers.add_parser(
@@ -538,7 +547,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "doctor":
-        return run_doctor()
+        if getattr(args, "json", False):
+            diag = diagnose_tools()
+            print(json.dumps(diag, indent=2))
+            has_missing_signing = any(info["required_for_signing"] and not info["found"] for info in diag.values())
+            return 1 if has_missing_signing else 0
+        else:
+            return run_doctor()
 
     if args.command == "diff":
         try:
@@ -774,6 +789,7 @@ __all__ = [
     "run_patch",
     "run_verify",
     "run_doctor",
+    "diagnose_tools",
     "run_diff",
     "format_diff_report",
     "diff_to_sarif",
