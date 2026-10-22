@@ -79,25 +79,37 @@ def make_minimal_apk(
 
 class TestInitAndMainCoverage(unittest.TestCase):
     def test_init_version_fallbacks(self):
-        import importlib
-        import apkrevive
+        from apkrevive import _resolve_version
         from importlib.metadata import PackageNotFoundError
 
-        # Test case: pyproject not existing
-        with patch.object(Path, "exists", return_value=False):
-            with patch("importlib.metadata.version", side_effect=PackageNotFoundError("not found")):
-                importlib.reload(apkrevive)
-                self.assertEqual(apkrevive.__version__, "0.5.0a1")
+        # 1. Non-existent pyproject file path
+        non_existent = Path(tempfile.gettempdir()) / "non_existent_pyproject_for_test.toml"
+        with patch("importlib.metadata.version", side_effect=PackageNotFoundError("not found")):
+            ver = _resolve_version(non_existent)
+            self.assertEqual(ver, "0.5.0a1")
 
-        # Test case: pyproject exists but regex doesn't match
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "read_text", return_value="foo = 'bar'"):
-                with patch("importlib.metadata.version", return_value="1.2.3"):
-                    importlib.reload(apkrevive)
-                    self.assertEqual(apkrevive.__version__, "1.2.3")
+        # 2. File exists but regex doesn't match
+        with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as tf:
+            tf.write("foo = 'bar'\n")
+            tmp_path = Path(tf.name)
+        try:
+            with patch("importlib.metadata.version", return_value="1.2.3"):
+                ver = _resolve_version(tmp_path)
+                self.assertEqual(ver, "1.2.3")
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink()
 
-        # Reset back
-        importlib.reload(apkrevive)
+        # 3. File exists with valid version match
+        with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as tf:
+            tf.write('version = "2.3.4"\n')
+            tmp_path2 = Path(tf.name)
+        try:
+            ver = _resolve_version(tmp_path2)
+            self.assertEqual(ver, "2.3.4")
+        finally:
+            if tmp_path2.exists():
+                tmp_path2.unlink()
 
     def test_main_module_entrypoints(self):
         with patch("apkrevive.cli.main", return_value=0), patch("sys.exit") as mock_exit:
@@ -401,6 +413,20 @@ class TestCliReportsAndCommands(unittest.TestCase):
                 args = argparse.Namespace(apk=apk_path, device_api=34, page_size=16384, sarif=False)
                 ret = triage_cmd(args)
                 self.assertEqual(ret, 0)
+
+            # 8b. Triage command with SARIF and YELLOW
+            with patch("apkrevive.core.triage.evaluate_triage", return_value={"verdict": "YELLOW", "reason": "APACHE_HTTP", "details": "warning"}):
+                args_sarif = argparse.Namespace(apk=apk_path, device_api=35, page_size=16384, sarif=True, target_sdk=28, apk_abis="arm64-v8a", uses_apache_http=True)
+                with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+                    ret = triage_cmd(args_sarif)
+                    self.assertEqual(ret, 2)
+                    self.assertIn("APACHE_HTTP", mock_out.getvalue())
+
+            # 8c. Triage command with RED and no-file fallback
+            with patch("apkrevive.core.triage.evaluate_triage", return_value={"verdict": "RED", "reason": "PAGE_SIZE", "details": "error"}):
+                args_red = argparse.Namespace(apk="non_existent_triage.apk", target_sdk=22, sarif=False)
+                ret = triage_cmd(args_red)
+                self.assertEqual(ret, 3)
 
             # 9. Revive command with split APK error
             args_revive = argparse.Namespace(apk=apk_path, output=None, ks=None, no_sign=True, json=True)
