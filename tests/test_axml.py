@@ -201,7 +201,7 @@ class TestAxml(unittest.TestCase):
         if has_hyp:
             attr_names = ["hasCode", "name", "value", "authorities", "exported", "resizeableActivity", "maxAspectRatio"]
 
-            @settings(max_examples=50, deadline=None)
+            @settings(max_examples=50, deadline=None, derandomize=True)
             @given(
                 package_name=st.from_regex(r"[a-z]{3,8}\.[a-z]{3,8}\.[a-z]{3,8}", fullmatch=True),
                 attr_name=st.sampled_from(attr_names),

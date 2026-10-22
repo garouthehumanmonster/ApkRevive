@@ -4,27 +4,36 @@ ApkRevive - Legacy Android APK modernizer pipeline (Alpha).
 
 from pathlib import Path
 import re
+from typing import Optional
 
-__version__ = None
 
-pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
-if pyproject_path.exists():
-    content = pyproject_path.read_text(encoding="utf-8")
-    match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content)
-    if match:
-        __version__ = match.group(1)
-
-if not __version__:
+def _resolve_version(pyproject: Optional[Path] = None) -> str:
+    ver = None
+    p = pyproject if pyproject is not None else Path(__file__).resolve().parent.parent / "pyproject.toml"
     try:
-        from importlib.metadata import version, PackageNotFoundError
+        if p.exists():
+            content = p.read_text(encoding="utf-8")
+            match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content)
+            if match:
+                ver = match.group(1)
+    except Exception:
+        pass
+
+    if not ver:
         try:
-            __version__ = version("apkrevive")
-        except PackageNotFoundError:
-            __version__ = None
-    except ImportError:
-        __version__ = None
+            from importlib.metadata import version, PackageNotFoundError
+            try:
+                ver = version("apkrevive")
+            except PackageNotFoundError:
+                ver = None
+        except ImportError:
+            ver = None
 
-if not __version__:
-    __version__ = "0.5.0a1"
+    if not ver:
+        ver = "0.5.0a1"
 
+    return ver
+
+
+__version__ = _resolve_version()
 SCHEMA_VERSION = "1.1.0"

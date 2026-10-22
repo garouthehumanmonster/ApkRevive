@@ -2,7 +2,6 @@
 test_signer.py - Tests PKCS12 keystore manager, per-user isolation, apksigner bridge, and CLI signature warnings.
 """
 
-import getpass
 import io
 import os
 import shutil
@@ -45,9 +44,9 @@ class TestSigner(unittest.TestCase):
     def test_per_user_keystore_isolation(self):
         """Tests that get_default_user_keystore() generates user-isolated paths and persistent password."""
         with tempfile.TemporaryDirectory() as tmp_home:
-            with patch("pathlib.Path.home", return_value=Path(tmp_home)):
+            with patch("pathlib.Path.home", return_value=Path(tmp_home)), patch("getpass.getuser", return_value="runner"):
                 ks_path, password, alias = get_default_user_keystore()
-                username = getpass.getuser().lower().replace(" ", "_")
+                username = "runner"
 
                 expected_ks = Path(tmp_home) / ".apkrevive" / f"user_{username}.p12"
                 self.assertEqual(ks_path, expected_ks)
