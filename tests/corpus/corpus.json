@@ -31,6 +31,36 @@
       "filename": "ryey.camcov_5.apk",
       "url": "https://f-droid.org/repo/ryey.camcov_5.apk",
       "sha256": "3e9b1d9d71c4c9e88bf5a2a225381f2fbb0833b5c3ff2e4e1a74d28479901ee1"
+    },
+    {
+      "id": "heaterrc_api8",
+      "package_name": "com.dynamite.heaterrc",
+      "version_code": 16,
+      "min_sdk": 8,
+      "target_sdk": 8,
+      "filename": "com.dynamite.heaterrc_16.apk",
+      "url": "https://f-droid.org/repo/com.dynamite.heaterrc_16.apk",
+      "sha256": "0665c6f49f6ba53110113b196ba918aa841b90259382f41c540ee3fecbe71de7"
+    },
+    {
+      "id": "politrics_api15",
+      "package_name": "eu.veldsoft.politrics",
+      "version_code": 1,
+      "min_sdk": 15,
+      "target_sdk": 15,
+      "filename": "eu.veldsoft.politrics_1.apk",
+      "url": "https://f-droid.org/repo/eu.veldsoft.politrics_1.apk",
+      "sha256": "7d21fb685026b4d0ce2a1df1412a66df7d9d2efd693cf6a176fdd38fd143d716"
+    },
+    {
+      "id": "adbkeyboard_api22",
+      "package_name": "com.android.adbkeyboard",
+      "version_code": 1,
+      "min_sdk": 15,
+      "target_sdk": 22,
+      "filename": "com.android.adbkeyboard_1.apk",
+      "url": "https://f-droid.org/repo/com.android.adbkeyboard_1.apk",
+      "sha256": "29e8195ca3a84f86e50d05f623b1956708117fb93fe9e912e4180e86b2a19603"
     }
   ]
 }
