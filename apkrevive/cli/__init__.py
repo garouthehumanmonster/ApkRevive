@@ -26,6 +26,11 @@ from apkrevive.core.align import align_apk, validate_zip_archive
 from apkrevive.core.signer import sign_apk, verify_apk_certs as verify_apk_certs
 from apkrevive.core.verify import verify_apk_integrity, VerificationReport
 from apkrevive.core.toolchain import find_jdk_tool, find_sdk_tool, run_doctor
+from apkrevive.core.diff import (
+    run_diff,
+    format_diff_report,
+    diff_to_sarif,
+)
 from apkrevive.core.elf_surgeon import (
     rewrite_elf_16kb,
     get_elf_needed,
@@ -522,10 +527,37 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Check and diagnose JDK and Android SDK toolchain prerequisites",
     )
 
+    # Subcommand: diff
+    p_diff = subparsers.add_parser(
+        "diff",
+        help="Compare original and revived APKs across manifest, native libs, DEX, and signing",
+    )
+    p_diff.add_argument("original_apk", help="Path to original input APK")
+    p_diff.add_argument("revived_apk", help="Path to modernized/revived APK")
+    p_diff.add_argument("--json", action="store_true", help="Output machine-readable JSON diff")
+    p_diff.add_argument("--sarif", action="store_true", help="Output SARIF 2.1.0 telemetry diff")
+
     args = parser.parse_args(argv)
 
     if args.command == "doctor":
         return run_doctor()
+
+    if args.command == "diff":
+        try:
+            diff_res = run_diff(args.original_apk, args.revived_apk)
+            if getattr(args, "sarif", False):
+                print(json.dumps(diff_to_sarif(diff_res), indent=2))
+            elif getattr(args, "json", False):
+                print(json.dumps(diff_res, indent=2))
+            else:
+                print(format_diff_report(diff_res))
+            return 0
+        except FileNotFoundError as e:
+            sys.stderr.write(f"File not found: {e}\n")
+            return 2
+        except Exception as e:
+            sys.stderr.write(f"Error comparing APKs: {e}\n")
+            return 2
 
     if args.command in ("inspect", "triage"):
         if args.command == "triage":
@@ -694,6 +726,20 @@ def triage_cmd(args: Any) -> int:
 
 
 def revive_cmd(args: Any) -> int:
+    if not getattr(args, "no_sign", False):
+        missing_signing = []
+        if not find_jdk_tool("keytool"):
+            missing_signing.append("keytool")
+        if not find_sdk_tool("apksigner"):
+            missing_signing.append("apksigner")
+        if missing_signing:
+            sys.stderr.write(
+                f"Error: Missing required signing tool(s): {', '.join(missing_signing)}.\n"
+                "APK signing requires JDK (keytool) and Android SDK build-tools (apksigner).\n"
+                "Run 'apkrevive doctor' to diagnose your environment or use '--no-sign' to skip signing.\n"
+            )
+            return 1
+
     input_path = getattr(args, "apk", "")
     output_path = getattr(args, "output", None) or input_path.replace(".apk", ".revived.apk")
     if os.path.exists(input_path):
@@ -711,6 +757,7 @@ def revive_cmd(args: Any) -> int:
     rep = run_patch(
         input_apk=input_path,
         output_apk=output_path,
+        bump_target_sdk=getattr(args, "bump_target_sdk", None),
         keystore_path=ks,
         keystore_pass=getattr(args, "ks_pass", None),
         key_alias=getattr(args, "ks_alias", None),
@@ -719,6 +766,8 @@ def revive_cmd(args: Any) -> int:
     )
     if getattr(args, "json", False):
         print(json.dumps(rep.to_dict(), indent=2))
+    else:
+        print(format_patch_report(rep))
     return 0
 
 
@@ -727,6 +776,9 @@ __all__ = [
     "run_patch",
     "run_verify",
     "run_doctor",
+    "run_diff",
+    "format_diff_report",
+    "diff_to_sarif",
     "format_inspection_report",
     "format_patch_report",
     "format_verification_report",
