@@ -93,8 +93,9 @@ CANARY_SPECS = [
     {
         "filename": "canary_install_floor_control.apk",
         "package": "com.apkrevive.canary.installfloor.control",
-        "target_sdk": 34,
+        "target_sdk": 24,
         "min_sdk": 24,
+        "version_code": 100,
     },
     {
         "filename": "canary_install_floor_failing.apk",

@@ -6,31 +6,31 @@
       "id": "plucklock_api8",
       "package_name": "net.syntaxblitz.plucklock",
       "version_code": 4,
-      "min_sdk": 8,
-      "target_sdk": 8,
+      "min_sdk": 9,
+      "target_sdk": 15,
       "filename": "net.syntaxblitz.plucklock_4.apk",
       "url": "https://f-droid.org/repo/net.syntaxblitz.plucklock_4.apk",
-      "sha256": "8d38a0c20f121d5a86db9d18e5e6e3cefc07bfcf5c777d446a81b24bf4ca1680"
+      "sha256": "fc0db6823d18310e0038ec249f4a5c1c7db04fdd033e6438edbe895c57ce0a09"
     },
     {
       "id": "flashlight_api15",
       "package_name": "io.github.sanbeg.flashlight",
       "version_code": 1,
-      "min_sdk": 7,
-      "target_sdk": 15,
+      "min_sdk": 8,
+      "target_sdk": 10,
       "filename": "io.github.sanbeg.flashlight_1.apk",
       "url": "https://f-droid.org/repo/io.github.sanbeg.flashlight_1.apk",
-      "sha256": "4301fa3246ebec58c558c422475dc88dbdc0db24606117fa6a8b27ff7fef2aa5"
+      "sha256": "b7eb454bff6218e72ef5f9f31c7e386039152b19493a621638caf74c78bdc99f"
     },
     {
       "id": "camcov_api22",
       "package_name": "ryey.camcov",
       "version_code": 5,
-      "min_sdk": 21,
-      "target_sdk": 22,
+      "min_sdk": 15,
+      "target_sdk": 23,
       "filename": "ryey.camcov_5.apk",
       "url": "https://f-droid.org/repo/ryey.camcov_5.apk",
-      "sha256": "3e9b1d9d71c4c9e88bf5a2a225381f2fbb0833b5c3ff2e4e1a74d28479901ee1"
+      "sha256": "f901a1836ff62d8e22637f1642b3d265e4626daf9ddaa5498b2b00cf2699ce79"
     },
     {
       "id": "heaterrc_api8",
