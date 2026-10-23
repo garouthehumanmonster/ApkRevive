@@ -103,21 +103,20 @@ def get_next_multidex_name(existing_dex_names: List[str]) -> str:
     if not existing_dex_names:
         return "classes.dex"
 
-    max_idx = 1
-    has_classes_dex = False
+    indices = set()
     for name in existing_dex_names:
         match = DEX_CLASS_PATTERN.match(name)
         if match:
             suffix = match.group(1)
-            if not suffix:
-                has_classes_dex = True
-                max_idx = max(max_idx, 1)
-            else:
-                max_idx = max(max_idx, int(suffix))
+            indices.add(1 if not suffix else int(suffix))
 
-    if not has_classes_dex:
+    if 1 not in indices:
         return "classes.dex"
-    return f"classes{max_idx + 1}.dex"
+
+    idx = 2
+    while idx in indices:
+        idx += 1
+    return f"classes{idx}.dex"
 
 
 def inject_dex_shim(

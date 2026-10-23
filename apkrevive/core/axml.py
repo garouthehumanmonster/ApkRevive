@@ -118,6 +118,8 @@ class AxmlAttribute:
     def get_value(self) -> Any:
         if self.data_type == 0x03:
             return self.raw_value
+        elif self.data_type == 0x04:
+            return struct.unpack("<f", struct.pack("<I", self.data))[0]
         elif self.data_type == 0x12:
             return bool(self.data != 0)
         return self.data
@@ -161,14 +163,34 @@ class AxmlNode:
 
     def set_attr(self, name: str, value: Any, ns: Optional[str] = None):
         existing = self.get_attr(name)
-        if isinstance(value, bool):
+        base_name = name.split(":")[-1]
+
+        if base_name == "pageSizeCompat" and value in ("enabled", "disabled"):
+            data_type = 0x10
+            data = 32 if value == "enabled" else 64
+            raw_val = value
+        elif isinstance(value, bool):
             data_type = 0x12
             data = 0xFFFFFFFF if value else 0
             raw_val = "true" if value else "false"
+        elif isinstance(value, float):
+            data_type = 0x04
+            data = struct.unpack("<I", struct.pack("<f", value))[0]
+            raw_val = str(value)
         elif isinstance(value, int):
             data_type = 0x10
             data = value
             raw_val = str(value)
+        elif base_name == "maxAspectRatio" and isinstance(value, str):
+            try:
+                flt = float(value)
+                data_type = 0x04
+                data = struct.unpack("<I", struct.pack("<f", flt))[0]
+                raw_val = str(flt)
+            except ValueError:
+                data_type = 0x03
+                data = 0
+                raw_val = str(value)
         else:
             data_type = 0x03
             data = 0
@@ -373,144 +395,6 @@ class AxmlSurgeon:
         }
         root._orig_namespaces = orig_namespaces
         return root
-
-    @classmethod
-    def append_string_to_pool(cls, sp_chunk: bytes, new_strings: List[str]) -> bytes:
-        """
-        Appends new_strings to an existing binary AXML StringPool chunk.
-        Correctly preserves style tables, recalculates styles_start, shifts offsets,
-        and maintains 4-byte alignment throughout without corrupting style span indices.
-        """
-        if not new_strings:
-            return sp_chunk
-
-        if len(sp_chunk) < 28:
-            raise ValueError("Invalid string pool chunk: truncated header")
-
-        c_type, c_hsize, c_size = struct.unpack_from("<HHI", sp_chunk, 0)
-        if c_type != CHUNK_STRING_POOL:
-            raise ValueError(f"Invalid chunk type for string pool: 0x{c_type:04x}")
-
-        str_count, style_count, flags, str_start, styles_start = struct.unpack_from("<IIIII", sp_chunk, 8)
-        is_utf8 = bool(flags & 0x0100)
-
-        if 28 + (str_count * 4) > len(sp_chunk):
-            raise ValueError("String pool offset table exceeds chunk size")
-        orig_str_offsets = [struct.unpack_from("<I", sp_chunk, 28 + (i * 4))[0] for i in range(str_count)]
-
-        orig_style_offsets = []
-        style_offset_table_start = 28 + (str_count * 4)
-        if style_count > 0:
-            if style_offset_table_start + (style_count * 4) > len(sp_chunk):
-                raise ValueError("Style offset table exceeds chunk size")
-            orig_style_offsets = [
-                struct.unpack_from("<I", sp_chunk, style_offset_table_start + (i * 4))[0]
-                for i in range(style_count)
-            ]
-
-        if style_count > 0 and styles_start > 0:
-            orig_string_data = sp_chunk[str_start:styles_start]
-            orig_style_data = sp_chunk[styles_start:c_size]
-        else:
-            orig_string_data = sp_chunk[str_start:c_size]
-            orig_style_data = b""
-
-        encoded_new_entries = []
-        new_str_offsets = []
-        curr_offset = len(orig_string_data)
-
-        for s in new_strings:
-            new_str_offsets.append(curr_offset)
-            if is_utf8:
-                enc = s.encode("utf-8")
-                c_len = len(s)
-                b_len = len(enc)
-                prefix = _encode_res_string_pool_u8_length(c_len) + _encode_res_string_pool_u8_length(b_len)
-                entry = prefix + enc + b"\x00"
-            else:
-                u16_enc = s.encode("utf-16le")
-                u16_len = len(s)
-                if u16_len < 0x8000:
-                    prefix = struct.pack("<H", u16_len)
-                else:
-                    prefix = struct.pack("<HH", (u16_len >> 16) | 0x8000, u16_len & 0xFFFF)
-                entry = prefix + u16_enc + b"\x00\x00"
-
-            encoded_new_entries.append(entry)
-            curr_offset += len(entry)
-
-        all_string_data = orig_string_data + b"".join(encoded_new_entries)
-        pad_len = (4 - (len(all_string_data) % 4)) % 4
-        padded_string_data = all_string_data + (b"\x00" * pad_len)
-
-        all_str_offsets = orig_str_offsets + new_str_offsets
-        new_str_count = len(all_str_offsets)
-
-        new_str_offsets_bytes = struct.pack(f"<{new_str_count}I", *all_str_offsets)
-        new_style_offsets_bytes = (
-            struct.pack(f"<{style_count}I", *orig_style_offsets) if style_count > 0 else b""
-        )
-
-        new_str_start = 28 + len(new_str_offsets_bytes) + len(new_style_offsets_bytes)
-
-        if style_count > 0 and styles_start > 0:
-            new_styles_start = 28 + (new_str_count * 4) + (style_count * 4) + len(padded_string_data)
-            style_pad = (4 - (len(orig_style_data) % 4)) % 4
-            padded_style_data = orig_style_data + (b"\x00" * style_pad)
-            new_c_size = new_styles_start + len(padded_style_data)
-        else:
-            new_styles_start = 0
-            padded_style_data = b""
-            new_c_size = new_str_start + len(padded_string_data)
-
-        new_header = struct.pack(
-            "<HHI IIIII",
-            CHUNK_STRING_POOL, 28, new_c_size,
-            new_str_count, style_count, flags,
-            new_str_start, new_styles_start,
-        )
-
-        return new_header + new_str_offsets_bytes + new_style_offsets_bytes + padded_string_data + padded_style_data
-
-    @classmethod
-    def strip_split_locks(cls, manifest_bytes: bytes) -> bytes:
-        """
-        Strips all split APK lock attributes and meta-data tags from binary AndroidManifest.xml.
-        """
-        root = cls.parse(manifest_bytes)
-
-        manifest_strip = {"split", "configForSplit", "requiredSplitTypes", "splitTypes"}
-        root.attributes = [
-            a for a in root.attributes
-            if a.name not in manifest_strip and a.name.split(":")[-1] not in manifest_strip
-        ]
-
-        app_node = root.find_child("application")
-        if app_node:
-            app_strip = {"isSplitRequired", "requiredSplitTypes", "splitTypes"}
-            app_node.attributes = [
-                a for a in app_node.attributes
-                if a.name not in app_strip and a.name.split(":")[-1] not in app_strip
-            ]
-
-            target_meta_names = {
-                "com.android.vending.splits.required",
-                "com.android.vending.splits",
-                "com.android.vending.derived.apk.id",
-            }
-            app_node.children = [
-                ch for ch in app_node.children
-                if not (
-                    ch.tag == "meta-data"
-                    and any(
-                        (a.name in ("name", "android:name") or a.name.split(":")[-1] == "name")
-                        and (a.raw_value in target_meta_names or a.get_value() in target_meta_names)
-                        for a in ch.attributes
-                    )
-                )
-            ]
-
-        return cls.serialize(root)
 
     @staticmethod
     def serialize(root: AxmlNode) -> bytes:

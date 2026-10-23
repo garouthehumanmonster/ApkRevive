@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "apkrevive"
-version = "0.5.0"
+version = "0.5.1"
 description = "Ruthless legacy Android APK runtime compatibility patcher targeting API 3-28 on Android 14-16"
 readme = "README.md"
 requires-python = ">=3.9"

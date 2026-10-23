@@ -55,8 +55,9 @@ class TestDexSurgeon(unittest.TestCase):
         self.assertEqual(get_next_multidex_name(["classes.dex"]), "classes2.dex")
         self.assertEqual(get_next_multidex_name(["classes.dex", "classes2.dex"]), "classes3.dex")
         self.assertEqual(get_next_multidex_name(["classes.dex", "classes2.dex", "classes3.dex"]), "classes4.dex")
-        # Non-contiguous
-        self.assertEqual(get_next_multidex_name(["classes.dex", "classes5.dex"]), "classes6.dex")
+        # Non-contiguous fills first missing sequential slot
+        self.assertEqual(get_next_multidex_name(["classes.dex", "classes5.dex"]), "classes2.dex")
+        self.assertEqual(get_next_multidex_name(["classes.dex", "classes2.dex", "classes4.dex"]), "classes3.dex")
         # Missing primary classes.dex
         self.assertEqual(get_next_multidex_name(["classes2.dex"]), "classes.dex")
 

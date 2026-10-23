@@ -174,7 +174,8 @@ class TestAxml(unittest.TestCase):
         app_parsed = parsed.find_child("application")
         self.assertIsNotNone(app_parsed)
         self.assertEqual(app_parsed.get_attr("resizeableActivity").get_value(), True)
-        self.assertEqual(app_parsed.get_attr("maxAspectRatio").get_value(), "2.5")
+        self.assertEqual(float(app_parsed.get_attr("maxAspectRatio").get_value()), 2.5)
+        self.assertEqual(app_parsed.get_attr("maxAspectRatio").data_type, 0x04)
 
         meta = app_parsed.find_child("meta-data", "name", "android.max_aspect")
         self.assertIsNotNone(meta)
@@ -367,35 +368,29 @@ class TestAxml(unittest.TestCase):
         # Res ID == 0 comes at the end
         self.assertEqual(res_ids[-1], 0)
 
-    def test_append_string_pool_style_preservation(self):
-        """StringPool with styles_start > 0 shifts styles_start cleanly when appending strings."""
-        # Build synthetic string pool with 1 string and 1 style span
-        str1 = b"\x05\x05hello\x00"
-        str_offset_table = struct.pack("<I", 0)
-        # 1 style entry pointing to style span data at offset 0
-        style_offset_table = struct.pack("<I", 0)
-        # Style span: name_idx=0, start=0, end=4, followed by 0xFFFFFFFF (SPAN_END)
-        style_span_data = struct.pack("<IIII", 0, 0, 4, 0xFFFFFFFF)
+    def test_page_size_compat_integer_enum_encoding(self):
+        node = AxmlNode(tag="application")
+        node.set_attr("pageSizeCompat", "enabled")
+        attr = node.get_attr("pageSizeCompat")
+        self.assertIsNotNone(attr)
+        self.assertEqual(attr.data_type, 0x10)
+        self.assertEqual(attr.data, 32)
+        self.assertEqual(attr.raw_value, "enabled")
 
-        str_start = 28 + len(str_offset_table) + len(style_offset_table)  # 28 + 4 + 4 = 36
-        pad_str = (4 - (len(str1) % 4)) % 4
-        padded_str1 = str1 + (b"\x00" * pad_str)
-        styles_start = str_start + len(padded_str1)
-        total_size = styles_start + len(style_span_data)
+        node.set_attr("pageSizeCompat", "disabled")
+        attr = node.get_attr("pageSizeCompat")
+        self.assertEqual(attr.data_type, 0x10)
+        self.assertEqual(attr.data, 64)
+        self.assertEqual(attr.raw_value, "disabled")
 
-        # Header: type=1, hsize=28, size, str_count=1, style_count=1, flags=0x0100 (UTF-8), str_start, styles_start
-        hdr = struct.pack("<HHI IIIII", 0x0001, 28, total_size, 1, 1, 0x0100, str_start, styles_start)
-        sp_chunk = hdr + str_offset_table + style_offset_table + padded_str1 + style_span_data
-
-        appended = AxmlSurgeon.append_string_to_pool(sp_chunk, ["world", "apkrevive"])
-        c_type, c_hsize, c_size, new_sc, new_style_c, flags, new_str_start, new_styles_start = struct.unpack_from("<HHI IIIII", appended, 0)
-
-        self.assertEqual(new_sc, 3)
-        self.assertEqual(new_style_c, 1)
-        self.assertGreater(new_styles_start, styles_start)
-        self.assertEqual(new_styles_start % 4, 0)
-        # Verify style span data is preserved at new_styles_start
-        self.assertEqual(appended[new_styles_start : new_styles_start + len(style_span_data)], style_span_data)
+    def test_max_aspect_ratio_float_encoding(self):
+        node = AxmlNode(tag="application")
+        node.set_attr("maxAspectRatio", "2.5")
+        attr = node.get_attr("maxAspectRatio")
+        self.assertIsNotNone(attr)
+        self.assertEqual(attr.data_type, 0x04)
+        decoded_float = struct.unpack("<f", struct.pack("<I", attr.data))[0]
+        self.assertAlmostEqual(decoded_float, 2.5)
 
     def test_multibyte_utf8_string_pool_encoding(self):
         """Verifies that multi-byte UTF-8 string (c_len < 128, b_len >= 128) encodes independently."""

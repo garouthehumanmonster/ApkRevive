@@ -5,6 +5,20 @@ All notable changes to ApkRevive will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-10-23
+
+### Fixed
+- **16KB Compatibility AXML Type Safety (F-17)**:
+  - Corrected `android:pageSizeCompat` binary serialization to emit `TYPE_INT_DEC` (`0x10`) with integer enum payload `32` (`0x20`) for `"enabled"`, ensuring modern Android 15/16 runtimes activate 16KB compat mode.
+- **Aspect Ratio Float Serialization (F-19)**:
+  - Corrected `android:maxAspectRatio` serialization to emit IEEE float binary payload (`TYPE_FLOAT`, `0x04`), preventing Android `TypedArray.getFloat()` fallback to `0.0f`.
+- **Contiguous Multidex Sequencing (F-20)**:
+  - Refactored `get_next_multidex_name` to allocate the lowest missing sequential index (filling holes such as `classes2.dex`), ensuring compatibility with ART's sequential `DexPathList` loader.
+
+### Removed
+- **Dead Code Pruning (F-18 / Ponytail Audit)**:
+  - Removed 134 lines of dead and unreferenced code in `apkrevive/core/axml.py` (`append_string_to_pool` and `strip_split_locks`).
+
 ## [0.5.0] - 2026-10-22
 
 ### Added

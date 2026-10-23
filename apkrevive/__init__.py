@@ -30,7 +30,7 @@ def _resolve_version(pyproject: Optional[Path] = None) -> str:
             ver = None
 
     if not ver:
-        ver = "0.5.0"
+        ver = "0.5.1"
 
     return ver
 
