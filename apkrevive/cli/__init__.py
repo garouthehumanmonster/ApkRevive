@@ -376,7 +376,10 @@ def run_patch(
                     if method == 0 and ((fname.startswith("lib/") and fname.endswith(".so")) or fname.endswith(".so") or fname == "resources.arsc"):
                         lfh_fn_len, lfh_ef_len = struct.unpack_from("<HH", apk_buf, lfh_off + 26)
                         data_off = lfh_off + 30 + lfh_fn_len + lfh_ef_len
-                        assert data_off % 16384 == 0, f"Uncompressed entry {fname} not aligned to 16KB (offset: 0x{data_off:x})"
+                        if "arm64-v8a" in fname or "x86_64" in fname:
+                            assert data_off % 16384 == 0, f"Uncompressed 64-bit entry {fname} not aligned to 16KB (offset: 0x{data_off:x})"
+                        else:
+                            assert data_off % 4 == 0, f"Uncompressed entry {fname} not aligned to 4 bytes (offset: 0x{data_off:x})"
                     curr += 46 + fn_len + ef_len + comm_len
 
     finally:

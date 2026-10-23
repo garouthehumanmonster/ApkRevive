@@ -145,8 +145,16 @@ def sign_apk(
         "--ks-pass", "env:APKREVIVE_KS_PASS",
         "--ks-key-alias", alias,
         "--key-pass", "env:APKREVIVE_KEY_PASS",
-        str(apk_path)
     ]
+
+    try:
+        help_res = subprocess.run([apksigner, "sign", "--help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if "--alignment-preserved" in (help_res.stdout or ""):
+            cmd.extend(["--alignment-preserved", "true"])
+    except Exception:
+        pass
+
+    cmd.append(str(apk_path))
     env = os.environ.copy()
     env["APKREVIVE_KS_PASS"] = ks_pwd
     env["APKREVIVE_KEY_PASS"] = actual_key_pass
