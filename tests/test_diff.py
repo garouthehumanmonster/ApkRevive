@@ -5,6 +5,7 @@ test_diff.py - Unit and integration tests for apkrevive diff and revive CLI subc
 import io
 import json
 import os
+from pathlib import Path
 import struct
 import tempfile
 import unittest
@@ -460,7 +461,11 @@ class TestDiff(unittest.TestCase):
         out_apk = self._get_temp_path()
         build_diff_test_apk(in_apk)
 
-        with patch("apkrevive.core.signer.subprocess.run", side_effect=FileNotFoundError("apksigner missing")):
+        fake_ks = self._get_temp_path()
+        Path(fake_ks).write_bytes(b"fake-keystore")
+
+        with patch("apkrevive.core.signer.ensure_keystore", return_value=(fake_ks, "pass", "alias")), \
+             patch("apkrevive.core.signer.subprocess.run", side_effect=FileNotFoundError("apksigner missing")):
             with patch("sys.stderr", new_callable=io.StringIO) as mock_err:
                 code = main(["revive", in_apk, "-o", out_apk])
 

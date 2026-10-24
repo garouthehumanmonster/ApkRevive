@@ -7,7 +7,7 @@ name = "apkrevive"
 version = "0.5.1"
 description = "Ruthless legacy Android APK runtime compatibility patcher targeting API 3-28 on Android 14-16"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]

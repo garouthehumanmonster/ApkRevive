@@ -38,6 +38,7 @@ class TestSignerExtended(unittest.TestCase):
         # 2. Complete fallback
         with patch("shutil.which", return_value=None), \
              patch("os.path.expanduser", return_value="/nonexistent/sdk"), \
+             patch("os.path.isdir", return_value=False), \
              patch.dict(os.environ, {"ANDROID_HOME": "", "ANDROID_SDK_ROOT": "", "LOCALAPPDATA": ""}):
             cmd = get_apksigner_cmd()
             self.assertEqual(cmd, "apksigner")

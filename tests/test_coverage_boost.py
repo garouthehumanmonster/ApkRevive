@@ -519,7 +519,7 @@ class TestCoreVerifyCoverage(unittest.TestCase):
                 self.assertEqual(get_aapt2_cmd(), "C:\\aapt2.exe")
 
         # Fallback to None
-        with patch("shutil.which", return_value=None), patch.dict(os.environ, {}, clear=True), patch("os.path.exists", return_value=False):
+        with patch("shutil.which", return_value=None), patch.dict(os.environ, {}, clear=True), patch("os.path.exists", return_value=False), patch("os.path.isdir", return_value=False):
             self.assertIsNone(get_aapt2_cmd())
 
     def test_verify_apk_integrity_failures(self):
